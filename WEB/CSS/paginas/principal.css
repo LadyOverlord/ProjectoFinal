@@ -1,0 +1,40 @@
+.nave_bar{
+    background-color: var(--color-secondary);
+    gap: 26px;
+}
+.nave_button_none{
+    background:none;
+}
+
+.search{
+    display: flex;
+    align-items: center;
+    background-color: var(--color-primary);
+    border-radius: var( --border-radius);
+    padding: 8px 12px;
+    gap: 10px;
+    width: 700px;
+}
+.search input{
+    border: none;
+    outline: none;
+    font-size: 16px;
+    background: none;
+    height: 20px;
+     width: 600px;
+}
+#bell{
+    padding: 0 30px;
+}
+#user{
+    padding: 8px 10px;
+    border-radius: var(--border-radius);
+    background-color: var(--color-primary);
+}
+#relatar{
+    padding: 8px 18px;
+    border-radius: var(--border-radius);
+    background-color: var(--color-primary);
+
+}
+

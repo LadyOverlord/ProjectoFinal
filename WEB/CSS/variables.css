@@ -1,0 +1,18 @@
+
+
+
+:root {
+  --color-primary: #eaeeef;
+  --color-secondary: #ffffff;
+  --color-tertiary: #AED6F1;
+
+  --color-text: #000000;
+  --font-base:"Quicksand", sans-serif;
+  --font-title:"Quicksand", sans-serif;
+  --border-radius:4px;
+
+  --btn-padding-y: 10px;
+  --btn-padding-x: 20px;
+  --btn-font-size: 21px;
+}
+

@@ -1,0 +1,32 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.nave_bar{
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+}
+
+body{
+   background-color: var(--color-primary);
+}
+
+/*====BOTOES RESET ====*/
+button{
+ border: none;
+ outline: none;
+ font-size: var(--btn-font-size);
+}
+
+/*=====TEXTO FONT====*/
+input, button{
+    font-family: var( --font-base);
+     font-weight: 500;
+
+}
+
