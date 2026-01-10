@@ -4,29 +4,35 @@
     box-sizing: border-box;
 }
 
-.nave_bar{
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-}
+
 
 body{
    background-color: var(--color-primary);
+   display: flex;
+   flex-direction: column;
+   gap: 30px;
+
 }
+
 
 /*====BOTOES RESET ====*/
 button{
  border: none;
  outline: none;
  font-size: var(--btn-font-size);
+ cursor: pointer;
 }
 
 /*=====TEXTO FONT====*/
-input, button{
+input, button, p, select{
     font-family: var( --font-base);
      font-weight: 500;
 
 }
+h1{
+    font-family: var(--font-title);
+    font-size: 17px;
+}
+
+
 

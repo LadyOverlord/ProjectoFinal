@@ -25,24 +25,74 @@
 </style>
 
 <body>
-    <section class="nave_bar">
+    <!--=====NAVE======-->
+    <header>
 
-        <button class="nave_button_none" id="menu">
-         <i class="fa-solid fa-bars"></i>
-        </button>
+        <div class="nav">
+            <button class="nave_button_none" id="menu">
+             <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="search">
+                <button class="nave_button_none"><i class="fa-solid fa-magnifying-glass"></i></button>
+                <input type="search" placeholder="Procurar desaparecidos">
+               </div>
+                <button class="nave_button_none" id="bell"><i class="fa-regular fa-bell"></i></button>
+                <button class="nave_button" id="user"><i class="fa-solid fa-user"></i></button>
+                <button class="nave_button" id="relatar">Relatar desaparecimento</button>
+        </div>
+    </header>
 
-        <div class="search">
-            <button class="nave_button_none"><i class="fa-solid fa-magnifying-glass"></i></button>
-            <input type="search" placeholder="Procurar desaparecidos">
+    <!--======MAIN=======-->
+    <section class="main">
+        <div class="section_map">
+
+           <div class="mapa">
+               <h1>MAPA</h1>
+               <img src="imgs/mapa.jpg" alt="">
            </div>
 
-            <button class="nave_button_none" id="bell"><i class="fa-regular fa-bell"></i></button>
+         <div class="destaques">
+                <h1>EM DESTAQUE</h1>
+                <div class="destaque" id="destaque">
+                    <img src="imgs/user.jpg" alt="">
+                    <p>Fulano</p>
+                </div>
+          </div>
 
-            <button class="nave_button" id="user"><i class="fa-solid fa-user"></i></button>
-            <button class="nave_button" id="relatar">Relatar desaparecimento</button>
+            <div class="filtros">
+                 <h1>FILTROS</h1>
+                <div class="filtro">
+                    <select name="Municipio" id="Municipio">
+                        <option value="" hidden>Municipio</option>
+                        <option value="">Cazenga</option>
+                        <option value="">Futungo</option>
+                        <option value="">Viana</option>
+                    </select>
+                     <select name="data" id="data">
+                        <option value="" hidden>Idade</option>
+                        <option value="">1-5</option>
+                        <option value="">6-10</option>
+                        <option value="">11-16</option>
+                    </select>
+                     <select name="sexo" id="sexo">
+                        <option value="" hidden>Municipio</option>
+                        <option value="masculino">Masculin</option>
+                        <option value="femenino">Femenino</option>
+                    
+                    </select>
+                </div>
+
+            </div>
+
+         
+
+
+        </div>
+
+        <div class="section_main"></div>
+
+        <div class="section_anuncio"></div>
     </section>
-
-    <section></section>
     
 </body>
 </html>

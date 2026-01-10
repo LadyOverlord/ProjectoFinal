@@ -11,8 +11,11 @@
   --font-title:"Quicksand", sans-serif;
   --border-radius:4px;
 
-  --btn-padding-y: 10px;
   --btn-padding-x: 20px;
   --btn-font-size: 21px;
+
+  --basic-gap: 20px;
+  --basic-padding-x: 10px;
+  --basic-padding-y:20px;
 }
 
