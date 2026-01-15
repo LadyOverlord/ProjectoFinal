@@ -29,7 +29,7 @@ input, button, p, select{
      font-weight: 500;
 
 }
-h1{
+h1, h3, h4{
     font-family: var(--font-title);
     font-size: 17px;
 }

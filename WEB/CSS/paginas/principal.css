@@ -56,6 +56,8 @@ header{
     border: 3px solid;
      padding: var(--basic-padding-x) var(--basic-padding-y);
 }
+
+/*===============SECTION MAP ================*/
 .section_map{
     display: flex;
     flex-direction: column;
@@ -103,5 +105,42 @@ select{
     outline: none;
     border-radius: var(--border-radius);
     padding: 3px ;
+}
+
+/*===========SECTION MAIN==============*/
+.section_main{
+    border: 3px solid red;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-secondary);
+    margin: auto;
+    padding: var(--basic-padding-x);
+}
+/*============DESAPARECIDO==============*/
+.desaparecido{
+    border: 3px solid green;
+    display: flex;
+    align-items: center;
+    gap: var(--basic-gap);
+}
+.desaparecido img{
+     width: var( --small-img);
+     border-radius: var(--border-radius);
+}
+.desaparecido button{
+    background: none;
+    margin-left: auto;
+}
+
+.main_img{
+    border: 3px solid green;
+    width: 40vw;
+    height: 35vh;
+    border-radius: var(--border-radius);
+    
+}
+/*==============MISSING DADOS===============*/
+.missing_dados{
+    border: 3px solid;
 }
 
