@@ -13,6 +13,9 @@ body{
    gap: 30px;
 
 }
+html{
+    overflow-x: hidden;
+}
 
 
 /*====BOTOES RESET ====*/
@@ -21,6 +24,7 @@ button{
  outline: none;
  font-size: var(--btn-font-size);
  cursor: pointer;
+ color:var(--btn-color);
 }
 
 /*=====TEXTO FONT====*/
@@ -29,10 +33,23 @@ input, button, p, select{
      font-weight: 500;
 
 }
-h1, h3, h4{
-    font-family: var(--font-title);
-    font-size: 17px;
+a{
+    text-decoration: none;
+    color: var(--btn-color);
+     font-family: var( --font-base);
 }
+h1{
+    font-family: var(--font-title);
+    font-size: 19px;
+}
+ h3{
+     font-family: var(--font-title);
+      font-size: 16px;
+ }
+ h4{
+     font-family: var(--font-title);
+      font-size: 17px;
+ }
 
 
 

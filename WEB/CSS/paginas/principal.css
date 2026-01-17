@@ -10,7 +10,6 @@ header{
      display: flex;
     gap: 25px;
     align-items: center;
-    border: 3px solid red;
 
 }
 
@@ -25,7 +24,7 @@ header{
     border-radius: var( --border-radius);
     padding: 8px 12px;
     gap: 10px;
-    width: 54vw;
+    flex-grow: 1;
 }
 .search input{
     border: none;
@@ -33,7 +32,7 @@ header{
     font-size: 16px;
     background: none;
     height: 20px;
-     width: 600px;
+    flex-grow: 1;
 }
 #bell{
     padding: 0 30px;
@@ -54,6 +53,8 @@ header{
 .main{
     display: flex;
     border: 3px solid;
+    justify-content: center;
+    gap: var(--basic-gap);
      padding: var(--basic-padding-x) var(--basic-padding-y);
 }
 
@@ -62,7 +63,7 @@ header{
     display: flex;
     flex-direction: column;
     gap: var(--basic-gap);
-    border: 3px solid red;
+    flex-grow: 1;
 }
 .mapa{
     display: flex;
@@ -70,12 +71,14 @@ header{
     gap: 4px;
 }
 .mapa img{
-width: 200px;
+width: auto;
+height: 15vh;
 }
 .destaques{
     display: flex;
     flex-direction: column;
     gap: 4px;
+    
 }
 .destaque{
     background-color: var(--color-secondary);
@@ -84,6 +87,7 @@ width: 200px;
     align-items: center;
     gap: 9px;
     border-radius: var(--border-radius);
+     box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
 }
 .destaque img{
     width: 40px;
@@ -101,31 +105,37 @@ width: 200px;
 }
 select{
     border: none;
-    width: 200px;
+    flex-grow: 1;
     outline: none;
     border-radius: var(--border-radius);
     padding: 3px ;
+     box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
 }
 
 /*===========SECTION MAIN==============*/
 .section_main{
-    border: 3px solid red;
     display: flex;
     flex-direction: column;
-    background-color: var(--color-secondary);
-    margin: auto;
+    flex-grow: 1;
+}
+.casos_main{
+    display: flex;
     padding: var(--basic-padding-x);
+    flex-direction: column;
+    gap:var(--leyout-gap);
+    border-radius: var(--border-radius);
+    background-color: var(--color-secondary);
+     box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
 }
 /*============DESAPARECIDO==============*/
 .desaparecido{
-    border: 3px solid green;
     display: flex;
     align-items: center;
     gap: var(--basic-gap);
 }
 .desaparecido img{
      width: var( --small-img);
-     border-radius: var(--border-radius);
+     border-radius:100%;
 }
 .desaparecido button{
     background: none;
@@ -133,14 +143,73 @@ select{
 }
 
 .main_img{
-    border: 3px solid green;
-    width: 40vw;
+    width: auto;
     height: 35vh;
     border-radius: var(--border-radius);
     
 }
 /*==============MISSING DADOS===============*/
 .missing_dados{
-    border: 3px solid;
+display: flex;
+flex-direction: column;
 }
+.dados_1, .dados_2, .dados_3{
+    display: flex;
+    gap: 5px;
+}
+.interacao{
+    display: flex;
+    gap: var(--basic-gap);
+    justify-content: center;
+}
+.interacao button{
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    background-color: var(--color-primary);
+     padding: var(--btn-padding-y) var(--btn-padding-x);
+     flex-grow: 1;
+    
+}
+
+/*===============ANUNCIOS==========*/
+.section_anuncio{
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    
+}
+.anuncios{
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--border-radius);
+    gap: 9px;
+    padding: var(--basic-padding-x);
+    background-color: var(--color-secondary);
+     box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
+      flex-grow: 1;
+}
+.anuncios img{
+    width: auto;
+    height: 200px;
+}
+.informacao{
+    width: 300px;
+}
+
+/*==========FOOTER===============*/
+.final_section{
+    display: flex;
+    flex-direction: column;
+    gap: var(--basic-gap);
+}
+footer{
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--basic-gap);
+    width: 300px;
+}
+
 
