@@ -7,15 +7,20 @@
   --color-tertiary: #AED6F1;
 
   --color-text: #000000;
+  --btn-color:#484646;
   --font-base:"Quicksand", sans-serif;
   --font-title:"Quicksand", sans-serif;
   --border-radius:4px;
 
-  --btn-padding-x: 20px;
-  --btn-font-size: 21px;
+  --btn-font-size: 18px;
+  --btn-padding-y:8px;
+  --btn-padding-x:26px;
 
   --basic-gap: 20px;
+  --leyout-gap:9px;
   --basic-padding-x: 10px;
   --basic-padding-y:20px;
+
+  --small-img:40px;
 }
 

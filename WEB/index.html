@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
      
@@ -20,10 +20,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
 </head>
-<style>
-   
-</style>
-
 <body>
     <!--=====NAVE======-->
     <header>
@@ -44,6 +40,8 @@
 
     <!--======MAIN=======-->
     <section class="main">
+
+        <!--====SECTION MAP====-->
         <div class="section_map">
 
            <div class="mapa">
@@ -55,7 +53,7 @@
                 <h1>EM DESTAQUE</h1>
                 <div class="destaque" id="destaque">
                     <img src="imgs/user.jpg" alt="">
-                    <p>Fulano</p>
+                    <p>User.name</p>
                 </div>
           </div>
 
@@ -68,18 +66,20 @@
                         <option value="">Futungo</option>
                         <option value="">Viana</option>
                     </select>
+
                      <select name="data" id="data">
                         <option value="" hidden>Idade</option>
                         <option value="">1-5</option>
                         <option value="">6-10</option>
                         <option value="">11-16</option>
                     </select>
+
                      <select name="sexo" id="sexo">
                         <option value="" hidden>Municipio</option>
                         <option value="masculino">Masculin</option>
                         <option value="femenino">Femenino</option>
-                    
                     </select>
+
                 </div>
 
             </div>
@@ -88,10 +88,72 @@
 
 
         </div>
+      <!--======SECTION AMIN=======-->
+        <div class="section_main">
 
-        <div class="section_main"></div>
+            <div class="casos_main">
+                <div class="desaparecido">
+                    <img src="imgs/user.jpg" alt="" id="User_missing">
+                    <div>
+                        <h4>User.name</h4>
+                        <p>User.age</p>
+                    </div>
+                     <button><i class="fa-solid fa-ellipsis"></i></button>
+                </div>
 
-        <div class="section_anuncio"></div>
+                <img src="imgs/user.jpg" class="main_img" alt="" id="User_missing">
+
+                <div class="missing_dados">
+                    <h1>User.name</h1>
+                    <div class="dados_1">
+                        <h3>Ultimo local vito:</h3>
+                        <p></p>
+                        </div>
+
+                    <div class="dados_2">
+                            <h3>Desapareceu em:</h3>
+                            <p></p>
+                            </div>
+
+                    <div class="dados_3">
+                                <h3>numero de apoios</h3> 
+                                <p> Apoiam este alerta</p>
+                            </div>
+                </div>
+
+                <div class="interacao">
+                    <button id="apoir"><i class="fa-solid fa-heart"></i> Apoiar</button>
+
+                    <button id="comentar"><i class="fa-solid fa-comment"></i> Comentar</button>
+
+                    <button id="compartilhar"><i class="fa-solid fa-share"></i> Compartilhar</button>
+                </div>
+
+            </div>
+
+        </div>
+<!--=======ANUNCIOS/FOOTER======-->
+        <div class="final_section">
+
+            <div class="section_anuncio">
+                <div class="anuncios">
+                    <h4>Anuncios</h4>
+                    <img src="imgs/user.jpg" alt="">
+                    <div class="informacao">
+                        <h3 id="random_user">User.name</h3>
+                        <p id="info">Lorem ipsum dolor, sit amet consectetur adipisicing elit. Voluptatum magni corrupti </p>
+                        <hr style="border: 0.1px solid rgba(0, 0, 0, 0.089); width: 90%; margin: 8px 2px;">
+                        <p id="dicas"> Esse doloremque accusantium tempora perferendis suscipit dignissimos deserunt, debitis perspiciatis a placeat nemo exercitationem, ratione laborum odit!</p>
+                    </div>
+                </div>
+            </div>
+            <footer>
+                <a href="#">Sobre o projeto</a>
+                <a href="#">Ajuda</a>
+                <a href="#">Termos</a>
+                <a href="#">Privacidade</a>
+            </footer>
+        </div>
     </section>
     
 </body>
