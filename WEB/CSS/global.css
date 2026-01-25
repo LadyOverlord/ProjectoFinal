@@ -28,7 +28,7 @@ button{
 }
 
 /*=====TEXTO FONT====*/
-input, button, p, select{
+input, button, p, select, label, span{
     font-family: var( --font-base);
      font-weight: 500;
 

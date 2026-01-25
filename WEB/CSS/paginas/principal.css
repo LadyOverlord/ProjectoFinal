@@ -34,7 +34,7 @@ header{
     height: 20px;
     flex-grow: 1;
 }
-#bell{
+#chatbot{
     padding: 0 30px;
 }
 #user{
@@ -210,6 +210,61 @@ footer{
     flex-wrap: wrap;
     gap: var(--basic-gap);
     width: 300px;
+}
+
+/* ===== Modal Relatar Desaparecimento ===== */
+#modal-relatar {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.3);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    
+}
+.modal-relatar-content {
+    background: #fff;
+    padding: 32px 24px;
+    border-radius: 8px;
+    min-width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+    position: relative;
+}
+.modal-relatar-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+form{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.modal-relatar-field {
+    margin-bottom: 12px;
+}
+.modal-relatar-input {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ccc;
+    outline: none;
+    border-radius: var(--border-radius);
+}
+.modal-relatar-submit {
+    padding: 8px 18px;
+    flex-grow: 1;
+    border-radius: var(--border-radius);
+    background: var(--color-primary);
+    cursor: pointer;
 }
 
 
