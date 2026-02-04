@@ -15,10 +15,18 @@
  .login, .logup{
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    
     position: absolute;
     transition: 1s ease;
  }
+
+ .option_login{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width:70vw;
+    gap: 10px; 
+}
 
  .logup{
    transform: translate(2000px);
@@ -40,6 +48,8 @@
     flex-direction: column;
     gap: 2px;
     width: 30vw;
+    margin-top: 15px;
+    margin-bottom: 15px;
  }
  input, select{
     margin-bottom: 10px;
@@ -57,29 +67,44 @@
     background-color: var( --color-tertiary);
     font-size: 1rem;
     cursor: pointer;
+    transition: 0.4s ease;
+ }
+ button:hover{
+    background-color: #0c7ab5;
+    color: var(--color-primary);
  }
  p{
     font-size: 14px;
     color: gray;
+    
  }
 a:hover{
     text-decoration: underline;
     color: blue;
+    cursor: pointer;
 }
 .slider{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-bottom-left-radius: var(--border-radius);
+    border-top-left-radius: var(--border-radius);
+    padding: 30px;
     height: 100vh;
-    width: 50vw;
+    width: 50%;
     margin-left: auto;
-    background-color: black;
+    background-image: linear-gradient(45deg, #0c7ab5, #3193c6, #49add7, #5ec7e8);
     z-index: 100;
 }
-.option_login{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width:70vw;
-    gap: 10px; 
+.slider h1{
+    color: var(--color-primary);
+    width: 400px;
+    text-align: center;
 }
+.imgmap{
+width: 700px;
+}
+
 
 
 
