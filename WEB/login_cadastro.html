@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="CSS/paginas/login_cadastro.css">
+    <link rel="stylesheet" href="CSS/variables.css">
+    <link rel="stylesheet" href="CSS/global.css">
+    <title>Document</title>
+   
+</head>
+<body>
+    <section class="cadastro_login">
+<div class="option_login">
+    
+            <div class="login" id="login">
+             <h1>Login</h1>
+             <p>Lorem ipsum dolor sit amet consectetur.</p>
+                        <form id="form-login">
+                  <label>Email:</label>
+                  <input type="email" id="loginEmail" placeholder="seu e-mail">
+    
+                  <label>Senha:</label>
+                  <input type="password" id="loginSenha" placeholder="sua senha">
+    
+                   <button onclick="login()">Entrar</button>
+    
+                        </form>
+                        <a onclick="optin_move()">Não tem conta? Cadastre-se aqui</a>
+                </div>
+    
+             <div class="logup" id="logup">
+                 <h1>Cadastro</h1>
+                            <form id="form-relatar">
+    
+                      <label>Nome do usuario:</label>
+                      <input type="text" id="nome" placeholder="Digite seu nome completo">
+                      <label>Email do usuario:</label>
+                      <input type="email" id="email" placeholder="Digite seu e-mail">
+                      <label>Data de Nascimento:</label>
+                      <input type="date" id="dataNascimento">
+                        <label>Província:</label>
+                      <select name="provincia" id="provincia">
+                            <option value="" hidden>Selecione a provincia</option>
+                            <option value="luanda">Luanda</option>
+                            <option value="benguela">Benguela</option>
+                            <option value="huambo">Huambo</option>
+                      </select>
+                        <label>Município:</label>
+                        <select name="municipio" id="municipio">
+                                <option value="" hidden>Selecione o município</option>
+                        </select>
+                        <label>Senha:</label>
+                        <input type="password" id="senha" placeholder="Digite sua senha">
+                        <label>Confirmar Senha:</label>
+                        <input type="password" id="confirmarSenha" placeholder="Confirme sua senha">
+                       <button onclick="cadastrar()">Cadastrar</button>
+                            </form>
+                            <a onclick="optin_move()">Já tem conta? Faça login aqui</a>
+             </div>
+</div>
+
+            <div class="slider"></div>
+    </section>
+
+    <script src="Scripts/login_cadastro.js"></script>
+    <script src="Scripts/firebase.js"></script>
+    <script src="Scripts/auth.js"></script>
+</body>
+
+</body>
+</html>

@@ -24,7 +24,9 @@ button{
  outline: none;
  font-size: var(--btn-font-size);
  cursor: pointer;
+ /*
  color:var(--btn-color);
+*/
 }
 
 /*=====TEXTO FONT====*/
@@ -40,7 +42,7 @@ a{
 }
 h1{
     font-family: var(--font-title);
-    font-size: 19px;
+    font-size: 24px;
 }
  h3{
      font-family: var(--font-title);
