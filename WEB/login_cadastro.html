@@ -6,24 +6,28 @@
     <link rel="stylesheet" href="CSS/paginas/login_cadastro.css">
     <link rel="stylesheet" href="CSS/variables.css">
     <link rel="stylesheet" href="CSS/global.css">
+
+    
     <title>Document</title>
    
 </head>
 <body>
     <section class="cadastro_login">
 <div class="option_login">
-    
+
+    <!-- particles.js container --> <div id="particles-js"></div> <!-- stats - count particles -->  <!-- particles.js lib - https://github.com/VincentGarreau/particles.js --> <script src="http://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script> <!-- stats.js lib --> <script src="http://threejs.org/examples/js/libs/stats.min.js"></script>
+     
             <div class="login" id="login">
              <h1>Log-in</h1>
              <p>Lorem ipsum dolor sit amet consectetur.</p>
-                        <form id="form-login">
+                        <form>
                   <label>Email:</label>
                   <input type="email" id="loginEmail" placeholder="seu e-mail" required>
     
                   <label>Senha:</label>
                   <input type="password" id="loginSenha" placeholder="sua senha" required>
     
-                   <button onclick="login()">Entrar</button>
+                   <button  type="button" onclick="login()">Entrar</button>
     
                         </form>
                         <a onclick="optin_move()">Não tem conta? Cadastre-se aqui</a>
@@ -31,14 +35,14 @@
     
              <div class="logup" id="logup">
                  <h1>Log-up</h1>
-                            <form id="form-relatar">
+                            <form>
     
                       <label>Nome do usuario:</label>
                       <input type="text" id="nome" placeholder="Digite seu nome completo" required>
                       <label>Email do usuario:</label>
                       <input type="email" id="email" placeholder="Digite seu e-mail" required>
                       <label>Data de Nascimento:</label>
-                      <input type="date" id="dataNascimento" required>
+                      <input type="date" id="dataNascimento" required min="1900-01-01" max="2009-12-31">
                       <label>Província:</label>
                       <select name="provincia" id="provincia" required>
                             <option value="" hidden>Selecione a provincia</option>
@@ -53,10 +57,14 @@
                           </select>
                       </div>
                       <label>Senha:</label>
-                      <input type="password" id="senha" placeholder="Digite sua senha" required>
+                      <input type="password" id="senha" placeholder="Digite uma senha de 6 caracteres" required>
+                      <i id="verifSenha" style="color: red;"></i>
+
                       <label>Confirmar Senha:</label>
                       <input type="password" id="confirmarSenha" placeholder="Confirme sua senha" required>
-                       <button onclick="cadastrar()">Cadastrar</button>
+                      <i id="confirSenha" style="color: red;"></i>
+                      
+                      <button type="button" onclick="cadastrar()">Cadastrar</button>
                             </form>
                             <a onclick="optin_move()" class="">Já tem conta? Faça login aqui</a>
              </div>
@@ -67,10 +75,17 @@
                 <h1>Onde houver saudade, que a nossa rede leve reencontro</h1>
             </div>
     </section>
+    <script>
+         //==========TRANSIÇÃO LOGIN/CADASTRO==========
+    function optin_move() {
+        document.getElementById('login').classList.toggle('login_move')
+     document.getElementById('logup').classList.toggle('cadastro_move')
+    }
+    </script>
 
-    <script src="Scripts/login_cadastro.js"></script>
-    <script src="Scripts/firebase.js"></script>
-    <script src="Scripts/auth.js"></script>
+    <script type="module" src="Scripts/login_cadastro.js"></script>
+    <script type="module" src="Scripts/firebase.js"></script>
+    <script type="module" src="Scripts/auth.js"></script>
 </body>
 
 </body>

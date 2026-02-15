@@ -1,3 +1,6 @@
+body{
+     gap: 20px;
+}
 
 /*====================NAVE==========*/
 header{
@@ -16,6 +19,7 @@ header{
 .nave_button_none{
     background:none;
 }
+
 
 .search{
     display: flex;
@@ -45,17 +49,18 @@ header{
 #relatar{
     padding: 8px 18px;
     border-radius: var(--border-radius);
-    background-color: var(--color-primary);
+    background-color: var(--color-quaternary);
+    color: var(--color-primary);
 
 }
 
 /*==========MAIN===============*/
 .main{
     display: flex;
-    border: 3px solid;
     justify-content: center;
     gap: var(--basic-gap);
      padding: var(--basic-padding-x) var(--basic-padding-y);
+     
 }
 
 /*===============SECTION MAP ================*/
@@ -64,6 +69,7 @@ header{
     flex-direction: column;
     gap: var(--basic-gap);
     flex-grow: 1;
+     border-radius: var(--border-radius);
 }
 .mapa{
     display: flex;
@@ -98,14 +104,37 @@ height: 15vh;
     flex-direction: column;
     gap: 3px;
 }
-.filtro{
+.filtros button{
+    padding: 5px 10px;
+    border-radius: var(--border-radius);
+    color: var(--color-primary);
+    background-color: var(--color-quaternary);
+     box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
+    cursor: pointer;
+}
+.onde, .quem, .quando{
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
+.caracter{
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.caracter input{
+    border: none;
+    padding: 10px;
+    outline: none;
+    border-radius: var(--border-radius);
+    padding: 3px ;
+     box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
+}
+
 select{
     border: none;
     flex-grow: 1;
+    padding: 5px;
     outline: none;
     border-radius: var(--border-radius);
     padding: 3px ;
@@ -118,7 +147,6 @@ select{
     flex-direction: column;
     flex-grow: 1;
     height: 80vh;
-    padding: var(--basic-padding-x);
     gap: 10px;
     overflow-y: auto;
 }
@@ -169,10 +197,14 @@ flex-direction: column;
 .interacao button{
     border-radius: var(--border-radius);
     cursor: pointer;
-    background-color: var(--color-primary);
+    background-color: var( --color-primary);
      padding: var(--btn-padding-y) var(--btn-padding-x);
      flex-grow: 1;
-    
+}
+.interacao button:hover{
+    background-color: var(--color-quaternary);
+    color: var(--color-primary);
+     box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
 }
 
 /*===============ANUNCIOS==========*/
@@ -183,11 +215,9 @@ flex-direction: column;
     justify-content: center;
     align-items: center;
     flex-grow: 1;
-    border: 3px solid red;
     
 }
 .anuncios{
-    border: 3px solid green;
     display: flex;
     flex-direction: column;
     border-radius: var(--border-radius);
