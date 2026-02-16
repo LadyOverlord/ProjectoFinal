@@ -16,6 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&family=Quicksand:wght@300..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:opsz,GRAD@17..18,-50&display=swap" rel="stylesheet">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
@@ -32,7 +33,7 @@
                 <button class="nave_button_none"><i class="fa-solid fa-magnifying-glass"></i></button>
                 <input type="search" placeholder="Procurar desaparecidos">
                </div>
-                <button class="nave_button_none" id="bell"><i class="fa-regular fa-bell"></i></button>
+                <button class="nave_button_none" id="chatbot"><i class="fa-solid fa-robot"></i></button>
                 <button class="nave_button" id="user"><i class="fa-solid fa-user"></i></button>
                 <button class="nave_button" id="relatar">Relatar desaparecimento</button>
         </div>
@@ -59,29 +60,60 @@
 
             <div class="filtros">
                  <h1>FILTROS</h1>
-                <div class="filtro">
-                    <select name="Municipio" id="Municipio">
-                        <option value="" hidden>Municipio</option>
-                        <option value="">Cazenga</option>
-                        <option value="">Futungo</option>
-                        <option value="">Viana</option>
-                    </select>
-
-                     <select name="data" id="data">
-                        <option value="" hidden>Idade</option>
-                        <option value="">1-5</option>
-                        <option value="">6-10</option>
-                        <option value="">11-16</option>
-                    </select>
-
-                     <select name="sexo" id="sexo">
-                        <option value="" hidden>Municipio</option>
+                 <hr style="border: 0.1px solid rgba(0, 0, 0, 0.089); width: 90%; margin: 8px 2px;">
+                <div class="onde">
+                    <h2>ONDE</h2>
+                    
+                        <select name="provincia" id="provincia" required>
+                            <option value="" hidden>Selecione a provincia</option>
+                            <option value="luanda">Luanda</option>
+                            <option value="benguela">Benguela</option>
+                            <option value="huambo">Huambo</option>
+                      </select>
+                       <div id="municipio-field" style="display:none;">
+                          <select name="municipio" id="municipio" style="width: 100%;" required>
+                              <option value="" hidden>Selecione o município</option>
+                          </select>
+                      </div>
+                </div>
+                <div class="quem">
+                    <h2>Quem</h2>
+                    <select name="sexo" id="sexo">
+                        <option value="" hidden>Gênero</option>
                         <option value="masculino">Masculin</option>
                         <option value="femenino">Femenino</option>
                     </select>
-
+                    <select name="faixaEtaria" id="faixaEtaria">
+                        <option value="" hidden>Faixa etária</option>
+                        <option value="1-5">Criança (0-12 anos)</option>
+                        <option value="6-10">Adolescente (13-17 anos)</option>
+                        <option value="11-16">Adulto (18-59 anos)</option>
+                        <option value="60+">Idoso (60+ anos)</option>
+                    </select>
                 </div>
 
+                <div class="quando">
+                    <h2>QUANDO</h2>
+                    <select name="periodo" id="periodo">
+                        <option value="" hidden>Periodo</option>
+                        <option value="ultimas_24_horas">Ultimas 24 horas</option>
+                        <option value="ultimos_7_dias">Ultimos 7 dias</option>
+                        <option value="ultimos_30_dias">Ultimos 30 dias</option>
+                        <option value="mais_de_30_dias">Mais de 30 dias</option>
+                    </select>
+                </div>
+
+                <div class="caracter">
+                    <h2>CARACTERISTICAS</h2>
+                            
+                        <div>
+                            <input type="checkbox" id="com_deficiencia" name="com_deficiencia">
+                            <label for="com_deficiencia">Com deficiência</label>
+                        </div>
+                        <button>Aplicar filtros</button>
+                </div>
+
+                    
             </div>
 
          
@@ -106,7 +138,7 @@
                 <div class="missing_dados">
                     <h1>User.name</h1>
                     <div class="dados_1">
-                        <h3>Ultimo local vito:</h3>
+                        <h3>Ultimo local visto:</h3>
                         <p></p>
                         </div>
 
@@ -156,5 +188,7 @@
         </div>
     </section>
     
+      
+        <script src="Scripts/principal.js"></script>
 </body>
 </html>

@@ -10,7 +10,6 @@ body{
    background-color: var(--color-primary);
    display: flex;
    flex-direction: column;
-   gap: 30px;
 
 }
 html{
@@ -24,11 +23,13 @@ button{
  outline: none;
  font-size: var(--btn-font-size);
  cursor: pointer;
+ /*
  color:var(--btn-color);
+*/
 }
 
 /*=====TEXTO FONT====*/
-input, button, p, select{
+input, button, p, select, label, span, i{
     font-family: var( --font-base);
      font-weight: 500;
 
@@ -40,11 +41,18 @@ a{
 }
 h1{
     font-family: var(--font-title);
-    font-size: 19px;
+    font-size: 24px;
+    font-weight: 500;
+}
+h2{
+    font-family: var(--font-title);
+     font-size: 20px;
+      font-weight: 500;
 }
  h3{
      font-family: var(--font-title);
       font-size: 16px;
+      
  }
  h4{
      font-family: var(--font-title);
