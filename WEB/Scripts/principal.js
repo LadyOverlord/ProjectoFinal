@@ -1,3 +1,18 @@
+   (function(){
+      function isLoggedIn(){
+        return !!(localStorage.getItem('authToken') || localStorage.getItem('userLoggedIn') === 'true');
+      }
+      document.addEventListener('click', function(e){
+        var el = e.target.closest && e.target.closest('button, a');
+        if(!el) return;
+        // allow clicking login page link itself
+        if((el.tagName === 'A' && /\blogin\.html\b/.test(el.getAttribute('href')||''))) return;
+        if(isLoggedIn()) return;
+        e.preventDefault();
+        window.location.href = 'login_cadastro.html';
+      }, true);
+    })();
+
  const municipiosPorProvincia = {
         luanda: [
             'Belas', 'Cacuaco', 'Cazenga', 'Ícolo e Bengo', 'Luanda', 'Quilamba Quiaxi', 'Talatona', 'Viana'
