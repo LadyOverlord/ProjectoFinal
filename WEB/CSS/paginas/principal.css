@@ -131,7 +131,7 @@ height: 15vh;
      box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
 }
 
-select{
+.filtros select{
     border: none;
     flex-grow: 1;
     padding: 5px;
@@ -248,5 +248,88 @@ footer{
     width: 300px;
 }
 
+/*===============RELATAR CASO==================*/
+.relatar_section{
+    position: absolute;
+    width: 100vw;
+    height:100vh;
+    background-color: rgba(0, 0, 0, 0.446);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.relatar_caso{
+    width: 50%;
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    gap: var(--basic-gap);
+    background-color: var(--color-primary);
+    box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
+    
+}
+.relatar_caso header{
+    display: flex;
+    justify-content: space-between;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+}
+.relatar_caso header button{
+    background: none;
+    border: none;
+    font-size: 23px;
+    cursor: pointer;
+}
+.relatar_caso nav{
+    border-bottom: 1px solid rgba(0, 0, 0, 0.39);
+    display: flex;
+    gap: 20px;
+    padding: 0 10px;
+    margin: 0 20px;
+}
+.formulario{
+    gap: var(--basic-gap);
+    padding:20px;
+    background-color: var(--color-secondary);
+    margin: 20px;
+    border-radius: var(--border-radius);
+}
+.formulario div{
+    flex-direction: column;
+    gap: 5px;
+}
+.formulario input, .formulario select{
+    border: 1px solid var(--color-primary);
+    padding: 10px;
+    outline: none;
+    border-radius: var(--border-radius);
+}
+textarea{
+    resize: vertical;
+    min-height: 100px;
+    max-height: 160px;
+}
+.relatar_caso nav a.active{
+    color: var(--color-quaternary);
+    border-bottom: 3px solid var(--color-quaternary);
+    padding-bottom: 6px;
+    font-weight: 600;
+}
+.enviar_relato{
+    display: flex;
+    justify-content: flex-end;
+    padding: 20px;
+    background-color: var(--color-secondary);
+    border-bottom-left-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+}
+.enviar_relato button{
+    padding: var(--btn-padding-y) var(--btn-padding-x);
+    border-radius: var(--border-radius);
+    background-color: var(--color-quaternary);
+    color: var(--color-primary);
+     box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
+    cursor: pointer;
+}
 
 
