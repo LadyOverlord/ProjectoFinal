@@ -88,3 +88,100 @@ main.content {
 .options a:hover {
   background: #575757;
 }
+
+/* --- ESTILO DOS CARDS DE APROVAÇÃO (Igual ao Design) --- */
+.card-aprovar {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    position: relative;
+    border: 1px solid #f0f0f0;
+    font-family: 'Onest', sans-serif; /* Ou sua fonte padrão */
+}
+
+.card-header-admin {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.admin-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.admin-user-info h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #1a1a1a;
+    font-weight: 700;
+}
+
+.admin-user-info p {
+    margin: 4px 0 0 0;
+    font-size: 0.9rem;
+    color: #888;
+}
+
+.card-desc {
+    color: #555;
+    font-size: 0.95rem;
+    margin-bottom: 25px;
+}
+
+/* Botões de Ação */
+.admin-actions {
+    display: flex;
+    gap: 15px;
+}
+
+.btn-docs {
+    background: transparent;
+    border: 1px solid #0c7ab5; /* Azul da marca */
+    color: #0c7ab5;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-docs:hover {
+    background: #f0f8ff;
+}
+
+.btn-approve-pub {
+    background: #0c7ab5; /* Azul da marca */
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(12, 122, 181, 0.2);
+    transition: 0.2s;
+}
+
+.btn-approve-pub:hover {
+    background: #0a6596;
+}
+
+/* Menu de opções (topo direito - para rejeitar) */
+.top-menu-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+.top-menu-btn:hover {
+    color: #dc3545; /* Vermelho ao passar o mouse (para excluir/rejeitar) */
+}

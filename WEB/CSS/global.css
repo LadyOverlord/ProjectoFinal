@@ -1,63 +1,205 @@
-*{
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-
-
-body{
-   background-color: var(--color-primary);
-   display: flex;
-   flex-direction: column;
-
+body {
+  background-color: var(--color-primary);
+  display: flex;
+  flex-direction: column;
 }
-html{
-    overflow-x: hidden;
+html {
+  overflow-x: hidden;
 }
-
 
 /*====BOTOES RESET ====*/
-button{
- border: none;
- outline: none;
- font-size: var(--btn-font-size);
- cursor: pointer;
- /*
+button {
+  border: none;
+  outline: none;
+  font-size: var(--btn-font-size);
+  cursor: pointer;
+  /*
  color:var(--btn-color);
 */
 }
 
 /*=====TEXTO FONT====*/
-input, button, p, select, label, span, i{
-    font-family: var( --font-base);
-     font-weight: 500;
-
+input,
+button,
+p,
+select,
+label,
+span,
+i {
+  font-family: var(--font-base);
+  font-weight: 500;
 }
-a{
-    text-decoration: none;
-    color: var(--btn-color);
-     font-family: var( --font-base);
+a {
+  text-decoration: none;
+  color: var(--btn-color);
+  font-family: var(--font-base);
 }
-h1{
-    font-family: var(--font-title);
-    font-size: 24px;
-    font-weight: 500;
+h1 {
+  font-family: var(--font-title);
+  font-size: 24px;
+  font-weight: 500;
 }
-h2{
-    font-family: var(--font-title);
-     font-size: 20px;
-      font-weight: 500;
+h2 {
+  font-family: var(--font-title);
+  font-size: 20px;
+  font-weight: 500;
 }
- h3{
-     font-family: var(--font-title);
-      font-size: 16px;
-      
- }
- h4{
-     font-family: var(--font-title);
-      font-size: 17px;
- }
+h3 {
+  font-family: var(--font-title);
+  font-size: 16px;
+}
+h4 {
+  font-family: var(--font-title);
+  font-size: 17px;
+}
 
+/* Estilo do Card tipo Feed */
+.feed-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 25px;
+  overflow: hidden;
+  font-family: "Google Sans", sans-serif;
+}
 
+.card-header {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+}
 
+.avatar-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+  object-fit: cover;
+}
+
+.header-info h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.header-info span {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.card-main-image {
+  width: 100%;
+  height: 350px; /* Altura fixa para ficar bonito */
+  object-fit: cover; /* Corta a imagem para caber sem esticar */
+  display: block;
+}
+
+.card-body {
+  padding: 15px;
+}
+
+.card-title {
+  margin: 0 0 5px 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.card-details {
+  font-size: 0.95rem;
+  color: #444;
+  margin-bottom: 5px;
+  line-height: 1.5;
+}
+
+.time-badge {
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.btn-action {
+  flex: 1;
+  background: #f8f9fa;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.btn-action:hover {
+  background: #e2e6ea;
+}
+
+/* ===== Estilos para notificações personalizadas (.alerts) ===== */
+.alerts-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  pointer-events: none; /* allow clicks through backdrop except the alert itself */
+  z-index: 9999;
+  padding: 18px;
+}
+.alerts {
+  background: transparent;
+  pointer-events: auto; /* enable interaction on the alert box */
+}
+.alerts .alert {
+  background: #fff;
+  color: var(--color-text);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  max-width: 720px;
+  width: calc(100% - 40px);
+  margin-top: 8px;
+  padding: 16px 18px;
+  font-size: 15px;
+  font-family: var(--font-base);
+}
+.alerts .alert .alert-message {
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  font-family: var(--font-base);
+}
+.alerts .alert .alert-actions {
+  text-align: right;
+}
+.alerts .alert .alert-ok {
+  background: var(--color-quaternary);
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: var(--font-base);
+}
+.alerts .alert .alert-ok:focus {
+  outline: 2px solid rgba(12, 122, 181, 0.25);
+}

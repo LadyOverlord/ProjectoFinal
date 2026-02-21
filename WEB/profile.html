@@ -6,9 +6,50 @@
     <link rel="stylesheet" href="CSS/variables.css">
     <link rel="stylesheet" href="CSS/global.css">
     <link rel="stylesheet" href="CSS/paginas/profile.css">
+
+       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <title>Document</title>
 </head>
+
+    <style>
+          body { background-color: #f4f4f4; padding: 20px; }
+        .profile-container { max-width: 800px; margin: 0 auto; }
+        .user-card { background: white; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .my-cases { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .case-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+        .status { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; color: white; }
+        .pendente { background-color: orange; }
+        .aprovado { background-color: green; }
+        .rejeitado { background-color: red; }
+        .btn-voltar { display: inline-block; margin-bottom: 10px; color: #333; text-decoration: none; }
+    </style>
+
 <body>
+
+    <div class="profile-container">
+        <a href="index.html" class="btn-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar ao Início</a>
+        
+        <!-- Cartão do Usuário -->
+        <div class="user-card">
+            <i class="fa-solid fa-user-circle" style="font-size: 80px; color: #0c7ab5;"></i>
+            <h2 id="p-nome">Carregando...</h2>
+            <p id="p-email">...</p>
+            <p><i class="fa-solid fa-location-dot"></i> <span id="p-local">...</span></p>
+            <button id="btn-logout" style="background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px;">Sair da Conta</button>
+        </div>
+
+        <!-- Lista de Casos -->
+        <div class="my-cases">
+            <h3><i class="fa-solid fa-bullhorn"></i> Meus Relatos</h3>
+            <div id="cases-list">
+                <p>Buscando seus casos...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="Scripts/alerts.js"></script>
+    <script type="module" src="Scripts/profile.js"></script>
+</body>
 
     
 

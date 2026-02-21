@@ -150,6 +150,7 @@ height: 15vh;
     gap: 10px;
     overflow-y: auto;
 }
+/*
 .casos_main{
     display: flex;
     padding: var(--basic-padding-x);
@@ -159,7 +160,7 @@ height: 15vh;
     background-color: var(--color-secondary);
      box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
 }
-/*============DESAPARECIDO==============*/
+/*============DESAPARECIDO==============
 .desaparecido{
     display: flex;
     align-items: center;
@@ -180,7 +181,7 @@ height: 15vh;
     border-radius: var(--border-radius);
     
 }
-/*==============MISSING DADOS===============*/
+/*==============MISSING DADOS===============
 .missing_dados{
 display: flex;
 flex-direction: column;
@@ -206,6 +207,7 @@ flex-direction: column;
     color: var(--color-primary);
      box-shadow: 0px 2px 5px  rgba(0, 0, 0, 0.172);
 }
+*/
 
 /*===============ANUNCIOS==========*/
 .section_anuncio{
@@ -254,7 +256,7 @@ footer{
     width: 100vw;
     height:100vh;
     background-color: rgba(0, 0, 0, 0.446);
-    display: flex;
+    display: none;
     justify-content: center;
     align-items: center;
 }
@@ -332,4 +334,32 @@ textarea{
     cursor: pointer;
 }
 
+/*===============Status==================*/
+/* Badge de Status nos Cards */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: white;
+    margin-top: 5px;
+    text-transform: uppercase;
+}
+
+.status-aprovado, .status-ativo {
+    background-color: #0c7ab5; /* Azul - Procurando */
+}
+
+.status-encontrado {
+    background-color: #28a745; /* Verde - Sucesso */
+}
+
+.status-desmentido {
+    background-color: #6c757d; /* Cinza - Cancelado */
+}
+
+.status-rejeitado {
+    background-color: #dc3545; /* Vermelho */
+}
 

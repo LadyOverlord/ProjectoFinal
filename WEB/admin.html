@@ -18,40 +18,181 @@
     <title>Document</title>
   </head>
   <body>
-    <nav>
-      <div class="log">
-        <img src="" alt="" />
-        <div class="info">
-          <h1>MissingAO</h1>
-          <p>Admins</p>
-        </div>
-      </div>
-
-      <div class="search">
-        <input type="text" placeholder="Search" />
-        <button><i class="fa-solid fa-magnifying-glass"></i></button>
-      </div>
-    </nav>
+    <!-- MENU LATERAL -->
     <section class="options">
-      <a href="#" data-target="Dashboard" class="active"
+      <div
+        class="logo-area"
+        style="padding: 20px; color: white; text-align: center"
+      >
+        <h2>MissingAO</h2>
+        <p>Admin Panel</p>
+      </div>
+      <a href="#" data-target="dashboard" class="menu-link active"
         ><i class="fa-solid fa-house"></i> Dashboard</a
       >
-      <a href="#" data-target="users"
+      <a href="#" data-target="users" class="menu-link"
         ><i class="fa-solid fa-users"></i> Utilizadores</a
       >
-      <a href="#" data-target="reports"
-        ><i class="fa-solid fa-clipboard-check"></i> Aprovações pendentes</a
+      <a href="#" data-target="reports" class="menu-link"
+        ><i class="fa-solid fa-clipboard-check"></i> Aprovações</a
       >
-      <a href="#" data-target="relatorio"
-        ><i class="fa-solid fa-file-lines"></i> Relatorios</a
-      >
-      <a href="#" data-target="config"
+      <a href="#" data-target="config" class="menu-link"
         ><i class="fa-solid fa-gear"></i> Configurações</a
+      >
+      <a href="#" id="btn-logout" style="margin-top: auto; color: #ff6b6b"
+        ><i class="fa-solid fa-right-from-bracket"></i> Sair</a
       >
     </section>
 
-    
-    <!-- admin script como module (permite importar auth/db) -->
+    <!-- BARRA SUPERIOR -->
+    <nav>
+      <div class="info">
+        <h3>Painel de Controle</h3>
+      </div>
+      <div class="search">
+        <input type="text" placeholder="Procurar..." />
+        <button><i class="fa-solid fa-magnifying-glass"></i></button>
+      </div>
+    </nav>
+
+    <!-- CONTEÚDO PRINCIPAL (Faltava esta parte) -->
+    <main class="content">
+      <!-- 1. PAINEL DASHBOARD -->
+      <div id="dashboard" class="panel active">
+        <h2>Visão Geral</h2>
+        <div
+          class="cards-container"
+          style="
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+          "
+        >
+          <div
+            class="card-stat"
+            style="
+              background: #fff;
+              padding: 20px;
+              flex: 1;
+              border-radius: 8px;
+              box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            "
+          >
+            <h3>Total Usuários</h3>
+            <p id="count-users" style="font-size: 2em; font-weight: bold">0</p>
+          </div>
+          <div
+            class="card-stat"
+            style="
+              background: #fff;
+              padding: 20px;
+              flex: 1;
+              border-radius: 8px;
+              box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            "
+          >
+            <h3>Casos Pendentes</h3>
+            <p id="count-reports" style="font-size: 2em; font-weight: bold">
+              0
+            </p>
+          </div>
+        </div>
+
+        <!-- NOVA ÁREA: GESTÃO DE CASOS ATIVOS -->
+        <div style="background: white; padding: 20px; border-radius: 8px">
+          <h3><i class="fa-solid fa-pen-to-square"></i> Gerir Casos Ativos</h3>
+          <p style="font-size: 0.9em; color: #666; margin-bottom: 15px">
+            Altere o status de casos que já foram aprovados (ex: Marcar como
+            Encontrado).
+          </p>
+
+          <table style="width: 100%; border-collapse: collapse">
+            <thead>
+              <tr
+                style="
+                  text-align: left;
+                  background: #f8f9fa;
+                  border-bottom: 2px solid #eee;
+                "
+              >
+                <th style="padding: 10px">Nome</th>
+                <th style="padding: 10px">Local</th>
+                <th style="padding: 10px">Status Atual</th>
+                <th style="padding: 10px">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="active-cases-body">
+              <!-- JS vai preencher -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. PAINEL USUÁRIOS -->
+      <div id="users" class="panel">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h2>Gestão de Usuários</h2>
+          <!-- Barra de Pesquisa Específica da Tabela -->
+        </div>
+
+        <div
+          style="
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+          "
+        >
+          <table style="width: 100%; border-collapse: collapse">
+            <thead>
+              <tr style="text-align: left; background: #f0f0f0">
+                <th style="padding: 10px">Nome</th>
+                <th style="padding: 10px">Email</th>
+                <th style="padding: 10px">Role</th>
+                <th style="padding: 10px">Último Acesso</th>
+                <!-- COLUNA NOVA -->
+                <th style="padding: 10px">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <!-- O JS vai preencher aqui -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. PAINEL APROVAÇÕES PENDENTES -->
+      <div id="reports" class="panel">
+        <h2>Aprovações Pendentes</h2>
+        <div
+          id="reports-list"
+          style="
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        >
+          <p>Carregando casos...</p>
+        </div>
+      </div>
+
+      <!-- 4. PAINEL CONFIGURAÇÕES -->
+      <div id="config" class="panel">
+        <h2>Configurações</h2>
+        <p>Opções do sistema...</p>
+      </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="Scripts/alerts.js"></script>
     <script type="module" src="Scripts/admin.js"></script>
   </body>
 </html>

@@ -1,242 +1,439 @@
-// Relatar modal / abas: lógica de exibição, navegação e envio
-import { db } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 import {
   collection,
   addDoc,
+  getDocs,
+  query,
+  where,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-document.addEventListener("DOMContentLoaded", function () {
-  const relatarSec = document.getElementById("relatarSec");
-  const relatarBtn = document.getElementById("relatar");
-  const closeBtn =
-    relatarSec && relatarSec.querySelector(".relatar_caso header button");
-  const pessoaLink = document.getElementById("pessoaActive");
-  const localLink = document.getElementById("localActive");
-  const detalhesLink = document.getElementById("detalhesActive");
-  const pessoaDiv = document.getElementById("pessoaDiv");
-  const localDiv = document.getElementById("localDiv");
-  const detalhesDiv = document.getElementById("detalhesDiv");
-  const enviarBtn = document.getElementById("enviarRelato");
+// Variável global para guardar os casos (evita recarregar o banco ao filtrar)
+let todosOsCasos = [];
 
-  if (!pessoaDiv || !localDiv || !detalhesDiv) return;
+document.addEventListener("DOMContentLoaded", async function () {
+  // 1. Configurar Navegação do Modal (Abas Pessoa/Local/Detalhes) - RESTAURADO
+  configurarNavegacaoModal();
 
-  function hideAll() {
-    pessoaDiv.style.display = "none";
-    localDiv.style.display = "none";
-    detalhesDiv.style.display = "none";
-    pessoaLink && pessoaLink.classList.remove("active");
-    localLink && localLink.classList.remove("active");
-    detalhesLink && detalhesLink.classList.remove("active");
-  }
+  // 2. Configurar Lógica de Municípios e Deficiência - RESTAURADO
+  configurarLogicaMunicipios();
+  configurarLogicaDeficiencia();
 
-  function showTab(tab) {
-    hideAll();
-    if (tab === "pessoa") {
-      pessoaDiv.style.display = "flex";
-      pessoaLink && pessoaLink.classList.add("active");
-    }
-    if (tab === "local") {
-      localDiv.style.display = "flex";
-      localLink && localLink.classList.add("active");
-    }
-    if (tab === "detalhes") {
-      detalhesDiv.style.display = "flex";
-      detalhesLink && detalhesLink.classList.add("active");
-    }
-  }
+  // 3. Carregar dados do banco
+  await carregarCasos();
 
-  // Iniciar com modal fechado
-  if (relatarSec) relatarSec.style.display = "none";
-  showTab("pessoa");
+  // 4. Configurar Botões de Ação
+  document
+    .getElementById("enviarRelato")
+    ?.addEventListener("click", enviarRelato);
+  document
+    .querySelector(".caracter button")
+    ?.addEventListener("click", aplicarFiltros);
+});
 
-  pessoaLink &&
-    pessoaLink.addEventListener("click", function (e) {
-      e.preventDefault();
-      showTab("pessoa");
-    });
-  localLink &&
-    localLink.addEventListener("click", function (e) {
-      e.preventDefault();
-      showTab("local");
-    });
-  detalhesLink &&
-    detalhesLink.addEventListener("click", function (e) {
-      e.preventDefault();
-      showTab("detalhes");
-    });
+/* =========================================================================
+   1. EXIBIÇÃO ESTILO "FEED" (Igual ao seu design da imagem)
+   ========================================================================= */
 
-  // Abrir modal a partir do botão Relatar (se estiver logado)
-  relatarBtn &&
-    relatarBtn.addEventListener("click", function (e) {
-      // global click-interceptor já redireciona usuários não logados; garantir segurança extra aqui
-      if (typeof window.isLoggedIn === "function" && !window.isLoggedIn()) {
-        return; // deixe o listener global tratar o redirecionamento
-      }
-      if (relatarSec) relatarSec.style.display = "flex";
-      showTab("pessoa");
-    });
+async function carregarCasos() {
+  const container = document.querySelector(".casos_main");
 
-  closeBtn &&
-    closeBtn.addEventListener("click", function () {
-      if (relatarSec) relatarSec.style.display = "none";
-    });
+  // Limpa cards antigos
+  document.querySelectorAll(".desaparecido").forEach((c) => c.remove());
+  document.querySelectorAll(".feed-card").forEach((c) => c.remove());
 
-  // Enviar relato: validação simples e salvar em localStorage (array 'reports')
-  enviarBtn &&
-    enviarBtn.addEventListener("click", async function () {
-      const pessoaInputs = pessoaDiv.querySelectorAll("input, select");
-      const localInputs = localDiv.querySelectorAll("select, input");
-      const detalhesInputs = detalhesDiv.querySelectorAll(
-        "input, select, textarea",
-      );
+  try {
+    const q = query(collection(db, "casos"));
+    const querySnapshot = await getDocs(q);
 
-      function allFilled(list) {
-        for (const el of list) {
-          // ignore non-required checkboxes
-          if (el.type === "checkbox") continue;
-          if (
-            (el.tagName === "INPUT" ||
-              el.tagName === "SELECT" ||
-              el.tagName === "TEXTAREA") &&
-            String(el.value).trim() === ""
-          ) {
-            return false;
-          }
-        }
-        return true;
-      }
+    todosOsCasos = [];
 
+    querySnapshot.forEach((doc) => {
+      let data = doc.data();
+      data.id = doc.id;
+
+      // FILTRO DE SEGURANÇA: Só mostra aprovados, encontrados, etc.
       if (
-        !allFilled(pessoaInputs) ||
-        !allFilled(localInputs) ||
-        !allFilled(detalhesInputs)
+        data.status &&
+        data.status !== "pendente" &&
+        data.status !== "rejeitado"
       ) {
-        alert("Por favor preencha todos os campos antes de relatar.");
+        todosOsCasos.push(data);
+      }
+    });
+
+    renderizarCasos(todosOsCasos);
+  } catch (error) {
+    console.error("Erro ao carregar casos:", error);
+  }
+}
+
+function renderizarCasos(lista) {
+  const container = document.querySelector(".casos_main");
+  container.innerHTML = ""; // Limpa container
+
+  if (lista.length === 0) {
+    container.innerHTML =
+      "<p style='padding:20px; text-align:center;'>Nenhum caso encontrado.</p>";
+    return;
+  }
+
+  lista.forEach((caso) => {
+    // Lógica de tempo "Há X dias"
+    const dias = calcularDias(caso.data_desaparecimento);
+    const textoTempo = dias === 0 ? "Hoje" : `Há ${dias} dias`;
+
+    // Lógica de Status (Cor da bolinha ou texto)
+    let statusTexto = caso.status === "aprovado" ? "Ativo" : caso.status;
+
+    const div = document.createElement("div");
+    div.className = "feed-card"; // CSS que passei anteriormente
+
+    // HTML Estruturado igual ao seu Design
+    div.innerHTML = `
+            <!-- HEADER DO CARD -->
+            <div class="card-header">
+                <img src="${caso.imagem || "imgs/user.jpg"}" class="avatar-small" alt="Avatar"> <!-- Avatar genérico do sistema -->
+                <div class="header-info">
+                    <h4>${caso.nome || "Nome Desconhecido"}</h4>
+                    <span>${caso.idade || "?"} anos • ${caso.municipio || "Angola"}</span>
+                </div>
+                <div style="margin-left: auto; text-align: right;">
+                    <span class="status-badge status-${caso.status}">${statusTexto}</span>
+                </div>
+            </div>
+
+            <!-- IMAGEM PRINCIPAL (A que o usuário subiu) -->
+            <img src="${caso.imagem || "imgs/user.jpg"}" class="card-main-image" alt="Foto Desaparecido">
+
+            <!-- CORPO DO CARD -->
+            <div class="card-body">
+                <h3 class="card-title">${caso.nome}</h3>
+                
+                <div class="card-details">
+                    <strong>Último local visto:</strong> ${caso.ultimo_local || "Não informado"}<br>
+                    <span class="time-badge"><i class="fa-regular fa-clock"></i> ${textoTempo}</span>
+                </div>
+                
+                <p class="card-details" style="margin-top: 10px;">
+                    Desapareceu em ${caso.provincia || "Local incerto"}. 
+                    ${caso.roupas ? `Vestia: ${caso.roupas}.` : ""}
+                    ${caso.informacoes_adicionais || ""}
+                </p>
+
+                <p style="font-size: 0.9rem; color: #666; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                    <strong><i class="fa-solid fa-users"></i> Várias pessoas</strong> estão a ajudar na busca.
+                </p>
+
+                <!-- BOTÕES DE AÇÃO -->
+                <div class="card-actions">
+                    <button class="btn-action"><i class="fa-solid fa-heart"></i> Apoiar</button>
+                    <button class="btn-action"><i class="fa-solid fa-comment"></i> Comentar</button>
+                    <button class="btn-action"><i class="fa-solid fa-share"></i> Partilhar</button>
+                </div>
+            </div>
+        `;
+
+    container.appendChild(div);
+  });
+}
+
+function calcularDias(dataString) {
+  if (!dataString) return 0;
+  const dataPassada = new Date(dataString);
+  const hoje = new Date();
+  if (isNaN(dataPassada)) return 0;
+
+  const diferencaTempo = Math.abs(hoje - dataPassada);
+  return Math.ceil(diferencaTempo / (1000 * 60 * 60 * 24));
+}
+
+/* =========================================================================
+   2. RELATAR CASO (COM FUNCIONALIDADES RESTAURADAS + IMAGEM)
+   ========================================================================= */
+
+async function enviarRelato() {
+  const user = auth.currentUser;
+  if (!user) {
+    showAlert("Você precisa estar logado para relatar um caso.");
+    return;
+  }
+
+  const btn = document.getElementById("enviarRelato");
+  btn.innerText = "Processando...";
+  btn.disabled = true;
+
+  try {
+    // Coleta de Inputs Básicos
+    const nome = document.querySelector('input[name="nome"]').value;
+    const idade = document.querySelector('input[name="idade"]').value;
+    const sexo = document.querySelector('select[name="sexo"]').value;
+    const provincia = document.getElementById("provincia_relatar").value;
+    const municipio = document.getElementById("municipio_relatar").value;
+    const ultimo_local = document.querySelector(
+      'input[name="ultimo_local"]',
+    ).value;
+    const roupas = document.querySelector('input[name="roupas"]').value;
+    const data_desaparecimento = document.querySelector(
+      'input[name="data_desaparecimento"]',
+    ).value;
+    const info = document.getElementById("informacoes_adicionais").value;
+
+    // Coleta de Inputs Específicos (Deficiência)
+    const deficiencia = document.getElementById("deficiencia").value;
+    const tipoDeficiencia = document.getElementById(
+      "tipo_deficiencia_input",
+    ).value;
+
+    // Validação básica
+    if (!nome || !provincia || !municipio) {
+      showAlert("Preencha pelo menos Nome, Província e Município.");
+      throw new Error("Campos obrigatórios vazios.");
+    }
+
+    // --- TRATAMENTO DA IMAGEM (BASE64) ---
+    const fileInput = document.querySelector('input[name="imagem"]');
+    let imagemBase64 = null;
+
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      // Limite de segurança para o Firestore (aprox 800KB)
+      if (file.size > 800 * 1024) {
+        showAlert(
+          "A imagem é muito grande para o sistema atual. Por favor escolha uma imagem menor (abaixo de 800KB).",
+        );
+        btn.innerText = "Relatar";
+        btn.disabled = false;
         return;
       }
+      imagemBase64 = await lerArquivoComoBase64(file);
+    }
 
-      const report = {
-        pessoa: {},
-        local: {},
-        detalhes: {},
-        createdAt: new Date().toISOString(),
-      };
+    // Montar Objeto
+    const dados = {
+      userId: user.uid,
+      autorEmail: user.email,
+      status: "pendente",
+      createdAt: new Date().toISOString(),
+      nome,
+      idade,
+      sexo,
+      provincia,
+      municipio,
+      ultimo_local,
+      roupas,
+      data_desaparecimento,
+      informacoes_adicionais: info,
+      deficiencia,
+      tipo_deficiencia: deficiencia === "sim" ? tipoDeficiencia : "",
+      imagem: imagemBase64, // Salva a foto aqui
+    };
 
-      pessoaInputs.forEach((el) => {
-        const key =
-          el.name || el.id || el.placeholder || "p_" + (el.type || "field");
-        report.pessoa[key] = el.value;
-      });
-      localInputs.forEach((el) => {
-        const key =
-          el.name || el.id || el.placeholder || "l_" + (el.type || "field");
-        report.local[key] = el.value;
-      });
-      detalhesInputs.forEach((el) => {
-        const key =
-          el.name || el.id || el.placeholder || "d_" + (el.type || "field");
-        report.detalhes[key] = el.value;
-      });
+    // Salvar no Firestore
+    await addDoc(collection(db, "casos"), dados);
 
-      try {
-        await addDoc(collection(db, "casos"), report);
-        alert("Relato enviado com sucesso.");
-        if (relatarSec) relatarSec.style.display = "none";
-      } catch (err) {
-        console.error("Erro ao salvar relato:", err);
-        alert("Erro ao enviar relato. Tente novamente mais tarde.");
-      }
-    });
-});
-const municipiosPorProvincia = {
-  luanda: [
-    "Belas",
-    "Cacuaco",
-    "Cazenga",
-    "Ícolo e Bengo",
-    "Luanda",
-    "Quilamba Quiaxi",
-    "Talatona",
-    "Viana",
-  ],
-  benguela: [
-    "Baía Farta",
-    "Balombo",
-    "Benguela",
-    "Bocoio",
-    "Caimbambo",
-    "Catumbela",
-    "Chongoroi",
-    "Cubal",
-    "Ganda",
-    "Lobito",
-  ],
-  huambo: [
-    "Bailundo",
-    "Catchiungo",
-    "Caála",
-    "Ecunha",
-    "Huambo",
-    "Londuimbali",
-    "Longonjo",
-    "Mungo",
-    "Tchicala-Tcholoanga",
-    "Tchindjenje",
-    "Ucuma",
-  ],
-};
+    showAlert("Caso relatado com sucesso! Aguarde aprovação do administrador.");
+    document.getElementById("relatarSec").style.display = "none";
 
-function populateMunicipiosFor(provincia, selectEl, fieldEl) {
-  if (!selectEl) return;
-  selectEl.innerHTML = '<option value="" hidden>Selecione o município</option>';
-  if (provincia && municipiosPorProvincia[provincia]) {
-    municipiosPorProvincia[provincia].forEach(function (mun) {
-      const opt = document.createElement("option");
-      opt.value = mun.toLowerCase().replace(/ /g, "_");
-      opt.textContent = mun;
-      selectEl.appendChild(opt);
-    });
-    if (fieldEl) fieldEl.style.display = "block";
-    selectEl.required = true;
-  } else {
-    if (fieldEl) fieldEl.style.display = "none";
-    selectEl.required = false;
+    // Limpar todos os inputs
+    document
+      .querySelectorAll("#relatarSec input, #relatarSec textarea")
+      .forEach((i) => (i.value = ""));
+    document
+      .querySelectorAll("#relatarSec select")
+      .forEach((s) => (s.selectedIndex = 0));
+  } catch (err) {
+    if (err.message !== "Campos obrigatórios vazios.") {
+      console.error(err);
+      showAlert("Erro ao enviar: " + err.message);
+    }
+  } finally {
+    btn.innerText = "Relatar";
+    btn.disabled = false;
   }
 }
 
-const provinciaSelect = document.getElementById("provincia");
-const municipioField = document.getElementById("municipio-field");
-const municipioSelect = document.getElementById("municipio");
-if (provinciaSelect) {
-  provinciaSelect.addEventListener("change", function () {
-    populateMunicipiosFor(this.value, municipioSelect, municipioField);
+function lerArquivoComoBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
   });
 }
 
-// Modal-specific selects (relatar caso)
-const provinciaRelatar = document.getElementById("provincia_relatar");
-const municipioFieldRelatar = document.getElementById(
-  "municipio-field-relatar",
-);
-const municipioRelatar = document.getElementById("municipio_relatar");
-if (provinciaRelatar) {
-  provinciaRelatar.addEventListener("change", function () {
-    populateMunicipiosFor(this.value, municipioRelatar, municipioFieldRelatar);
-  });
-}
+/* =========================================================================
+   3. NAVEGAÇÃO DO MODAL (Abas) - RESTAURADA
+   ========================================================================= */
 
-// Mostrar/ocultar campo 'Que tipo de deficiencia' no modal
-const defSelect = document.getElementById('deficiencia');
-const tipoDefField = document.getElementById('tipo_deficiencia_field');
-if (defSelect && tipoDefField) {
-  function toggleTipoDef() {
-    if (defSelect.value === 'sim') {
-      tipoDefField.style.display = 'block';
-    } else {
-      tipoDefField.style.display = 'none';
+function configurarNavegacaoModal() {
+  const relatarSec = document.getElementById("relatarSec");
+  const relatarBtn = document.getElementById("relatar");
+  const closeBtn = relatarSec?.querySelector("header button");
+
+  const abas = {
+    pessoa: {
+      link: document.getElementById("pessoaActive"),
+      div: document.getElementById("pessoaDiv"),
+    },
+    local: {
+      link: document.getElementById("localActive"),
+      div: document.getElementById("localDiv"),
+    },
+    detalhes: {
+      link: document.getElementById("detalhesActive"),
+      div: document.getElementById("detalhesDiv"),
+    },
+  };
+
+  function showTab(nomeAba) {
+    // Esconde tudo
+    Object.values(abas).forEach((item) => {
+      if (item.div) item.div.style.display = "none";
+      if (item.link) item.link.classList.remove("active");
+    });
+
+    // Mostra a selecionada
+    if (abas[nomeAba]) {
+      abas[nomeAba].div.style.display = "flex";
+      abas[nomeAba].link.classList.add("active");
     }
   }
-  defSelect.addEventListener('change', toggleTipoDef);
-  // estado inicial
-  toggleTipoDef();
+
+  // Adiciona cliques nas abas
+  Object.keys(abas).forEach((key) => {
+    abas[key].link?.addEventListener("click", (e) => {
+      e.preventDefault();
+      showTab(key);
+    });
+  });
+
+  // Abrir Modal
+  relatarBtn?.addEventListener("click", () => {
+    if (!auth.currentUser) {
+      showAlert("Faça login para relatar.");
+      return;
+    }
+    relatarSec.style.display = "flex";
+    showTab("pessoa"); // Começa sempre na aba Pessoa
+  });
+
+  // Fechar Modal
+  closeBtn?.addEventListener("click", () => {
+    relatarSec.style.display = "none";
+  });
+}
+
+/* =========================================================================
+   4. UTILITÁRIOS (Municípios e Deficiência) - RESTAURADOS
+   ========================================================================= */
+
+function configurarLogicaMunicipios() {
+  const municipiosPorProvincia = {
+    luanda: [
+      "Belas",
+      "Cacuaco",
+      "Cazenga",
+      "Ícolo e Bengo",
+      "Luanda",
+      "Quilamba Quiaxi",
+      "Talatona",
+      "Viana",
+    ],
+    benguela: [
+      "Baía Farta",
+      "Balombo",
+      "Benguela",
+      "Bocoio",
+      "Caimbambo",
+      "Catumbela",
+      "Chongoroi",
+      "Cubal",
+      "Ganda",
+      "Lobito",
+    ],
+    huambo: [
+      "Bailundo",
+      "Catchiungo",
+      "Caála",
+      "Ecunha",
+      "Huambo",
+      "Londuimbali",
+      "Longonjo",
+      "Mungo",
+      "Tchicala-Tcholoanga",
+      "Tchindjenje",
+      "Ucuma",
+    ],
+  };
+
+  function atualizarSelect(provinciaVal, selectMun, divMun) {
+    if (!selectMun) return;
+    selectMun.innerHTML =
+      '<option value="" hidden>Selecione o município</option>';
+
+    if (provinciaVal && municipiosPorProvincia[provinciaVal]) {
+      municipiosPorProvincia[provinciaVal].forEach((mun) => {
+        const opt = document.createElement("option");
+        opt.value = mun.toLowerCase().replace(/ /g, "_");
+        opt.textContent = mun;
+        selectMun.appendChild(opt);
+      });
+      if (divMun) divMun.style.display = "block";
+      selectMun.required = true;
+    } else {
+      if (divMun) divMun.style.display = "none";
+      selectMun.required = false;
+    }
+  }
+
+  // Filtro Lateral (Esquerda)
+  const provFiltro = document.getElementById("provincia");
+  provFiltro?.addEventListener("change", function () {
+    atualizarSelect(
+      this.value,
+      document.getElementById("municipio"),
+      document.getElementById("municipio-field"),
+    );
+  });
+
+  // Modal Relatar (Pop-up)
+  const provRelatar = document.getElementById("provincia_relatar");
+  provRelatar?.addEventListener("change", function () {
+    atualizarSelect(
+      this.value,
+      document.getElementById("municipio_relatar"),
+      document.getElementById("municipio-field-relatar"),
+    );
+  });
+}
+
+function configurarLogicaDeficiencia() {
+  const defSelect = document.getElementById("deficiencia");
+  const tipoDefField = document.getElementById("tipo_deficiencia_field");
+
+  if (defSelect && tipoDefField) {
+    defSelect.addEventListener("change", () => {
+      if (defSelect.value === "sim") {
+        tipoDefField.style.display = "block";
+      } else {
+        tipoDefField.style.display = "none";
+        document.getElementById("tipo_deficiencia_input").value = ""; // Limpa se selecionar Não
+      }
+    });
+  }
+}
+
+// Filtro Simples (Sidebar)
+function aplicarFiltros() {
+  const provincia = document.getElementById("provincia").value;
+  const sexo = document.getElementById("sexo").value;
+
+  const filtrados = todosOsCasos.filter((caso) => {
+    let passou = true;
+    if (provincia && caso.provincia !== provincia) passou = false;
+    if (sexo && caso.sexo !== sexo) passou = false;
+    return passou;
+  });
+
+  renderizarCasos(filtrados);
 }
