@@ -2,11 +2,10 @@
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <link rel="stylesheet" href="CSS/variables.css" />
-
     <link rel="stylesheet" href="CSS/global.css" />
-
     <link rel="stylesheet" href="CSS/paginas/principal.css" />
 
     <link
@@ -28,8 +27,7 @@
       rel="stylesheet"
     />
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>MissingAO - Início</title>
   </head>
   <body>
     <!--=====NAVE======-->
@@ -62,14 +60,14 @@
       <div class="section_map">
         <div class="mapa">
           <h1>MAPA</h1>
-          <img src="imgs/mapa.jpg" alt="" />
+          <img src="imgs/mapa.jpg" alt="Mapa de Angola" />
         </div>
 
         <div class="destaques">
           <h1>EM DESTAQUE</h1>
           <div class="destaque" id="destaque">
             <img src="imgs/user.jpg" alt="" />
-            <p>User.name</p>
+            <p>Carregando...</p>
           </div>
         </div>
 
@@ -106,8 +104,8 @@
             <h2>Quem</h2>
             <select name="sexo" id="sexo">
               <option value="" hidden>Gênero</option>
-              <option value="masculino">Masculin</option>
-              <option value="femenino">Femenino</option>
+              <option value="masculino">Masculino</option>
+              <option value="femenino">Feminino</option>
             </select>
             <select name="faixaEtaria" id="faixaEtaria">
               <option value="" hidden>Faixa etária</option>
@@ -127,6 +125,12 @@
               <option value="ultimos_30_dias">Ultimos 30 dias</option>
               <option value="mais_de_30_dias">Mais de 30 dias</option>
             </select>
+            <select name="status" id="status">
+              <option value="" hidden>Status</option>
+              <option value="ativo">Ativo</option>
+              <option value="encontrado">Encontrado</option>
+              <option value="desmentido">Desmentido</option>
+            </select>
           </div>
 
           <div class="caracter">
@@ -144,45 +148,50 @@
           </div>
         </div>
       </div>
-      <!--======SECTION AMIN=======-->
+      <!--======SECTION MAIN=======-->
       <div class="section_main">
         <div class="casos_main">
+          <!-- CARD DE EXEMPLO -->
           <div class="desaparecido">
             <img src="imgs/user.jpg" alt="" id="User_missing" />
             <div>
-              <h4>User.name</h4>
-              <p>User.age</p>
+              <h4>Exemplo Nome</h4>
+              <p>25 anos</p>
             </div>
             <button><i class="fa-solid fa-ellipsis"></i></button>
           </div>
 
-          <img src="imgs/user.jpg" class="main_img" alt="" id="User_missing" />
+          <!-- DETALHES DO CASO SELECIONADO -->
+          <img
+            src="imgs/user.jpg"
+            class="main_img"
+            alt=""
+            id="User_missing_main"
+          />
 
           <div class="missing_dados">
-            <h1>User.name</h1>
+            <h1 id="detail-name">Nome do Desaparecido</h1>
             <div class="dados_1">
               <h3>Ultimo local visto:</h3>
-              <p></p>
+              <p id="detail-local">--</p>
             </div>
 
             <div class="dados_2">
               <h3>Desapareceu em:</h3>
-              <p></p>
+              <p id="detail-date">--</p>
             </div>
 
             <div class="dados_3">
-              <h3>numero de apoios</h3>
+              <h3>0</h3>
               <p>Apoiam este alerta</p>
             </div>
           </div>
 
           <div class="interacao">
             <button id="apoir"><i class="fa-solid fa-heart"></i> Apoiar</button>
-
             <button id="comentar">
               <i class="fa-solid fa-comment"></i> Comentar
             </button>
-
             <button id="compartilhar">
               <i class="fa-solid fa-share"></i> Compartilhar
             </button>
@@ -196,10 +205,10 @@
             <h4>Anuncios</h4>
             <img src="imgs/user.jpg" alt="" />
             <div class="informacao">
-              <h3 id="random_user">User.name</h3>
+              <h3 id="random_user">Ajude a encontrar</h3>
               <p id="info">
-                Lorem ipsum dolor, sit amet consectetur adipisicing elit.
-                Voluptatum magni corrupti
+                Cada partilha conta. Se você viu alguém parecido, entre em
+                contato.
               </p>
               <hr
                 style="
@@ -209,9 +218,8 @@
                 "
               />
               <p id="dicas">
-                Esse doloremque accusantium tempora perferendis suscipit
-                dignissimos deserunt, debitis perspiciatis a placeat nemo
-                exercitationem, ratione laborum odit!
+                Dica de segurança: Ao encontrar uma pessoa perdida, contacte as
+                autoridades.
               </p>
             </div>
           </div>
@@ -225,6 +233,7 @@
       </div>
     </section>
 
+    <!-- ====== MODAL DE RELATAR CASO (Editado para funcionar com Admin) ====== -->
     <section class="relatar_section" id="relatarSec">
       <div class="relatar_caso">
         <header>
@@ -244,36 +253,46 @@
         </nav>
 
         <div class="formulario">
+          <!-- 1. DADOS DA PESSOA -->
           <div class="pessoa_div" id="pessoaDiv">
             <label for="">Imagem da pessoa desaparecida</label>
-            <input type="file" accept="image/*" />
+            <input type="file" accept="image/*" name="imagem" />
+
             <label for="">Nome completo</label>
             <input
               type="text"
-              placeholder="Digite o nome completo da pessoa desaparecida"
+              name="nome"
+              placeholder="Digite o nome completo"
+              required
             />
-            <label for="">Idade/Data de nascimento</label>
+
+            <label for="">Idade</label>
             <input
               type="text"
-              placeholder="Digite a idade ou data de nascimento da pessoa desaparecida"
+              name="idade"
+              placeholder="Ex: 25 anos"
+              required
             />
+
             <label for="">Sexo</label>
             <select name="sexo" id="sexo">
               <option value="" hidden>Selecione</option>
-              <option value="masculino">Masculin</option>
-              <option value="femenino">Femenino</option>
+              <option value="masculino">Masculino</option>
+              <option value="femenino">Feminino</option>
             </select>
+
             <label for="">Altura</label>
-            <input
-              type="text"
-              placeholder="Digite a altura da pessoa desaparecida"
-            />
+            <input type="text" name="altura" placeholder="Ex: 1.75m" />
+
             <label for="">Nº do BI</label>
             <input
               type="text"
-              placeholder="Digite o número do BI da pessoa desaparecida"
+              name="bi"
+              placeholder="Número do BI (Opcional)"
             />
           </div>
+
+          <!-- 2. DADOS DO LOCAL -->
           <div class="local_div" id="localDiv">
             <label for="">Provincia</label>
             <select name="provincia" id="provincia_relatar" required>
@@ -282,6 +301,7 @@
               <option value="benguela">Benguela</option>
               <option value="huambo">Huambo</option>
             </select>
+
             <div id="municipio-field-relatar" style="display: none">
               <label for="">Municipio</label>
               <select
@@ -293,28 +313,38 @@
                 <option value="" hidden>Selecione o município</option>
               </select>
             </div>
+
             <label for="">Ultimo local conhecido</label>
             <input
               type="text"
-              placeholder="Digite o ultimo local conhecido da pessoa desaparecida"
+              name="ultimo_local"
+              placeholder="Ex: Perto do mercado do São Paulo"
+              required
             />
+
             <label for="">Data</label>
-            <input type="date" />
+            <input type="date" name="data_desaparecimento" />
+
             <label for="">Hora</label>
-            <input type="time" />
+            <input type="time" name="hora_desaparecimento" />
           </div>
+
+          <!-- 3. DETALHES -->
           <div class="detalhes_div" id="detalhesDiv">
             <label for="">Roupas que a pessoa usava</label>
             <input
               type="text"
-              placeholder="Digite as roupas que a pessoa usava"
+              name="roupas"
+              placeholder="Ex: Camisa azul e calça jeans"
             />
+
             <label for="">Deficiencia</label>
             <select name="deficiencia" id="deficiencia">
               <option value="" hidden>Selecione</option>
               <option value="sim">Sim</option>
               <option value="nao">Não</option>
             </select>
+
             <div id="tipo_deficiencia_field" style="display: none">
               <label for="tipo_deficiencia_input"
                 >Que tipo de deficiencia</label
@@ -323,25 +353,29 @@
                 type="text"
                 id="tipo_deficiencia_input"
                 name="tipo_deficiencia"
-                placeholder="Digite o tipo de deficiencia da pessoa desaparecida"
+                placeholder="Descreva a deficiência"
               />
             </div>
+
             <label for="">Informações adicionais</label>
             <textarea
               name="informacoes_adicionais"
               id="informacoes_adicionais"
               cols="30"
               rows="5"
-              placeholder="Digite informações adicionais sobre a pessoa desaparecida"
+              placeholder="Outras informações úteis..."
             ></textarea>
           </div>
         </div>
+
         <div class="enviar_relato">
           <button id="enviarRelato">Relatar</button>
         </div>
       </div>
     </section>
 
+    <!-- Importante: type="module" para usar imports do Firebase -->
+    <script src="Scripts/alerts.js"></script>
     <script type="module" src="Scripts/principal.js"></script>
   </body>
 </html>
