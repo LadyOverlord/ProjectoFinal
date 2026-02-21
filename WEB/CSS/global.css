@@ -173,7 +173,7 @@ h4 {
   background: #fff;
   color: var(--color-text);
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
   max-width: 720px;
   width: calc(100% - 40px);
   margin-top: 8px;
