@@ -1,12 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_page.dart';
 import 'register_page.dart';
+import 'admin_page.dart';
 import '../models/user_mode.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  Future<void> _loginWithEmail(BuildContext context) async {
+    try {
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      final role = userDoc.exists
+          ? (userDoc.data() as Map<String, dynamic>)['role'] ?? 'user'
+          : 'user';
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => role == 'admin'
+              ? const AdminPage()
+              : const HomePage(mode: UserMode.authenticated),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'Conta não encontrada.';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Senha incorreta.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Email inválido.';
+          break;
+        case 'user-disabled':
+          errorMessage = 'Conta desativada.';
+          break;
+        default:
+          errorMessage = 'Erro ao fazer login.';
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(errorMessage)));
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro inesperado.')),
+      );
+    }
+  }
 
   Future<void> _loginWithGoogle(BuildContext context) async {
     try {
@@ -14,6 +80,7 @@ class LoginPage extends StatelessWidget {
       if (googleUser == null) return;
 
       final googleAuth = await googleUser.authentication;
+
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -21,13 +88,33 @@ class LoginPage extends StatelessWidget {
 
       await FirebaseAuth.instance.signInWithCredential(credential);
 
-      if (!context.mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage(mode: UserMode.authenticated)),
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        final role = userDoc.exists
+            ? (userDoc.data() as Map<String, dynamic>)['role'] ?? 'user'
+            : 'user';
+
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => role == 'admin'
+                ? const AdminPage()
+                : const HomePage(mode: UserMode.authenticated),
+          ),
+        );
+      }
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro no login com Google.')),
       );
-    } catch (e) {
-      debugPrint("Erro no Google Login: $e");
     }
   }
 
@@ -36,27 +123,30 @@ class LoginPage extends StatelessWidget {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false, // 🔥 impede layout subir
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // RODAPÉ AZUL FIXO no fundo
+          // 🔵 Rodapé azul FIXO
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Container(
-              height: screenHeight * 0.15,
+              height: 120,
               color: const Color(0xFF0077B6),
             ),
           ),
 
-          // CONTEÚDO PRINCIPAL SCROLLABLE
+          // Conteúdo principal
           SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 30),
             child: Column(
               children: [
                 SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -65,122 +155,118 @@ class LoginPage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF333333),
                           ),
                         ),
                         const Text(
                           "Bem-vindo de volta!",
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          style: TextStyle(color: Colors.grey),
                         ),
                         const SizedBox(height: 30),
-                        _buildTextField("Email:", "seu e-mail"),
+                        _buildTextField("Email:", "seu e-mail",
+                            controller: _emailController),
                         const SizedBox(height: 12),
-                        _buildTextField("Senha:", "sua senha", obscureText: true),
+                        _buildTextField("Senha:", "sua senha",
+                            controller: _passwordController,
+                            obscureText: true),
                         const SizedBox(height: 20),
-
-                        // Botão Entrar
                         SizedBox(
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () => _loginWithEmail(context),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF90E0EF),
                               foregroundColor: Colors.black87,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
-                            child: const Text("Entrar",
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                            child: const Text("Entrar"),
                           ),
                         ),
-
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage()));
-                            },
-                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                            child: const Text(
-                              "Não tem conta? Cadastre-se aqui",
-                              style: TextStyle(color: Colors.black54, fontSize: 14),
-                            ),
-                          ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const RegisterPage()));
+                          },
+                          child: const Text(
+                              "Não tem conta? Cadastre-se aqui"),
                         ),
-
                         const SizedBox(height: 15),
-
                         Row(
                           children: [
                             Expanded(
                               child: _socialButton(
-                                "Google",
-                                Icons.g_mobiledata,
-                                Colors.red,
-                                () => _loginWithGoogle(context),
-                              ),
+                                  "Google",
+                                  Icons.g_mobiledata,
+                                  Colors.red,
+                                  () => _loginWithGoogle(context)),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: _socialButton(
-                                "Convidado",
-                                Icons.person_outline,
-                                Colors.blueGrey,
-                                () => Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const HomePage(mode: UserMode.guest)),
-                                ),
-                              ),
+                                  "Convidado",
+                                  Icons.person_outline,
+                                  Colors.blueGrey,
+                                  () => Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                const HomePage(
+                                                    mode:
+                                                        UserMode.guest)),
+                                      )),
                             ),
                           ],
                         ),
-
-                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
                 ),
 
-               
-                Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    Image.asset(
-                      'assets/images/desaparecidosimg3.jpeg',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: screenHeight * 0.35,
-                    ),
-                    
-                    Container(
-                      height: screenHeight * 0.35, // Mesma altura da imagem
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            const Color(0xFF0077B6).withOpacity(0.5),
-                            const Color(0xFF0077B6).withOpacity(0.8),
-                          ],
-                          stops: const [0.0, 0.6, 1.0],
+                // 🗺️ IMAGEM CENTRALIZADA
+                Container(
+                  height: screenHeight * 0.35,
+                  width: double.infinity,
+                  alignment: Alignment.center, // 🔥 centraliza
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/desaparecidosimg3.jpeg',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        alignment: Alignment.center,
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              const Color(0xFF0077B6)
+                                  .withOpacity(0.7),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 30, left: 40, right: 40),
-                      child: Text(
-                        "Onde houver saudade, que a nossa rede leve reencontro",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 60),
+                        child: Text(
+                          "",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -190,41 +276,36 @@ class LoginPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(String label, String hint, {bool obscureText = false}) {
+  Widget _buildTextField(String label, String hint,
+      {TextEditingController? controller,
+      bool obscureText = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
         TextField(
+          controller: controller,
           obscureText: obscureText,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
             border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300)),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300)),
+                borderRadius: BorderRadius.circular(8)),
           ),
         ),
       ],
     );
   }
 
-  Widget _socialButton(String label, IconData icon, Color color, VoidCallback onPressed) {
+  Widget _socialButton(String label, IconData icon,
+      Color color, VoidCallback onPressed) {
     return OutlinedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, color: color, size: 26),
-      label: Text(label, style: const TextStyle(color: Colors.black87, fontSize: 14)),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        side: BorderSide(color: Colors.grey.shade200),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
+      icon: Icon(icon, color: color),
+      label: Text(label),
     );
   }
 }

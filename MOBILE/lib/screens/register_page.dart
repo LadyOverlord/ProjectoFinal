@@ -117,7 +117,7 @@ class _RegisterPageState extends State<RegisterPage> {
             right: 0,
             child: Container(
               height: screenHeight * 0.15, 
-              color: const Color(0xFF0077B6), 
+              color: const Color.fromARGB(255, 240, 241, 241), 
             ),
           ),
 
@@ -189,8 +189,8 @@ class _RegisterPageState extends State<RegisterPage> {
                       }).toList(),
                       onChanged: (value) {
                         setState(() {
-                          _selectedProvince = value; // Atualiza a seleção
-                          _selectedMunicipio = null; // Reseta município ao mudar província
+                          _selectedProvince = value; 
+                          _selectedMunicipio = null; 
                         });
                       },
                       decoration: InputDecoration( 
@@ -211,7 +211,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       value: _selectedMunicipio,
                       hint: const Text("Selecione seu município"),
                       items: _selectedProvince != null && _municipiosPorProvincia.containsKey(_selectedProvince!)
-                          ? _municipiosPorProvincia[_selectedProvince!]!.map((municipio) { // Só mostra se província selecionada
+                          ? _municipiosPorProvincia[_selectedProvince!]!.map((municipio) {
                               return DropdownMenuItem<String>(
                                 value: municipio,
                                 child: Text(municipio),
@@ -220,7 +220,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           : [], 
                       onChanged: (value) {
                         setState(() {
-                          _selectedMunicipio = value; // Atualiza a seleção
+                          _selectedMunicipio = value; 
                         });
                       },
                       decoration: InputDecoration( 
@@ -242,10 +242,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     
                     SizedBox(
-                      width: double.infinity, // Largura total
+                      width: double.infinity, 
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _register, // Chama a função de registro
+                        onPressed: _register,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF90E0EF), 
                           foregroundColor: Colors.black87, 
@@ -281,25 +281,25 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Função auxiliar para criar campos de texto reutilizáveis
+ 
   Widget _buildTextField(String label, String hint, {TextEditingController? controller, bool obscureText = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start, 
       children: [
         
         Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        const SizedBox(height: 6), // Espaço pequeno
-        // Campo de texto
+        const SizedBox(height: 6), 
+       
         TextField(
-          controller: controller, // Controlador para acessar o texto
-          obscureText: obscureText, // Se é senha (oculta caracteres)
+          controller: controller, 
+          obscureText: obscureText, 
           decoration: InputDecoration(
-            hintText: hint, // Texto de dica
+            hintText: hint,
             filled: true,
-            fillColor: const Color(0xFFF8F9FA), // Fundo cinza claro
-            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14), // Padding interno
+            fillColor: const Color(0xFFF8F9FA), 
+            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)), // Borda
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)), // Borda quando habilitado
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)), 
           ),
         ),
       ],

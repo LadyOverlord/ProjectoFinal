@@ -1,35 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth
-import 'login_page.dart'; // tela de login
-import 'home_page.dart';  // tela principal
-import '../models/user_mode.dart'; // enum de modos de usuário
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Adicione este import
+import 'login_page.dart';
+import 'home_page.dart';
+import 'admin_page.dart'; // Nova tela para admins (crie abaixo)
+import '../models/user_mode.dart';
 
 class AuthCheck extends StatelessWidget {
   const AuthCheck({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // StreamBuilder observa mudanças no login em tempo real
-    // Sempre que o usuário loga ou desloga, o Firebase envia um evento
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(), // fluxo de eventos do login
-
+      stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // 1️⃣ Enquanto verifica o login, mostra um loading
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
-        // 2️⃣ Se o Firebase indica que tem um usuário logado
         if (snapshot.hasData) {
-          return const HomePage(
-            mode: UserMode.authenticated, // usuário logado
+          // Busca o role do usuário no Firestore
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance.collection('users').doc(snapshot.data!.uid).get(),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                final role = userData['role'] ?? 'user'; // Padrão 'user' se não existir
+                if (role == 'admin') {
+                  return const AdminPage(); // Tela de admin
+                } else {
+                  return const HomePage(mode: UserMode.authenticated); // Tela normal
+                }
+              } else {
+                // Se não encontrar dados, assume user
+                return const HomePage(mode: UserMode.authenticated);
+              }
+            },
           );
         }
-
-        // 3️⃣ Se não tem usuário logado
         return const LoginPage();
       },
     );

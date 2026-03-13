@@ -1,6 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/user_mode.dart';
 import 'login_page.dart';
+import 'chatbot_page.dart';
+import 'profile.dart';
+import 'create_caso_dialog.dart'; // Formulário de criação
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatelessWidget {
@@ -8,35 +14,8 @@ class HomePage extends StatelessWidget {
 
   final UserMode mode;
 
-  // Dados mockados para os cards (simulando dados do banco)
-  final List<Map<String, dynamic>> _posts = const [
-    {
-      'family': 'Família António',
-      'location': 'Luanda, Angola',
-      'imageUrl': 'https://images.unsplash.com/photo-1531123897727-8f129e16fd3c?w=500',
-      'name': 'Miguel António, 12 anos',
-      'lastSeen': 'Nova-vida, Luanda',
-      'description': 'Visto pela última vez trajando t-shirt branca e calças azuis. Por favor, ajudem.',
-    },
-    {
-      'family': 'Família Silva',
-      'location': 'Benguela, Angola',
-      'imageUrl': 'https://images.unsplash.com/photo-1529139574466-a3090c302d1a?w=500',
-      'name': 'Ana Silva, 8 anos',
-      'lastSeen': 'Zona Comercial, Benguela',
-      'description': 'Desaparecida desde ontem. Estava com um vestido cor-de-rosa. Ajudem a partilhar.',
-    },
-    {
-      'family': 'Família Santos',
-      'location': 'Huambo, Angola',
-      'imageUrl': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500',
-      'name': 'Pedro Santos, 25 anos',
-      'lastSeen': 'Bairro Operário, Huambo',
-      'description': 'Saiu de casa para o trabalho e não regressou. Qualquer info é importante.',
-    },
-  ];
+  bool get isGuest => FirebaseAuth.instance.currentUser == null;
 
-  // Função para redirecionar guests ao login
   void _redirectToLogin(BuildContext context) {
     showDialog(
       context: context,
@@ -51,7 +30,10 @@ class HomePage extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+              );
             },
             child: const Text('Login'),
           ),
@@ -60,36 +42,23 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // Função para simular criação de publicação (expandir para tela real)
-  void _createPost(BuildContext context) {
-    if (mode == UserMode.guest) {
+  void _handleInteraction(BuildContext context, String action) {
+    if (isGuest) {
       _redirectToLogin(context);
     } else {
-      // Para authenticated: Abrir dialog simples (substitua por navegação para tela de criação)
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Criar Publicação'),
-          content: const Text('Funcionalidade em desenvolvimento. Aqui você criaria uma nova publicação.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$action realizado')),
       );
     }
   }
 
-  // Função para simular apoiar/comentar (expandir para lógica real)
-  void _interact(BuildContext context, String action) {
-    if (mode == UserMode.guest) {
+  void _handleCreate(BuildContext context) {
+    if (isGuest) {
       _redirectToLogin(context);
     } else {
-      // Para authenticated: Simular ação (substitua por lógica real, ex.: salvar no Firestore)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$action realizado!')),
+      showDialog(
+        context: context,
+        builder: (_) => const CreateCasoDialog(),
       );
     }
   }
@@ -102,23 +71,16 @@ class HomePage extends StatelessWidget {
         backgroundColor: Colors.grey[900],
         elevation: 0,
         title: const Text(
-          "Desaparecidos",
+          "Missing AO",
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // BARRA DE PESQUISA
           Padding(
             padding: const EdgeInsets.all(16),
             child: Container(
@@ -138,84 +100,141 @@ class HomePage extends StatelessWidget {
               ),
             ),
           ),
-
-          // LISTA DE CARDS DINÂMICOS
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _posts.length,
-              itemBuilder: (context, index) {
-                final post = _posts[index];
-                return Card(
-                  clipBehavior: Clip.antiAlias,
-                  color: Colors.grey[850],
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ListTile(
-                        leading: const CircleAvatar(backgroundColor: Colors.blueAccent, child: Icon(Icons.person, color: Colors.white)),
-                        title: Text(post['family'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        subtitle: Text(post['location'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                        trailing: const Icon(Icons.more_horiz, color: Colors.grey),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('casos')
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Nenhum caso ainda.',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  );
+                }
+
+                final casos = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: casos.length,
+                  itemBuilder: (context, index) {
+                    final caso = casos[index].data() as Map<String, dynamic>;
+
+                    final nome = caso['nome'] ?? 'Nome não informado';
+                    final municipio = caso['municipio'] ?? 'Não informado';
+                    final provincia = caso['provincia'] ?? 'Província';
+                    final ultimoLocal = caso['ultimo_local'] ?? 'Local não informado';
+                    final info = caso['informacoes_adicionais'] ?? 'Sem informações adicionais';
+                    final roupas = caso['roupas'] ?? 'Não informado';
+                    final imageField = caso['imagem'] ?? '';
+
+                    Uint8List? imageBytes;
+                    if (imageField.toString().startsWith('data:image')) {
+                      final base64String = imageField.toString().split(',').last;
+                      imageBytes = base64Decode(base64String);
+                    }
+
+                    return Card(
+                      color: Colors.grey[850],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      Image.network(
-                        post['imageUrl'],
-                        height: 250,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          height: 250,
-                          color: Colors.grey[800],
-                          child: const Icon(Icons.broken_image, color: Colors.grey),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(15),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(post['name'], style: const TextStyle(color: Colors.white, fontSize: 18)),
-                            const SizedBox(height: 5),
-                            Text(post['lastSeen'], style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 12),
-                            Text(post['description'], style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                            const SizedBox(height: 15),
-                            Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ListTile(
+                            title: Text(
+                              nome,
+                              style: const TextStyle(
+                                  color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              '$municipio, $provincia',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                          imageBytes != null
+                              ? Image.memory(
+                                  imageBytes,
+                                  height: 250,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  height: 250,
+                                  color: Colors.grey[800],
+                                  child: const Center(
+                                    child: Icon(Icons.image_not_supported, color: Colors.white),
+                                  ),
+                                ),
+                          Padding(
+                            padding: const EdgeInsets.all(15),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: TextButton.icon(
-                                    onPressed: () => _interact(context, 'Apoiar'),
-                                    icon: const Icon(Icons.favorite_border, color: Colors.grey, size: 16),
-                                    label: const Text("Apoiar", style: TextStyle(color: Colors.grey, fontSize: 10)),
-                                    style: TextButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.05), padding: EdgeInsets.zero),
-                                  ),
+                                Text(
+                                  ultimoLocal,
+                                  style: const TextStyle(
+                                      color: Colors.redAccent, fontWeight: FontWeight.bold),
                                 ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: TextButton.icon(
-                                    onPressed: () => _interact(context, 'Comentar'),
-                                    icon: const Icon(Icons.mode_comment_outlined, color: Colors.grey, size: 16),
-                                    label: const Text("Comentar", style: TextStyle(color: Colors.grey, fontSize: 10)),
-                                    style: TextButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.05), padding: EdgeInsets.zero),
-                                  ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  '$info. Roupas: $roupas.',
+                                  style: const TextStyle(color: Colors.white),
                                 ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: TextButton.icon(
-                                    onPressed: () => _interact(context, 'Partilhar'),
-                                    icon: const Icon(Icons.send_outlined, color: Colors.grey, size: 16),
-                                    label: const Text("Partilhar", style: TextStyle(color: Colors.grey, fontSize: 10)),
-                                    style: TextButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.05), padding: EdgeInsets.zero),
-                                  ),
+                                const SizedBox(height: 15),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextButton.icon(
+                                        onPressed: () => _handleInteraction(context, 'Apoiar'),
+                                        icon: const Icon(Icons.favorite_border,
+                                            size: 16, color: Colors.white),
+                                        label: const Text(
+                                          "Apoiar",
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: TextButton.icon(
+                                        onPressed: () => _handleInteraction(context, 'Comentar'),
+                                        icon: const Icon(Icons.mode_comment_outlined,
+                                            size: 16, color: Colors.white),
+                                        label: const Text(
+                                          "Comentar",
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: TextButton.icon(
+                                        onPressed: () => _handleInteraction(context, 'Partilhar'),
+                                        icon: const Icon(Icons.send_outlined,
+                                            size: 16, color: Colors.white),
+                                        label: const Text(
+                                          "Partilhar",
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             ),
@@ -223,7 +242,7 @@ class HomePage extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _createPost(context),
+        onPressed: () => _handleCreate(context),
         backgroundColor: Colors.blueAccent,
         child: const Icon(Icons.add),
       ),
@@ -239,14 +258,21 @@ class HomePage extends StatelessWidget {
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Perfil'),
         ],
         onTap: (index) {
-          // Lógica para navegação (ex.: para chatbot, verificar mode)
-          if (index == 2 && mode == UserMode.guest) {
-            // Guests podem acessar chatbot
-            // Adicione navegação aqui quando criar a tela
-          } else if (index == 3 && mode == UserMode.guest) {
-            _redirectToLogin(context); // Perfil só para logados
+          if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatbotPage()),
+            );
+          } else if (index == 3) {
+            if (isGuest) {
+              _redirectToLogin(context);
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const  ProfileScreen()),
+              );
+            }
           }
-          // Adicione mais lógica para outras abas
         },
       ),
     );
