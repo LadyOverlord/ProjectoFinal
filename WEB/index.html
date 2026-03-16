@@ -43,7 +43,7 @@
           <input type="search" placeholder="Procurar desaparecidos" />
         </div>
         <button class="nave_button_none" id="chatbot">
-          <i class="fa-solid fa-robot"></i>
+          <i class="fa-solid fa-robot" id="chat_bot"></i>
         </button>
         <a href="profile.html" class="nave_button" id="user"
           ><i class="fa-solid fa-user"></i
@@ -374,8 +374,61 @@
       </div>
     </section>
 
+    <div class="chatbot_div" id="chatbotDiv">
+      <div class="chatbot">
+        <header>
+          <div class="chatbot_header_content">
+            <i class="fa-solid fa-robot"></i>
+            <h1>Missing AI</h1>
+          </div>
+          <button id="closeChatbot"><i class="fa-solid fa-xmark"></i></button>
+        </header>
+        <div class="chatbot_messages" id="chatbotMessages">
+          <!-- Mensagens do chatbot aparecerão aqui -->
+        </div>
+        <div class="chatbot_suggestions" id="chatbotSuggestions">
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como faço para reportar um desaparecimento?"
+          >
+            <i class="fa-solid fa-plus"></i> Como reportar um desaparecimento?
+          </button>
+          <button
+            class="suggestion_btn"
+            data-suggestion="Quais informações são necessárias?"
+          >
+            <i class="fa-solid fa-question"></i> Quais informações são
+            necessárias?
+          </button>
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como filtrar casos por localização?"
+          >
+            <i class="fa-solid fa-location-dot"></i> Filtrar por localização?
+          </button>
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como posso ajudar a encontrar alguém?"
+          >
+            <i class="fa-solid fa-heart"></i> Como ajudar a encontrar alguém?
+          </button>
+        </div>
+        <div class="chatbot_input_section">
+          <input
+            type="text"
+            id="chatbotInput"
+            placeholder="Digite sua mensagem..."
+          />
+          <button id="sendChatbotMessage" title="Enviar mensagem">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Importante: type="module" para usar imports do Firebase -->
     <script src="Scripts/alerts.js"></script>
+    <script src="Scripts/chatbot.js"></script>
     <script type="module" src="Scripts/principal.js"></script>
   </body>
 </html>

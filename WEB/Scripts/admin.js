@@ -30,7 +30,7 @@ if (docSnap.exists() && docSnap.data().role === 'admin') {
             iniciarAdmin();
         } else {
             // Não é admin: Expulsa
-            alert("Acesso negado. Esta área é restrita.");
+         
             window.location.href = "index.html";
         }
     } catch (error) {
@@ -126,7 +126,7 @@ async function carregarDashboard() {
           tr.style.borderBottom = "1px solid #eee";
 
           const selectHtml = `
-                        <select class="status-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                        <select class="status-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: var( --font-base);">
                             <option value="aprovado" ${data.status === "aprovado" ? "selected" : ""}>Ativo (Procurando)</option>
                             <option value="encontrado" ${data.status === "encontrado" ? "selected" : ""}>🟢 Encontrado</option>
                             <option value="desmentido" ${data.status === "desmentido" ? "selected" : ""}>⚫ Desmentido</option>

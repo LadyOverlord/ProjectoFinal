@@ -1,0 +1,70 @@
+ body {
+     background-color: var(--color-primary);
+      }
+
+ .profile-container {
+     /* max-width: 800px; */
+     /* margin: 0 auto; */
+     }
+     .voltar_div{
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        
+     }
+
+.user-card { background: white;
+     padding: 20px;
+     border-radius: 10px;
+     display: flex;
+     justify-content: center;
+     gap: 20px;
+     text-align: center;
+     margin-bottom: 20px;
+     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+     border: 3px solid ;
+     z-index: 10;
+         }
+    .profile_info{
+        text-align: justify;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+   
+        
+
+        .my-cases { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .case-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+        .status { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; color: white; }
+        .pendente { background-color: orange; }
+        .aprovado { background-color: green; }
+        .rejeitado { background-color: red; }
+        .btn-voltar { display: inline-block; margin-bottom: 10px; color: #333; text-decoration: none; }
+
+        .edit_section {
+            background: var(--color-secondary);
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            width: 300px;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 0.3s ease;
+        }
+         .edit_section button {
+            background: none;
+            padding: 10px;
+        
+    
+        }
+        .open_section {
+            opacity: 1;
+            z-index: 10;
+        }
+        

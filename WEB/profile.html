@@ -11,31 +11,26 @@
     <title>Document</title>
 </head>
 
-    <style>
-          body { background-color: #f4f4f4; padding: 20px; }
-        .profile-container { max-width: 800px; margin: 0 auto; }
-        .user-card { background: white; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .my-cases { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .case-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
-        .status { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; color: white; }
-        .pendente { background-color: orange; }
-        .aprovado { background-color: green; }
-        .rejeitado { background-color: red; }
-        .btn-voltar { display: inline-block; margin-bottom: 10px; color: #333; text-decoration: none; }
-    </style>
+   
 
 <body>
 
     <div class="profile-container">
-        <a href="index.html" class="btn-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar ao Início</a>
+
+        <div class="voltar_div"><a href="index.html" class="btn-voltar" style="font-size: 20px;"><i class="fa-solid fa-house"></i></a></div>
         
         <!-- Cartão do Usuário -->
         <div class="user-card">
-            <i class="fa-solid fa-user-circle" style="font-size: 80px; color: #0c7ab5;"></i>
-            <h2 id="p-nome">Carregando...</h2>
-            <p id="p-email">...</p>
-            <p><i class="fa-solid fa-location-dot"></i> <span id="p-local">...</span></p>
-            <button id="btn-logout" style="background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px;">Sair da Conta</button>
+            <i class="fa-solid fa-user-circle" style="font-size: 120px; color: #0c7ab5;"></i>
+            <div class="profile_info">
+                <span style="display: flex; gap: 8px; align-items: center;">
+                    <h2 id="p-nome" style="font-weight: 600; font-size: 25px;">Carregando...</h2>
+                    <button id="btn-edit-profile" style="font-size: 30px;"><i class="fa-solid fa-gear"></i></button>
+                </span>
+                <p id="p-email">...</p>
+                <p><i class="fa-solid fa-location-dot"></i> <span id="p-local">...</span></p>
+            </div>
+           
         </div>
 
         <!-- Lista de Casos -->
@@ -46,12 +41,16 @@
             </div>
         </div>
     </div>
+    <div class="edit_section">
+         <button id="btn-logout">Sair da Conta</button>
+        <button id="btn-cancel-edit" style="border-top: 1px solid #3333337a;">Cancelar</button>
+
+            
+    </div>
 
     <script src="Scripts/alerts.js"></script>
     <script type="module" src="Scripts/profile.js"></script>
 </body>
-
-    
 
     <script src="Scripts/profile.js"></script>
 </body>

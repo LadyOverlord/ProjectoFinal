@@ -67,3 +67,13 @@ async function carregarMeusCasos(uid) {
 document.getElementById('btn-logout').addEventListener('click', () => {
     signOut(auth).then(() => window.location.href = "login_cadastro.html");
 });
+
+// Editar Perfil
+document.getElementById('btn-edit-profile').addEventListener('click', () => {
+    document.querySelector('.edit_section').classList.add('open_section');
+});
+
+// Cancelar Edição
+document.getElementById('btn-cancel-edit').addEventListener('click', () => {
+    document.querySelector('.edit_section').classList.remove('open_section');
+});
