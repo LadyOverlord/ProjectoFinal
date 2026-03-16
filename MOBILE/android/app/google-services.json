@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "489576604551",
+    "project_id": "missingao-88704",
+    "storage_bucket": "missingao-88704.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:489576604551:android:d1a5be376b3e2901662922",
+        "android_client_info": {
+          "package_name": "com.android.application"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfFNmU2j0JoHdJDeHs7pzqJpgICXWYfcg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

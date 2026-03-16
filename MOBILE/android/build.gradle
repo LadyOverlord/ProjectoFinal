@@ -1,3 +1,12 @@
+// 1. O bloco PLUGINS vem primeiro (Topo do arquivo)
+plugins {
+    // ... outros plugins se houver ...
+
+    // O plugin do Google Services que o Firebase pediu
+    id("com.google.gms.google-services") version "4.4.4" apply false
+}
+
+// 2. DEPOIS vem o allprojects e o resto
 allprojects {
     repositories {
         google()
