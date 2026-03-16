@@ -12,6 +12,7 @@ import {
   where,
   updateDoc,
   deleteDoc,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
 // === VARIÁVEIS GLOBAIS ===
@@ -94,20 +95,16 @@ async function carregarDashboard() {
     const usersSnap = await getDocs(collection(db, "users"));
     document.getElementById("count-users").innerText = usersSnap.size;
 
-    const qPendentes = query(
-      collection(db, "casos"),
-      where("status", "==", "pendente"),
-    );
-    const reportsSnap = await getDocs(qPendentes);
+    // ALTERAÇÃO: Conta os documentos diretamente da coleção casos_pendentes
+    const reportsSnap = await getDocs(collection(db, "casos_pendentes"));
     document.getElementById("count-reports").innerText = reportsSnap.size;
 
     // B. Tabela de Casos Ativos (Para mudar status)
     const activeBody = document.getElementById("active-cases-body");
     if (activeBody) {
-      activeBody.innerHTML =
-        '<tr><td colspan="4" style="text-align:center;">Carregando casos ativos...</td></tr>';
+      activeBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Carregando casos ativos...</td></tr>';
 
-      // Busca casos que estão visíveis no site (aprovado, encontrado, desmentido)
+      // Busca casos que estão visíveis no site (aprovado, encontrado, desmentido) na coleção oficial 'casos'
       const qAtivos = query(
         collection(db, "casos"),
         where("status", "in", ["aprovado", "encontrado", "desmentido"]),
@@ -117,8 +114,7 @@ async function carregarDashboard() {
       activeBody.innerHTML = "";
 
       if (snapAtivos.empty) {
-        activeBody.innerHTML =
-          '<tr><td colspan="4" style="text-align:center;">Nenhum caso ativo.</td></tr>';
+        activeBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum caso ativo.</td></tr>';
       } else {
         snapAtivos.forEach((doc) => {
           const data = doc.data();
@@ -126,22 +122,22 @@ async function carregarDashboard() {
           tr.style.borderBottom = "1px solid #eee";
 
           const selectHtml = `
-                        <select class="status-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: var( --font-base);">
-                            <option value="aprovado" ${data.status === "aprovado" ? "selected" : ""}>Ativo (Procurando)</option>
-                            <option value="encontrado" ${data.status === "encontrado" ? "selected" : ""}>🟢 Encontrado</option>
-                            <option value="desmentido" ${data.status === "desmentido" ? "selected" : ""}>⚫ Desmentido</option>
-                            <option value="rejeitado" ${data.status === "rejeitado" ? "selected" : ""}>🔴 Arquivar/Remover</option>
-                        </select>
-                    `;
+              <select class="status-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: var(--font-base);">
+                  <option value="aprovado" ${data.status === "aprovado" ? "selected" : ""}>Ativo (Procurando)</option>
+                  <option value="encontrado" ${data.status === "encontrado" ? "selected" : ""}>🟢 Encontrado</option>
+                  <option value="desmentido" ${data.status === "desmentido" ? "selected" : ""}>⚫ Desmentido</option>
+                  <option value="rejeitado" ${data.status === "rejeitado" ? "selected" : ""}>🔴 Arquivar/Remover</option>
+              </select>
+          `;
 
           tr.innerHTML = `
-                        <td style="padding: 10px;">${data.nome || "Desconhecido"}</td>
-                        <td style="padding: 10px;">${data.municipio || "-"}</td>
-                        <td style="padding: 10px;">${selectHtml}</td>
-                        <td style="padding: 10px;">
-                            <button class="btn-save-status" data-id="${doc.id}" style="background: #0c7ab5; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Salvar</button>
-                        </td>
-                    `;
+              <td style="padding: 10px;">${data.nome || "Desconhecido"}</td>
+              <td style="padding: 10px;">${data.municipio || "-"}</td>
+              <td style="padding: 10px;">${selectHtml}</td>
+              <td style="padding: 10px;">
+                  <button class="btn-save-status" data-id="${doc.id}" style="background: #0c7ab5; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Salvar</button>
+              </td>
+          `;
           activeBody.appendChild(tr);
         });
 
@@ -155,9 +151,7 @@ async function carregarDashboard() {
             try {
               e.target.innerText = "...";
               await updateDoc(doc(db, "casos", id), { status: novoStatus });
-              showAlert(`Status atualizado para: ${novoStatus}`, {
-                onOk: carregarDashboard,
-              });
+              showAlert(`Status atualizado para: ${novoStatus}`, { onOk: carregarDashboard });
             } catch (err) {
               showAlert("Erro: " + err.message);
               e.target.innerText = "Salvar";
@@ -276,21 +270,19 @@ function filtrarUsuarios(termo) {
   renderizarTabelaUsuarios(filtrados);
 }
 
-// === 6. APROVAÇÕES PENDENTES (Layout Novo) ===
+// === 6. APROVAÇÕES PENDENTES (Lê da 'casos_pendentes' e move para 'casos') ===
 async function carregarAprovacoes() {
   const container = document.getElementById("reports-list");
-  container.innerHTML =
-    '<p style="text-align:center;">Buscando casos pendentes...</p>';
+  container.innerHTML = '<p style="text-align:center;">Buscando casos pendentes...</p>';
 
   try {
-    const q = query(collection(db, "casos"), where("status", "==", "pendente"));
-    const querySnapshot = await getDocs(q);
+    // BUSCA NA COLEÇÃO CRIADA PELA SUA COLEGA
+    const querySnapshot = await getDocs(collection(db, "casos_pendentes"));
 
     container.innerHTML = "";
 
     if (querySnapshot.empty) {
-      container.innerHTML =
-        '<p style="text-align:center; color: #666; margin-top: 20px;">Nenhuma aprovação pendente.</p>';
+      container.innerHTML = '<p style="text-align:center; color: #666; margin-top: 20px;">Nenhuma aprovação pendente.</p>';
       return;
     }
 
@@ -306,40 +298,39 @@ async function carregarAprovacoes() {
       card.className = "card-aprovar";
 
       card.innerHTML = `
-                <!-- Menu Topo (Lixeira para Rejeitar) -->
-                <button class="top-menu-btn btn-rejeitar" data-id="${id}" title="Rejeitar caso">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+          <!-- Lixeira / Rejeitar -->
+          <button class="top-menu-btn btn-rejeitar" data-id="${id}" title="Rejeitar caso">
+              <i class="fa-solid fa-trash"></i>
+          </button>
 
-                <!-- Cabeçalho (Foto + Nome + Idade) -->
-                <div class="card-header-admin">
-                    <img src="${imagemSrc}" class="admin-avatar" alt="Foto">
-                    <div class="admin-user-info">
-                        <h3>${data.nome || "Nome Desconhecido"}</h3>
-                        <p>${data.idade || "?"} anos</p>
-                    </div>
-                </div>
+          <!-- Cabeçalho -->
+          <div class="card-header-admin">
+              <img src="${imagemSrc}" class="admin-avatar" alt="Foto">
+              <div class="admin-user-info">
+                  <h3>${data.nome || "Nome Desconhecido"}</h3>
+                  <p>${data.idade || "?"} anos</p>
+              </div>
+          </div>
 
-                <!-- Descrição Curta -->
-                <p class="card-desc">
-                    Desapareceu em ${data.provincia || "Local desconhecido"} ${textoTempo}.
-                </p>
+          <!-- Descrição -->
+          <p class="card-desc">
+              Desapareceu em ${data.provincia || "Local desconhecido"} ${textoTempo}.
+          </p>
 
-                <!-- Botões de Ação -->
-                <div class="admin-actions">
-                    <button class="btn-docs" onclick="window.showAlert('Detalhes Completos:\\nBI: ${data.bi || "N/A"}\\nRoupas: ${data.roupas || "N/A"}\\nRelato: ${data.informacoes_adicionais || "Sem detalhes"}')">
-                        Ver Documentos
-                    </button>
-                    
-                    <button class="btn-approve-pub" data-id="${id}">
-                        Aprovar Publicação
-                    </button>
-                </div>
-            `;
+          <!-- Botões -->
+          <div class="admin-actions">
+              <button class="btn-docs" onclick="window.showAlert('Detalhes:\\nBI: ${data.bi || "N/A"}\\nRoupas: ${data.roupas || "N/A"}\\nRelato: ${data.informacoes_adicionais || "Sem detalhes"}')">
+                  Ver Documentos
+              </button>
+              <button class="btn-approve-pub" data-id="${id}">
+                  Aprovar Publicação
+              </button>
+          </div>
+      `;
       container.appendChild(card);
     });
 
-    // Evento Aprovar
+    // --- EVENTO APROVAR (Move o caso para a coleção oficial) ---
     document.querySelectorAll(".btn-approve-pub").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         const docId = e.target.getAttribute("data-id");
@@ -347,8 +338,22 @@ async function carregarAprovacoes() {
         e.target.disabled = true;
 
         try {
-          await updateDoc(doc(db, "casos", docId), { status: "aprovado" });
-          showAlert("Publicação Aprovada!", { onOk: carregarAprovacoes });
+          // 1. Pega os dados do caso pendente
+          const docRefPendente = doc(db, "casos_pendentes", docId);
+          const docSnapUnico = await getDoc(docRefPendente);
+          
+          if (docSnapUnico.exists()) {
+              const casoData = docSnapUnico.data();
+              casoData.status = "aprovado"; // Aprova o status
+
+              // 2. Salva na coleção oficial 'casos'
+              await setDoc(doc(db, "casos", docId), casoData);
+
+              // 3. Exclui da fila de pendentes
+              await deleteDoc(docRefPendente);
+
+              showAlert("Publicação Aprovada! O caso já está público.", { onOk: carregarAprovacoes });
+          }
         } catch (err) {
           showAlert("Erro: " + err.message);
           e.target.disabled = false;
@@ -356,7 +361,7 @@ async function carregarAprovacoes() {
       });
     });
 
-    // Evento Rejeitar
+    // --- EVENTO REJEITAR ---
     document.querySelectorAll(".btn-rejeitar").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         const btnEl = e.target.closest("button");
@@ -364,7 +369,8 @@ async function carregarAprovacoes() {
 
         if (confirm("Tem certeza que deseja rejeitar este caso?")) {
           try {
-            await updateDoc(doc(db, "casos", docId), { status: "rejeitado" });
+            const docRefPendente = doc(db, "casos_pendentes", docId);
+            await deleteDoc(docRefPendente); // Apenas apaga
             carregarAprovacoes();
           } catch (err) {
             showAlert("Erro ao rejeitar: " + err.message);
@@ -372,6 +378,7 @@ async function carregarAprovacoes() {
         }
       });
     });
+
   } catch (error) {
     console.error("Erro admin:", error);
   }

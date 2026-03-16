@@ -196,10 +196,10 @@ async function enviarRelato() {
 
     if (fileInput.files.length > 0) {
       const file = fileInput.files[0];
-      // Limite de segurança para o Firestore (aprox 800KB)
-      if (file.size > 800 * 1024) {
+      // Limite de segurança para o Firestore (aprox 1000KB)
+      if (file.size > 1000 * 1024) {
         showAlert(
-          "A imagem é muito grande para o sistema atual. Por favor escolha uma imagem menor (abaixo de 800KB).",
+          "A imagem é muito grande para o sistema atual. Por favor escolha uma imagem menor (abaixo de 1000KB).",
         );
         btn.innerText = "Relatar";
         btn.disabled = false;
@@ -229,7 +229,8 @@ async function enviarRelato() {
     };
 
     // Salvar no Firestore
-    await addDoc(collection(db, "casos"), dados);
+
+await addDoc(collection(db, "casos_pendentes"), dados);
 
     showAlert("Caso relatado com sucesso! Aguarde aprovação do administrador.");
     document.getElementById("relatarSec").style.display = "none";
