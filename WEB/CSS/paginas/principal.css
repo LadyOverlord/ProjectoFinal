@@ -646,3 +646,309 @@ textarea {
     max-width: 90%;
   }
 }
+
+/* ==============================================
+   ADICIONAR AO FINAL DO principal.css
+   Estilos para: Apoiar, Comentar, Partilhar,
+   secção de comentários e contadores
+   ============================================== */
+
+/* ─── BOTÕES DE AÇÃO (melhorados) ─────────────── */
+.btn-action {
+  flex: 1;
+  background: #f8f9fa;
+  border: none;
+  padding: 9px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  font-family: var(--font-base);
+}
+
+.btn-action:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.btn-action:active { transform: translateY(0); }
+
+/* Estado "Apoiando" */
+.btn-apoiar.apoiado {
+  background: #fff0f3;
+  color: #e74c3c;
+}
+.btn-apoiar.apoiado:hover {
+  background: #ffe0e6;
+}
+.btn-apoiar.apoiado i {
+  color: #e74c3c;
+}
+
+/* Loader no botão */
+.btn-action:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ─── CONTADORES NO CARD ───────────────────────── */
+.card-counters {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 10px;
+}
+
+.counter-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  font-family: var(--font-base);
+}
+
+/* ─── SECÇÃO DE COMENTÁRIOS ────────────────────── */
+.comments-section {
+  margin-top: 14px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+  animation: fadeSlideDown 0.2s ease;
+}
+
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Lista de comentários */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 12px;
+}
+
+.comments-list::-webkit-scrollbar { width: 4px; }
+.comments-list::-webkit-scrollbar-track { background: transparent; }
+.comments-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+
+/* Item de comentário */
+.comment-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #e8f4fb;
+}
+
+.comment-bubble {
+  background: #f4f6f8;
+  border-radius: 12px 12px 12px 4px;
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-author {
+  font-weight: 700;
+  font-size: 12px;
+  color: #0c7ab5;
+  font-family: var(--font-base);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.comment-text {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.4;
+  word-break: break-word;
+  margin: 0;
+  font-family: var(--font-base);
+}
+
+.comment-time {
+  font-size: 10px;
+  color: #aaa;
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-base);
+}
+
+/* Mensagem sem comentários */
+.no-comments {
+  text-align: center;
+  color: #aaa;
+  font-size: 13px;
+  padding: 16px 0;
+  font-family: var(--font-base);
+}
+
+/* Loader de comentários */
+.comments-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #aaa;
+  font-size: 13px;
+  padding: 8px 0;
+  font-family: var(--font-base);
+}
+.comments-loading i { color: var(--color-quaternary); }
+
+/* Input de novo comentário */
+.comment-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.comment-input {
+  flex: 1;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: var(--font-base);
+  outline: none;
+  background: #f8f9fa;
+  transition: border-color 0.2s, background 0.2s;
+}
+.comment-input:focus {
+  border-color: var(--color-quaternary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(12,122,181,0.08);
+}
+
+.btn-send-comment {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-quaternary);
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-send-comment:hover  { background: #0a6596; transform: scale(1.05); }
+.btn-send-comment:active { transform: scale(0.96); }
+.btn-send-comment:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ==============================================
+   SKELETON LOADING — Feed de Casos
+   Adicionar ao final do principal.css
+   ============================================== */
+
+/* Animação de shimmer */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #ececec 25%,
+    #f5f5f5 50%,
+    #ececec 75%
+  );
+  background-size: 600px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* Card esqueleto — mesma estrutura do .feed-card */
+.feed-card-skeleton {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 25px;
+  overflow: hidden;
+}
+
+/* Header: avatar + linhas de texto */
+.sk-header {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  gap: 12px;
+}
+.sk-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sk-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+.sk-line-name  { height: 13px; width: 45%; }
+.sk-line-sub   { height: 10px; width: 30%; }
+
+/* Imagem principal */
+.sk-image {
+  width: 100vh;
+  height: 350px;
+}
+
+/* Corpo */
+.sk-body {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sk-title      { height: 16px; width: 60%; }
+.sk-text-long  { height: 11px; width: 100%; }
+.sk-text-med   { height: 11px; width: 75%; }
+.sk-text-short { height: 11px; width: 45%; }
+
+/* Botões de ação */
+.sk-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+.sk-btn {
+  flex: 1;
+  height: 34px;
+  border-radius: 6px;
+}

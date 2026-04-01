@@ -1,134 +1,184 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="CSS/variables.css">
-    <link rel="stylesheet" href="CSS/global.css">
-    <link rel="stylesheet" href="CSS/paginas/profile.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <title>Perfil do Utilizador</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="CSS/variables.css">
+  <link rel="stylesheet" href="CSS/global.css">
+  <link rel="stylesheet" href="CSS/paginas/profile.css">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <title>Perfil — Missing AO</title>
 </head>
 <body>
 
-    <div class="profile-container">
+  <!-- ─── TOPBAR ──────────────────────────────────── -->
+  <div class="topbar">
+    <a href="index.html" class="btn-voltar">
+      <i class="fa-solid fa-arrow-left"></i>
+      <span>Início</span>
+    </a>
+    <span class="topbar-username" id="topbar-username">Perfil</span>
+    <button id="btn-open-menu" class="btn-settings" title="Opções">
+      <i class="fa-solid fa-ellipsis-vertical"></i>
+    </button>
+  </div>
 
-        <!-- Barra de navegação topo -->
-        <div class="topbar">
-            <a href="index.html" class="btn-voltar">
-                <i class="fa-solid fa-arrow-left"></i>
-                <span>Voltar</span>
-            </a>
-            <h1 class="topbar-title">Meu Perfil</h1>
-            <button id="btn-edit-profile" class="btn-settings" title="Definições">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
-            </button>
+  <!-- ─── PÁGINA PRINCIPAL ────────────────────────── -->
+  <div class="profile-page">
+
+    <!-- HEADER ESTILO INSTAGRAM -->
+    <div class="ig-header">
+
+      <!-- Avatar -->
+      <div class="ig-avatar-col">
+        <div class="ig-avatar-ring" id="avatar-trigger" title="Alterar foto">
+          <img id="profile-photo" src="" alt="Foto" class="ig-avatar-img hidden">
+          <div id="avatar-placeholder" class="ig-avatar-placeholder">
+            <i class="fa-solid fa-user"></i>
+          </div>
+          <div class="ig-avatar-overlay">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+        </div>
+        <input type="file" id="photo-input" accept="image/*" style="display:none;">
+        <div id="upload-loader" class="upload-loader hidden">
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+      <!-- Info (lado direito no desktop) -->
+      <div class="ig-info-col">
+
+        <!-- Nome + Botão Editar -->
+        <div class="ig-name-row">
+          <h2 id="p-nome" class="ig-username">Carregando...</h2>
+          <button id="btn-edit-profile" class="ig-edit-btn">
+            <i class="fa-solid fa-gear"></i> Editar Perfil
+          </button>
         </div>
 
-        <!-- Cartão Principal do Utilizador -->
-        <div class="user-card">
-
-            <!-- Avatar com botão de upload -->
-            <div class="avatar-wrapper">
-                <div class="avatar-container" id="avatar-trigger" title="Alterar foto de perfil">
-                    <img id="profile-photo" src="" alt="Foto de perfil" class="avatar-img hidden" />
-                    <div id="avatar-placeholder" class="avatar-placeholder">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
-                    <div class="avatar-overlay">
-                        <i class="fa-solid fa-camera"></i>
-                        <span>Alterar</span>
-                    </div>
-                </div>
-                <!-- Input de ficheiro escondido -->
-                <input type="file" id="photo-input" accept="image/*" style="display:none;" />
-
-                <!-- Loader de upload -->
-                <div id="upload-loader" class="upload-loader hidden">
-                    <div class="spinner"></div>
-                </div>
-            </div>
-
-            <!-- Informações do utilizador -->
-            <div class="profile_info">
-                <div class="name-row">
-                    <h2 id="p-nome">Carregando...</h2>
-                    <span id="badge-verified" class="badge-verified hidden" title="Conta verificada">
-                        <i class="fa-solid fa-circle-check"></i>
-                    </span>
-                </div>
-                <p id="p-email" class="info-email">
-                    <i class="fa-solid fa-envelope"></i>
-                    <span>...</span>
-                </p>
-                <p id="p-local" class="info-location">
-                    <i class="fa-solid fa-location-dot"></i>
-                    <span>...</span>
-                </p>
-            </div>
-
-            <!-- Estatísticas rápidas -->
-            <div class="stats-row">
-                <div class="stat-item">
-                    <span id="stat-casos" class="stat-number">0</span>
-                    <span class="stat-label">Relatos</span>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
-                    <span id="stat-aprovados" class="stat-number">0</span>
-                    <span class="stat-label">Aprovados</span>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
-                    <span id="stat-pendentes" class="stat-number">0</span>
-                    <span class="stat-label">Pendentes</span>
-                </div>
-            </div>
+        <!-- Stats (desktop) -->
+        <div class="ig-stats-row">
+          <div class="ig-stat-item" id="stat-apoios-btn">
+            <span class="ig-stat-num" id="stat-apoios">0</span>
+            <span class="ig-stat-lbl">Apoios</span>
+          </div>
+          <div class="ig-stat-item" id="stat-aprovados-btn">
+            <span class="ig-stat-num" id="stat-aprovados">0</span>
+            <span class="ig-stat-lbl">Aprovados</span>
+          </div>
+          <div class="ig-stat-item" id="stat-pendentes-btn">
+            <span class="ig-stat-num" id="stat-pendentes">0</span>
+            <span class="ig-stat-lbl">Pendentes</span>
+          </div>
         </div>
 
-        <!-- Lista de Casos -->
-        <div class="my-cases">
-            <div class="cases-header">
-                <h3><i class="fa-solid fa-bullhorn"></i> Meus Relatos</h3>
-                <div class="cases-filter">
-                    <button class="filter-btn active" data-filter="all">Todos</button>
-                    <button class="filter-btn" data-filter="pendente">Pendentes</button>
-                    <button class="filter-btn" data-filter="aprovado">Aprovados</button>
-                </div>
-            </div>
-            <div id="cases-list">
-                <div class="loading-cases">
-                    <div class="spinner"></div>
-                    <p>Buscando seus casos...</p>
-                </div>
-            </div>
+        <!-- Bio -->
+        <div class="ig-bio">
+          <p class="ig-meta" id="p-email">
+            <i class="fa-solid fa-envelope"></i> <span>—</span>
+          </p>
+          <p class="ig-meta" id="p-local">
+            <i class="fa-solid fa-location-dot"></i> <span>—</span>
+          </p>
+          <div class="ig-apoios-received" id="apoios-received-box">
+            <i class="fa-solid fa-heart"></i>
+            <span>Os seus casos receberam <strong id="total-apoios-received">0</strong> apoios</span>
+          </div>
         </div>
+      </div>
     </div>
 
-    <!-- Menu de opções (dropdown) -->
-    <div class="edit_section" id="edit-menu">
-        <div class="edit-menu-header">
-            <span>Opções</span>
-        </div>
-        <button id="btn-change-photo" class="menu-item">
-            <i class="fa-solid fa-image"></i>
-            Alterar Foto de Perfil
-        </button>
-        <button id="btn-logout" class="menu-item danger">
-            <i class="fa-solid fa-right-from-bracket"></i>
-            Sair da Conta
-        </button>
-        <button id="btn-cancel-edit" class="menu-item cancel">
-            <i class="fa-solid fa-xmark"></i>
-            Cancelar
-        </button>
+    <!-- Stats Mobile (abaixo do avatar) -->
+    <div class="ig-stats-mobile">
+      <div class="ig-stat-item">
+        <span class="ig-stat-num" id="stat-apoios-m">0</span>
+        <span class="ig-stat-lbl">Apoios</span>
+      </div>
+      <div class="ig-stat-item">
+        <span class="ig-stat-num" id="stat-aprovados-m">0</span>
+        <span class="ig-stat-lbl">Aprovados</span>
+      </div>
+      <div class="ig-stat-item">
+        <span class="ig-stat-num" id="stat-pendentes-m">0</span>
+        <span class="ig-stat-lbl">Pendentes</span>
+      </div>
     </div>
 
-    <!-- Overlay de fundo quando menu aberto -->
-    <div class="menu-backdrop hidden" id="menu-backdrop"></div>
+    <!-- TABS -->
+    <div class="ig-tabs-bar">
+      <button class="ig-tab active" data-tab="meus-casos">
+        <i class="fa-solid fa-grid-2"></i>
+        <span>Meus Casos</span>
+      </button>
+      <button class="ig-tab" data-tab="apoios-tab">
+        <i class="fa-solid fa-heart"></i>
+        <span>Apoios</span>
+      </button>
+    </div>
 
-    <script src="Scripts/alerts.js"></script>
-    <script type="module" src="Scripts/profile.js"></script>
+    <!-- TAB: Meus Casos -->
+    <div class="ig-tab-content active" id="meus-casos">
+      <div class="ig-grid" id="grid-meus-casos">
+        <div class="ig-grid-loader">
+          <div class="spinner"></div>
+          <p>Carregando casos...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: Apoios -->
+    <div class="ig-tab-content" id="apoios-tab">
+      <div class="ig-grid" id="grid-apoios">
+        <div class="ig-grid-loader">
+          <div class="spinner"></div>
+          <p>Carregando casos apoiados...</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LIGHTBOX para detalhe do caso -->
+  <div class="caso-lightbox hidden" id="caso-lightbox">
+    <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+    <div class="lightbox-content">
+      <button class="lightbox-close" id="lightbox-close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <img id="lb-img" src="" alt="" class="lb-main-img" onerror="this.src='imgs/user.jpg'">
+      <div class="lb-info">
+        <div class="lb-header">
+          <h3 id="lb-nome"></h3>
+          <span id="lb-status" class="status-badge"></span>
+        </div>
+        <p id="lb-detalhes" class="lb-detalhes"></p>
+        <div class="lb-stats">
+          <span id="lb-apoios"><i class="fa-solid fa-heart"></i> 0 apoios</span>
+          <span id="lb-comentarios"><i class="fa-regular fa-comment"></i> 0 comentários</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENU DE OPÇÕES -->
+  <div class="options-menu hidden" id="options-menu">
+    <div class="options-header">Opções</div>
+    <button class="options-item" id="btn-change-photo">
+      <i class="fa-solid fa-image"></i> Alterar Foto de Perfil
+    </button>
+    <button class="options-item danger" id="btn-logout">
+      <i class="fa-solid fa-right-from-bracket"></i> Sair da Conta
+    </button>
+    <button class="options-item cancel" id="btn-cancel-menu">
+      <i class="fa-solid fa-xmark"></i> Cancelar
+    </button>
+  </div>
+  <div class="menu-backdrop hidden" id="menu-backdrop"></div>
+
+  <script src="Scripts/alerts.js"></script>
+  <script type="module" src="Scripts/profile.js"></script>
 </body>
 </html>
