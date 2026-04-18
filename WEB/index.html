@@ -3,66 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <link rel="stylesheet" href="CSS/variables.css" />
     <link rel="stylesheet" href="CSS/global.css" />
     <link rel="stylesheet" href="CSS/paginas/principal.css" />
-
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
       integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-
+      crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&family=Quicksand:wght@300..700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Google+Sans:opsz,GRAD@17..18,-50&display=swap"
-      rel="stylesheet"
-    />
-
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&family=Quicksand:wght@300..700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:opsz,GRAD@17..18,-50&display=swap" rel="stylesheet" />
+    <!-- Google Maps -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC_D3VzW-JvkXyij3z0M8Iz-5hnDj9cpwM&libraries=places" defer></script>
     <title>MissingAO - Início</title>
   </head>
   <body>
+
     <!--=====NAVE======-->
     <header>
       <div class="nav">
-        <button class="nave_button_none" id="menu">
-          <i class="fa-solid fa-bars"></i>
-        </button>
+        <button class="nave_button_none" id="menu"><i class="fa-solid fa-bars"></i></button>
         <div class="search">
-          <button class="nave_button_none">
-            <i class="fa-solid fa-magnifying-glass"></i>
-          </button>
+          <button class="nave_button_none"><i class="fa-solid fa-magnifying-glass"></i></button>
           <input type="search" placeholder="Procurar desaparecidos" />
         </div>
-        <button class="nave_button_none" id="chatbot">
-          <i class="fa-solid fa-robot" id="chat_bot"></i>
-        </button>
-        <a href="profile.html" class="nave_button" id="user"
-          ><i class="fa-solid fa-user"></i
-        ></a>
-        <button class="nave_button" id="relatar">
-          Relatar desaparecimento
-        </button>
+        <button class="nave_button_none" id="chatbot"><i class="fa-solid fa-robot" id="chat_bot"></i></button>
+        <a href="profile.html" class="nave_button" id="user"><i class="fa-solid fa-user"></i></a>
+        <button class="nave_button" id="relatar">Relatar desaparecimento</button>
       </div>
     </header>
 
     <!--======MAIN=======-->
     <section class="main">
-      <!--====SECTION MAP====-->
+
+      <!--==== COLUNA ESQUERDA: Mapa + Filtros ====-->
       <div class="section_map">
-        <div class="mapa">
-          <h1>MAPA</h1>
-          <img src="imgs/mapa.jpg" alt="Mapa de Angola" />
+
+        <!-- MAPA REAL -->
+        <div class="mapa-wrapper">
+          <div class="mapa-header">
+            <h1><i class="fa-solid fa-map-location-dot"></i> Mapa de Casos</h1>
+            <span id="mapa-contagem" class="mapa-badge">—</span>
+          </div>
+          <div id="mapa-desaparecidos" class="mapa-real"></div>
         </div>
 
+        <!-- DESTAQUES -->
         <div class="destaques">
           <h1>EM DESTAQUE</h1>
           <div class="destaque" id="destaque">
@@ -71,169 +57,118 @@
           </div>
         </div>
 
+        <!-- FILTROS -->
         <div class="filtros">
           <h1>FILTROS</h1>
-          <hr
-            style="
-              border: 0.1px solid rgba(0, 0, 0, 0.089);
-              width: 90%;
-              margin: 8px 2px;
-            "
-          />
+          <hr style="border:0.1px solid rgba(0,0,0,0.089);width:90%;margin:8px 2px;" />
+
           <div class="onde">
             <h2>ONDE</h2>
-
-            <select name="provincia" id="provincia" required>
-              <option value="" hidden>Selecione a provincia</option>
+            <select name="provincia" id="provincia">
+              <option value="">Todas as províncias</option>
               <option value="luanda">Luanda</option>
               <option value="benguela">Benguela</option>
               <option value="huambo">Huambo</option>
+              <option value="bié">Bié</option>
+              <option value="cabinda">Cabinda</option>
+              <option value="cuando_cubango">Cuando Cubango</option>
+              <option value="cuanza_norte">Cuanza Norte</option>
+              <option value="cuanza_sul">Cuanza Sul</option>
+              <option value="cunene">Cunene</option>
+              <option value="huíla">Huíla</option>
+              <option value="lunda_norte">Lunda Norte</option>
+              <option value="lunda_sul">Lunda Sul</option>
+              <option value="malanje">Malanje</option>
+              <option value="moxico">Moxico</option>
+              <option value="namibe">Namibe</option>
+              <option value="uíge">Uíge</option>
+              <option value="zaire">Zaire</option>
             </select>
-            <div id="municipio-field" style="display: none">
-              <select
-                name="municipio"
-                id="municipio"
-                style="width: 100%"
-                required
-              >
+            <div id="municipio-field" style="display:none;">
+              <select name="municipio" id="municipio" style="width:100%">
                 <option value="" hidden>Selecione o município</option>
               </select>
             </div>
           </div>
+
           <div class="quem">
-            <h2>Quem</h2>
+            <h2>QUEM</h2>
             <select name="sexo" id="sexo">
-              <option value="" hidden>Gênero</option>
+              <option value="">Gênero (todos)</option>
               <option value="masculino">Masculino</option>
               <option value="femenino">Feminino</option>
             </select>
             <select name="faixaEtaria" id="faixaEtaria">
-              <option value="" hidden>Faixa etária</option>
-              <option value="1-5">Criança (0-12 anos)</option>
-              <option value="6-10">Adolescente (13-17 anos)</option>
-              <option value="11-16">Adulto (18-59 anos)</option>
-              <option value="60+">Idoso (60+ anos)</option>
+              <option value="">Faixa etária (todas)</option>
+              <option value="crianca">Criança (0–12 anos)</option>
+              <option value="adolescente">Adolescente (13–17 anos)</option>
+              <option value="adulto">Adulto (18–59 anos)</option>
+              <option value="idoso">Idoso (60+ anos)</option>
             </select>
           </div>
 
           <div class="quando">
             <h2>QUANDO</h2>
             <select name="periodo" id="periodo">
-              <option value="" hidden>Periodo</option>
-              <option value="ultimas_24_horas">Ultimas 24 horas</option>
-              <option value="ultimos_7_dias">Ultimos 7 dias</option>
-              <option value="ultimos_30_dias">Ultimos 30 dias</option>
-              <option value="mais_de_30_dias">Mais de 30 dias</option>
+              <option value="">Período (todos)</option>
+              <option value="24h">Últimas 24 horas</option>
+              <option value="7d">Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+              <option value="mais30">Mais de 30 dias</option>
             </select>
-            <select name="status" id="status">
-              <option value="" hidden>Status</option>
-              <option value="ativo">Ativo</option>
+            <select name="status" id="status-filtro">
+              <option value="">Estado (todos)</option>
+              <option value="ativo">Ativo (Procurando)</option>
               <option value="encontrado">Encontrado</option>
               <option value="desmentido">Desmentido</option>
             </select>
           </div>
 
           <div class="caracter">
-            <h2>CARACTERISTICAS</h2>
-
-            <div>
-              <input
-                type="checkbox"
-                id="com_deficiencia"
-                name="com_deficiencia"
-              />
+            <h2>CARACTERÍSTICAS</h2>
+            <div class="check-row">
+              <input type="checkbox" id="com_deficiencia" name="com_deficiencia" />
               <label for="com_deficiencia">Com deficiência</label>
             </div>
-            <button>Aplicar filtros</button>
+            <span id="resultado-count"></span>
+            <button data-action="aplicar"><i class="fa-solid fa-filter"></i> Filtrar</button>
+            <button data-action="limpar" style="display:none;"><i class="fa-solid fa-xmark"></i> Limpar</button>
           </div>
         </div>
       </div>
-      <!--======SECTION MAIN=======-->
+
+      <!--====== COLUNA CENTRAL: Feed de Casos =======-->
       <div class="section_main">
         <div class="casos_main">
-          <!-- CARD DE EXEMPLO -->
-          <div class="desaparecido">
-            <img src="imgs/user.jpg" alt="" id="User_missing" />
-            <div>
-              <h4>Exemplo Nome</h4>
-              <p>25 anos</p>
-            </div>
-            <button><i class="fa-solid fa-ellipsis"></i></button>
-          </div>
-
-          <!-- DETALHES DO CASO SELECIONADO -->
-          <img
-            src="imgs/user.jpg"
-            class="main_img"
-            alt=""
-            id="User_missing_main"
-          />
-
-          <div class="missing_dados">
-            <h1 id="detail-name">Nome do Desaparecido</h1>
-            <div class="dados_1">
-              <h3>Ultimo local visto:</h3>
-              <p id="detail-local">--</p>
-            </div>
-
-            <div class="dados_2">
-              <h3>Desapareceu em:</h3>
-              <p id="detail-date">--</p>
-            </div>
-
-            <div class="dados_3">
-              <h3>0</h3>
-              <p>Apoiam este alerta</p>
-            </div>
-          </div>
-
-          <div class="interacao">
-            <button id="apoir"><i class="fa-solid fa-heart"></i> Apoiar</button>
-            <button id="comentar">
-              <i class="fa-solid fa-comment"></i> Comentar
-            </button>
-            <button id="compartilhar">
-              <i class="fa-solid fa-share"></i> Compartilhar
-            </button>
-          </div>
+          <!-- Carregado dinamicamente pelo principal.js -->
         </div>
       </div>
-      <!--=======ANUNCIOS/FOOTER======-->
+
+      <!--======= COLUNA DIREITA: Anúncios + Footer ======-->
       <div class="final_section">
         <div class="section_anuncio">
-          <div class="anuncios">
-            <h4>Anuncios</h4>
-            <img src="imgs/user.jpg" alt="" />
-            <div class="informacao">
-              <h3 id="random_user">Ajude a encontrar</h3>
-              <p id="info">
-                Cada partilha conta. Se você viu alguém parecido, entre em
-                contato.
-              </p>
-              <hr
-                style="
-                  border: 0.1px solid rgba(0, 0, 0, 0.089);
-                  width: 90%;
-                  margin: 8px 2px;
-                "
-              />
-              <p id="dicas">
-                Dica de segurança: Ao encontrar uma pessoa perdida, contacte as
-                autoridades.
-              </p>
+          <div class="anuncios-header">
+            <i class="fa-solid fa-bullhorn"></i>
+            <span>Alertas &amp; Dicas</span>
+          </div>
+          <div class="anuncios" id="anuncios-container">
+            <div class="anuncios-loading">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              Carregando...
             </div>
           </div>
         </div>
         <footer>
-          <a href="#">Sobre o projeto</a>
+          <a href="#">Sobre o projecto</a>
           <a href="#">Ajuda</a>
           <a href="#">Termos</a>
           <a href="#">Privacidade</a>
         </footer>
       </div>
+
     </section>
 
-    <!-- ====== MODAL DE RELATAR CASO (Editado para funcionar com Admin) ====== -->
+    <!-- ====== MODAL RELATAR CASO ====== -->
     <section class="relatar_section" id="relatarSec">
       <div class="relatar_caso">
         <header>
@@ -241,130 +176,108 @@
           <button><i class="fa-solid fa-xmark"></i></button>
         </header>
         <nav>
-          <a href="#" id="pessoaActive"
-            ><i class="fa-solid fa-user"></i> Pessoa</a
-          >
-          <a href="#" id="localActive"
-            ><i class="fa-solid fa-location-dot"></i> Local</a
-          >
-          <a href="#" id="detalhesActive"
-            ><i class="fa-solid fa-clipboard-list"></i> Detalhes</a
-          >
+          <a href="#" id="pessoaActive"><i class="fa-solid fa-user"></i> Pessoa</a>
+          <a href="#" id="localActive"><i class="fa-solid fa-location-dot"></i> Local</a>
+          <a href="#" id="detalhesActive"><i class="fa-solid fa-clipboard-list"></i> Detalhes</a>
         </nav>
 
         <div class="formulario">
-          <!-- 1. DADOS DA PESSOA -->
+          <!-- 1. PESSOA -->
           <div class="pessoa_div" id="pessoaDiv">
-            <label for="">Imagem da pessoa desaparecida</label>
+            <label>Imagem da pessoa desaparecida</label>
             <input type="file" accept="image/*" name="imagem" />
-
-            <label for="">Nome completo</label>
-            <input
-              type="text"
-              name="nome"
-              placeholder="Digite o nome completo"
-              required
-            />
-
-            <label for="">Idade</label>
-            <input
-              type="text"
-              name="idade"
-              placeholder="Ex: 25 anos"
-              required
-            />
-
-            <label for="">Sexo</label>
-            <select name="sexo" id="sexo">
+            <label>Nome completo</label>
+            <input type="text" name="nome" placeholder="Nome completo" required />
+            <label>Idade</label>
+            <input type="text" name="idade" placeholder="Ex: 25 anos" required />
+            <label>Sexo</label>
+            <select name="sexo" id="sexo-form">
               <option value="" hidden>Selecione</option>
               <option value="masculino">Masculino</option>
               <option value="femenino">Feminino</option>
             </select>
-
-            <label for="">Altura</label>
+            <label>Altura</label>
             <input type="text" name="altura" placeholder="Ex: 1.75m" />
-
-            <label for="">Nº do BI</label>
-            <input
-              type="text"
-              name="bi"
-              placeholder="Número do BI (Opcional)"
-            />
+            <label>Nº do BI</label>
+            <input type="text" name="bi" placeholder="Opcional" />
           </div>
 
-          <!-- 2. DADOS DO LOCAL -->
+          <!-- 2. LOCAL -->
           <div class="local_div" id="localDiv">
-            <label for="">Provincia</label>
+            <label>Província</label>
             <select name="provincia" id="provincia_relatar" required>
-              <option value="" hidden>Selecione a provincia</option>
+              <option value="" hidden>Selecione a província</option>
               <option value="luanda">Luanda</option>
               <option value="benguela">Benguela</option>
               <option value="huambo">Huambo</option>
+              <option value="bié">Bié</option>
+              <option value="cabinda">Cabinda</option>
+              <option value="cuando_cubango">Cuando Cubango</option>
+              <option value="cuanza_norte">Cuanza Norte</option>
+              <option value="cuanza_sul">Cuanza Sul</option>
+              <option value="cunene">Cunene</option>
+              <option value="huíla">Huíla</option>
+              <option value="lunda_norte">Lunda Norte</option>
+              <option value="lunda_sul">Lunda Sul</option>
+              <option value="malanje">Malanje</option>
+              <option value="moxico">Moxico</option>
+              <option value="namibe">Namibe</option>
+              <option value="uíge">Uíge</option>
+              <option value="zaire">Zaire</option>
             </select>
-
-            <div id="municipio-field-relatar" style="display: none">
-              <label for="">Municipio</label>
-              <select
-                name="municipio"
-                id="municipio_relatar"
-                style="width: 100%"
-                required
-              >
+            <div id="municipio-field-relatar" style="display:none;">
+              <label>Município</label>
+              <select name="municipio" id="municipio_relatar" style="width:100%" required>
                 <option value="" hidden>Selecione o município</option>
               </select>
             </div>
 
-            <label for="">Ultimo local conhecido</label>
-            <input
-              type="text"
-              name="ultimo_local"
-              placeholder="Ex: Perto do mercado do São Paulo"
-              required
-            />
+            <label>Último local conhecido</label>
+            <input type="text" name="ultimo_local" id="ultimo_local_input"
+                   placeholder="Ex: Perto do mercado do São Paulo" required />
 
-            <label for="">Data</label>
+            <!-- MAPA PICKER -->
+            <div class="mapa-form-wrapper">
+              <div class="mapa-form-header">
+                <i class="fa-solid fa-map-pin"></i>
+                <span>Clique no mapa para marcar o local exacto</span>
+              </div>
+              <div id="mapa-form" class="mapa-form-map"></div>
+              <div class="mapa-form-coords" id="mapa-form-coords" style="display:none;">
+                <i class="fa-solid fa-circle-check" style="color:#2ecc71;"></i>
+                <span id="mapa-form-addr">Local marcado</span>
+                <button type="button" id="mapa-form-limpar" class="btn-mapa-limpar">
+                  <i class="fa-solid fa-xmark"></i> Remover
+                </button>
+              </div>
+              <input type="hidden" id="lat_relatar" name="lat" />
+              <input type="hidden" id="lng_relatar" name="lng" />
+            </div>
+
+            <label>Data do desaparecimento</label>
             <input type="date" name="data_desaparecimento" />
-
-            <label for="">Hora</label>
+            <label>Hora</label>
             <input type="time" name="hora_desaparecimento" />
           </div>
 
           <!-- 3. DETALHES -->
           <div class="detalhes_div" id="detalhesDiv">
-            <label for="">Roupas que a pessoa usava</label>
-            <input
-              type="text"
-              name="roupas"
-              placeholder="Ex: Camisa azul e calça jeans"
-            />
-
-            <label for="">Deficiencia</label>
+            <label>Roupas que usava</label>
+            <input type="text" name="roupas" placeholder="Ex: Camisa azul e calça jeans" />
+            <label>Deficiência</label>
             <select name="deficiencia" id="deficiencia">
               <option value="" hidden>Selecione</option>
               <option value="sim">Sim</option>
               <option value="nao">Não</option>
             </select>
-
-            <div id="tipo_deficiencia_field" style="display: none">
-              <label for="tipo_deficiencia_input"
-                >Que tipo de deficiencia</label
-              >
-              <input
-                type="text"
-                id="tipo_deficiencia_input"
-                name="tipo_deficiencia"
-                placeholder="Descreva a deficiência"
-              />
+            <div id="tipo_deficiencia_field" style="display:none;">
+              <label for="tipo_deficiencia_input">Tipo de deficiência</label>
+              <input type="text" id="tipo_deficiencia_input" name="tipo_deficiencia"
+                     placeholder="Descreva a deficiência" />
             </div>
-
-            <label for="">Informações adicionais</label>
-            <textarea
-              name="informacoes_adicionais"
-              id="informacoes_adicionais"
-              cols="30"
-              rows="5"
-              placeholder="Outras informações úteis..."
-            ></textarea>
+            <label>Informações adicionais</label>
+            <textarea name="informacoes_adicionais" id="informacoes_adicionais"
+                      cols="30" rows="5" placeholder="Outras informações úteis..."></textarea>
           </div>
         </div>
 
@@ -374,6 +287,7 @@
       </div>
     </section>
 
+    <!-- CHATBOT -->
     <div class="chatbot_div" id="chatbotDiv">
       <div class="chatbot">
         <header>
@@ -383,50 +297,30 @@
           </div>
           <button id="closeChatbot"><i class="fa-solid fa-xmark"></i></button>
         </header>
-        <div class="chatbot_messages" id="chatbotMessages">
-          <!-- Mensagens do chatbot aparecerão aqui -->
-        </div>
+        <div class="chatbot_messages" id="chatbotMessages"></div>
         <div class="chatbot_suggestions" id="chatbotSuggestions">
-          <button
-            class="suggestion_btn"
-            data-suggestion="Como faço para reportar um desaparecimento?"
-          >
+          <button class="suggestion_btn" data-suggestion="Como faço para reportar um desaparecimento?">
             <i class="fa-solid fa-plus"></i> Como reportar um desaparecimento?
           </button>
-          <button
-            class="suggestion_btn"
-            data-suggestion="Quais informações são necessárias?"
-          >
-            <i class="fa-solid fa-question"></i> Quais informações são
-            necessárias?
+          <button class="suggestion_btn" data-suggestion="Quais informações são necessárias?">
+            <i class="fa-solid fa-question"></i> Quais informações são necessárias?
           </button>
-          <button
-            class="suggestion_btn"
-            data-suggestion="Como filtrar casos por localização?"
-          >
+          <button class="suggestion_btn" data-suggestion="Como filtrar casos por localização?">
             <i class="fa-solid fa-location-dot"></i> Filtrar por localização?
           </button>
-          <button
-            class="suggestion_btn"
-            data-suggestion="Como posso ajudar a encontrar alguém?"
-          >
+          <button class="suggestion_btn" data-suggestion="Como posso ajudar a encontrar alguém?">
             <i class="fa-solid fa-heart"></i> Como ajudar a encontrar alguém?
           </button>
         </div>
         <div class="chatbot_input_section">
-          <input
-            type="text"
-            id="chatbotInput"
-            placeholder="Digite sua mensagem..."
-          />
-          <button id="sendChatbotMessage" title="Enviar mensagem">
+          <input type="text" id="chatbotInput" placeholder="Digite sua mensagem..." />
+          <button id="sendChatbotMessage" title="Enviar">
             <i class="fa-solid fa-paper-plane"></i>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Importante: type="module" para usar imports do Firebase -->
     <script src="Scripts/alerts.js"></script>
     <script src="Scripts/chatbot.js"></script>
     <script type="module" src="Scripts/principal.js"></script>

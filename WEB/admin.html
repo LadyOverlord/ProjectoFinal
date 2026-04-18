@@ -1,197 +1,300 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="CSS/variables.css" />
     <link rel="stylesheet" href="CSS/global.css" />
     <link rel="stylesheet" href="CSS/paginas/admin.css" />
-
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-      integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-
-    <title>Document</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
+    <!-- Google Maps -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC_D3VzW-JvkXyij3z0M8Iz-5hnDj9cpwM" defer></script>
+    <title>Admin — MissingAO</title>
   </head>
   <body>
-    <!-- MENU LATERAL -->
+
+    <!-- ─── MENU LATERAL ──────────────────────────────── -->
     <section class="options">
-      <div
-        class="logo-area"
-        style="padding: 20px; color: white; text-align: center"
-      >
+      <div class="logo-area">
         <h2>MissingAO</h2>
         <p>Admin Panel</p>
       </div>
-      <a href="#" data-target="dashboard" class="menu-link active"
-        ><i class="fa-solid fa-house"></i> Dashboard</a
-      >
-      <a href="#" data-target="users" class="menu-link"
-        ><i class="fa-solid fa-users"></i> Utilizadores</a
-      >
-      <a href="#" data-target="reports" class="menu-link"
-        ><i class="fa-solid fa-clipboard-check"></i> Aprovações</a
-      >
-      <a href="#" data-target="config" class="menu-link"
-        ><i class="fa-solid fa-gear"></i> Configurações</a
-      >
-      <a href="#" id="btn-logout" style="margin-top: auto; color: #ff6b6b"
-        ><i class="fa-solid fa-right-from-bracket"></i> Sair</a
-      >
+      <a href="#" data-target="dashboard" class="menu-link active">
+        <i class="fa-solid fa-house"></i> Dashboard
+      </a>
+      <a href="#" data-target="users" class="menu-link">
+        <i class="fa-solid fa-users"></i> Utilizadores
+      </a>
+      <a href="#" data-target="reports" class="menu-link">
+        <i class="fa-solid fa-clipboard-check"></i> Aprovações
+      </a>
+      <a href="#" data-target="config" class="menu-link">
+        <i class="fa-solid fa-bullhorn"></i> Anúncios
+      </a>
+      <a href="#" data-target="mapa-admin" class="menu-link">
+        <i class="fa-solid fa-map-location-dot"></i> Mapa
+      </a>
+      <a href="#" id="btn-logout" style="margin-top:auto; color:#ff6b6b;">
+        <i class="fa-solid fa-right-from-bracket"></i> Sair
+      </a>
     </section>
 
-    <!-- BARRA SUPERIOR -->
+    <!-- ─── BARRA SUPERIOR ────────────────────────────── -->
     <nav>
-      <div class="info">
-        <h3>Painel de Controle</h3>
-      </div>
+      <div class="info"><h3 id="nav-titulo">Painel de Controle</h3></div>
       <div class="search">
-        <input type="text" placeholder="Procurar..." />
+        <input type="text" placeholder="Procurar utilizador..." />
         <button><i class="fa-solid fa-magnifying-glass"></i></button>
       </div>
     </nav>
 
-    <!-- CONTEÚDO PRINCIPAL (Faltava esta parte) -->
+    <!-- ─── CONTEÚDO PRINCIPAL ────────────────────────── -->
     <main class="content">
-      <!-- 1. PAINEL DASHBOARD -->
+
+      <!-- ══════════════════════════════════════════════
+           1. DASHBOARD
+           ══════════════════════════════════════════════ -->
       <div id="dashboard" class="panel active">
         <h2>Visão Geral</h2>
-        <div
-          class="cards-container"
-          style="
-            display: flex;
-            gap: 20px;
-            margin-top: 20px;
-            margin-bottom: 30px;
-          "
-        >
-          <div
-            class="card-stat"
-            style="
-              background: #fff;
-              padding: 20px;
-              flex: 1;
-              border-radius: 8px;
-              box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            "
-          >
-            <h3>Total Usuários</h3>
-            <p id="count-users" style="font-size: 2em; font-weight: bold">0</p>
+
+        <div class="cards-container" style="display:flex; gap:20px; margin:20px 0 30px;">
+          <div class="card-stat">
+            <span class="card-stat-icon" style="background:#e3f2fd;color:#0c7ab5;">
+              <i class="fa-solid fa-users"></i>
+            </span>
+            <div>
+              <h3>Total Utilizadores</h3>
+              <p id="count-users" class="stat-big">0</p>
+            </div>
           </div>
-          <div
-            class="card-stat"
-            style="
-              background: #fff;
-              padding: 20px;
-              flex: 1;
-              border-radius: 8px;
-              box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            "
-          >
-            <h3>Casos Pendentes</h3>
-            <p id="count-reports" style="font-size: 2em; font-weight: bold">
-              0
-            </p>
+          <div class="card-stat">
+            <span class="card-stat-icon" style="background:#fff3e0;color:#f0a500;">
+              <i class="fa-solid fa-clock"></i>
+            </span>
+            <div>
+              <h3>Casos Pendentes</h3>
+              <p id="count-reports" class="stat-big">0</p>
+            </div>
+          </div>
+          <div class="card-stat">
+            <span class="card-stat-icon" style="background:#e8f5e9;color:#2ecc71;">
+              <i class="fa-solid fa-check-circle"></i>
+            </span>
+            <div>
+              <h3>Casos Aprovados</h3>
+              <p id="count-aprovados" class="stat-big">0</p>
+            </div>
+          </div>
+          <div class="card-stat">
+            <span class="card-stat-icon" style="background:#fce4ec;color:#e74c3c;">
+              <i class="fa-solid fa-bullhorn"></i>
+            </span>
+            <div>
+              <h3>Anúncios Activos</h3>
+              <p id="count-anuncios" class="stat-big">0</p>
+            </div>
           </div>
         </div>
 
-        <!-- NOVA ÁREA: GESTÃO DE CASOS ATIVOS -->
-        <div style="background: white; padding: 20px; border-radius: 8px; overflow-y: scroll; max-height: 500px;">
+        <!-- Gestão de casos ativos -->
+        <div class="admin-card">
           <h3><i class="fa-solid fa-pen-to-square"></i> Gerir Casos Ativos</h3>
-          <p style="font-size: 0.9em; color: #666; margin-bottom: 15px">
-            Altere o status de casos que já foram aprovados (ex: Marcar como
-            Encontrado).
-          </p>
-
-          <table style="width: 100%; border-collapse: collapse">
+          <p class="admin-card-desc">Altere o status de casos aprovados.</p>
+          <table class="admin-table">
             <thead>
-              <tr
-                style="
-                  text-align: left;
-                  background: #f8f9fa;
-                  border-bottom: 2px solid #eee;
-                "
-              >
-                <th style="padding: 10px">Nome</th>
-                <th style="padding: 10px">Local</th>
-                <th style="padding: 10px">Status Atual</th>
-                <th style="padding: 10px">Ação</th>
+              <tr>
+                <th>Nome</th>
+                <th>Local</th>
+                <th>Status Atual</th>
+                <th>Ação</th>
               </tr>
             </thead>
-            <tbody id="active-cases-body">
-              <!-- JS vai preencher -->
-            </tbody>
+            <tbody id="active-cases-body"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- 2. PAINEL USUÁRIOS -->
+      <!-- ══════════════════════════════════════════════
+           2. UTILIZADORES
+           ══════════════════════════════════════════════ -->
       <div id="users" class="panel">
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          "
-        >
-          <h2>Gestão de Usuários</h2>
-          <!-- Barra de Pesquisa Específica da Tabela -->
-        </div>
-
-        <div
-          style="
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-          "
-        >
-          <table style="width: 100%; border-collapse: collapse">
+        <h2>Gestão de Utilizadores</h2>
+        <div class="admin-card" style="margin-top:20px;">
+          <table class="admin-table">
             <thead>
-              <tr style="text-align: left; background: #f0f0f0">
-                <th style="padding: 10px">Nome</th>
-                <th style="padding: 10px">Email</th>
-                <th style="padding: 10px">Role</th>
-                <th style="padding: 10px">Último Acesso</th>
-                <!-- COLUNA NOVA -->
-                <th style="padding: 10px">Ações</th>
+              <tr>
+                <th>Nome</th><th>Email</th><th>Role</th>
+                <th>Último Acesso</th><th>Ações</th>
               </tr>
             </thead>
-            <tbody id="users-table-body">
-              <!-- O JS vai preencher aqui -->
-            </tbody>
+            <tbody id="users-table-body"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- 3. PAINEL APROVAÇÕES PENDENTES -->
+      <!-- ══════════════════════════════════════════════
+           3. APROVAÇÕES
+           ══════════════════════════════════════════════ -->
       <div id="reports" class="panel">
         <h2>Aprovações Pendentes</h2>
-        <div
-          id="reports-list"
-          style="
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;  overflow-y: scroll; max-height: 500px;
-          "
-        >
+        <div id="reports-list" style="margin-top:20px; display:flex; flex-direction:column; gap:10px;">
           <p>Carregando casos...</p>
         </div>
       </div>
 
-      <!-- 4. PAINEL CONFIGURAÇÕES -->
+      <!-- ══════════════════════════════════════════════
+           4. ANÚNCIOS (CONFIGURAÇÕES)
+           ══════════════════════════════════════════════ -->
       <div id="config" class="panel">
-        <h2>Configurações</h2>
-        <p>Opções do sistema...</p>
+        <div class="config-header">
+          <div>
+            <h2>Gestão de Anúncios</h2>
+            <p class="admin-card-desc">
+              Controle o que aparece no carrossel da página inicial.
+            </p>
+          </div>
+          <button class="btn-novo-anuncio" id="btn-toggle-form">
+            <i class="fa-solid fa-plus"></i> Novo Anúncio
+          </button>
+        </div>
+
+        <!-- FORMULÁRIO (oculto por padrão) -->
+        <div class="anuncio-form-wrapper hidden" id="anuncio-form-wrapper">
+          <div class="admin-card anuncio-form-card">
+            <h3 id="form-titulo-label">
+              <i class="fa-solid fa-pen"></i> Criar Novo Anúncio
+            </h3>
+
+            <div class="form-grid">
+
+              <!-- Tipo -->
+              <div class="form-field">
+                <label>Tipo de Anúncio</label>
+                <select id="anuncio-tipo" class="admin-select">
+                  <option value="dica">💡 Dica de Segurança</option>
+                  <option value="alerta">🚨 Alerta Regional</option>
+                  <option value="caso_destaque">📢 Caso em Destaque</option>
+                </select>
+              </div>
+
+              <!-- Ordem -->
+              <div class="form-field">
+                <label>Ordem de exibição</label>
+                <input type="number" id="anuncio-ordem" class="admin-input"
+                       value="1" min="1" placeholder="1, 2, 3...">
+              </div>
+
+              <!-- Título -->
+              <div class="form-field form-field-full">
+                <label>Título</label>
+                <input type="text" id="anuncio-titulo" class="admin-input"
+                       placeholder="Ex: Viu alguém suspeito? Reporte!">
+              </div>
+
+              <!-- Conteúdo -->
+              <div class="form-field form-field-full">
+                <label>Conteúdo / Descrição</label>
+                <textarea id="anuncio-conteudo" class="admin-textarea"
+                          placeholder="Texto que aparece no slide..."></textarea>
+              </div>
+
+              <!-- Selecionar Caso (visível apenas quando tipo = caso_destaque) -->
+              <div class="form-field form-field-full" id="field-caso" style="display:none;">
+                <label>Selecionar Caso Aprovado</label>
+                <select id="anuncio-caso-select" class="admin-select">
+                  <option value="">Carregando casos...</option>
+                </select>
+                <small style="color:#888;">Ao selecionar, a imagem e nome do caso são usados automaticamente.</small>
+              </div>
+
+              <!-- Ícone (visível apenas para tipo = dica) -->
+              <div class="form-field" id="field-icone">
+                <label>Ícone FontAwesome</label>
+                <input type="text" id="anuncio-icone" class="admin-input"
+                       value="fa-solid fa-lightbulb"
+                       placeholder="fa-solid fa-lightbulb">
+                <small style="color:#888;">Classe completa do ícone FA.</small>
+              </div>
+
+              <!-- Imagem URL -->
+              <div class="form-field" id="field-imagem">
+                <label>Imagem (URL ou deixe em branco)</label>
+                <input type="text" id="anuncio-imagem" class="admin-input"
+                       placeholder="https://... ou deixe vazio">
+              </div>
+
+              <!-- Link -->
+              <div class="form-field form-field-full">
+                <label>Link do Botão (opcional)</label>
+                <input type="text" id="anuncio-link" class="admin-input"
+                       placeholder="https://... ou deixe vazio">
+              </div>
+
+              <!-- Ativo -->
+              <div class="form-field">
+                <label>Estado</label>
+                <div class="toggle-row">
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="anuncio-ativo" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span id="toggle-label">Activo</span>
+                </div>
+              </div>
+
+            </div><!-- /.form-grid -->
+
+            <div class="form-actions">
+              <button class="btn-cancelar-form" id="btn-cancelar-form">Cancelar</button>
+              <button class="btn-salvar-anuncio" id="btn-salvar-anuncio">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Anúncio
+              </button>
+            </div>
+          </div>
+        </div><!-- /.anuncio-form-wrapper -->
+
+        <!-- LISTA DE ANÚNCIOS -->
+        <div class="admin-card" style="margin-top:20px;">
+          <div class="anuncios-list-header">
+            <h3><i class="fa-solid fa-list"></i> Anúncios Existentes</h3>
+            <div class="anuncios-legenda">
+              <span class="legenda-item"><span class="dot dot-ativo"></span> Activo</span>
+              <span class="legenda-item"><span class="dot dot-inativo"></span> Inactivo</span>
+            </div>
+          </div>
+          <div id="anuncios-list">
+            <div class="admin-loader">
+              <i class="fa-solid fa-spinner fa-spin"></i> Carregando anúncios...
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /#config -->
+
+
+      <!-- ══════════════════════════════════════════════
+           5. MAPA DE CASOS
+           ══════════════════════════════════════════════ -->
+      <div id="mapa-admin" class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <h2>Mapa de Casos</h2>
+            <p class="admin-card-desc">Localização geográfica de todos os casos aprovados.</p>
+          </div>
+          <div class="mapa-admin-legenda">
+            <span class="legenda-dot" style="background:#0c7ab5;"></span><span>Activo</span>
+            <span class="legenda-dot" style="background:#2ecc71;"></span><span>Encontrado</span>
+            <span class="legenda-dot" style="background:#95a5a6;"></span><span>Desmentido</span>
+          </div>
+        </div>
+        <div class="admin-card" style="padding:0;overflow:hidden;">
+          <div id="mapa-admin-container" style="width:100%;height:500px;"></div>
+        </div>
+        <div id="mapa-admin-lista" style="margin-top:16px;"></div>
       </div>
+
     </main>
 
-    <!-- Scripts -->
     <script src="Scripts/alerts.js"></script>
     <script type="module" src="Scripts/admin.js"></script>
   </body>

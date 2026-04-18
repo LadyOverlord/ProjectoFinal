@@ -12,400 +12,874 @@ import {
   where,
   updateDoc,
   deleteDoc,
-  setDoc
+  setDoc,
+  addDoc,
+  orderBy,
+  serverTimestamp,
+  increment as fsIncrement,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-// === VARIÁVEIS GLOBAIS ===
-let todosUsuarios = []; // Essencial para a pesquisa funcionar
+// ─── Estado Global ────────────────────────────────────────────
+let todosUsuarios = [];
+let editandoId = null; // ID do anúncio em edição (null = novo)
+let formularioConfigurado = false; // Guard: evita listeners duplicados
 
-// === 1. VERIFICAÇÃO DE SEGURANÇA (ADMIN) ===
+// ─── Auth + Segurança ─────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
-if (user) {
-try {
-const docRef = doc(db, "users", user.uid);
-const docSnap = await getDoc(docRef);
-
-if (docSnap.exists() && docSnap.data().role === 'admin') {
-            // É Admin: Mostra o painel e carrega os dados
-            console.log("Admin logado:", user.email);
-            iniciarAdmin();
-        } else {
-            // Não é admin: Expulsa
-         
-            window.location.href = "index.html";
-        }
-    } catch (error) {
-        console.error("Erro ao verificar admin:", error);
-        window.location.href = "index.html";
-    }
-} else {
-    // Não está logado: Expulsa
+  if (!user) {
     window.location.href = "login_cadastro.html";
-}
+    return;
+  }
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists() && snap.data().role === "admin") {
+      document.body.style.display = "flex";
+      iniciarAdmin();
+    } else {
+      window.location.href = "index.html";
+    }
+  } catch {
+    window.location.href = "index.html";
+  }
 });
 
-// === 2. INICIALIZAÇÃO DO PAINEL ===
+/* =========================================================================
+   INIT
+   ========================================================================= */
 function iniciarAdmin() {
   configurarNavegacao();
 
-  // Configura o botão de Sair
-  document.getElementById("btn-logout").addEventListener("click", () => {
-    signOut(auth).then(() => (window.location.href = "index.html"));
-  });
+  document
+    .getElementById("btn-logout")
+    .addEventListener("click", () =>
+      signOut(auth).then(() => (window.location.href = "index.html")),
+    );
 
-  // === CONFIGURAR PESQUISA (Nav Superior) ===
-  const searchInput = document.querySelector(".search input");
-  if (searchInput) {
-    searchInput.addEventListener("keyup", (e) => {
-      filtrarUsuarios(e.target.value.toLowerCase());
-    });
-  }
+  // Pesquisa global de utilizadores
+  document
+    .querySelector(".search input")
+    ?.addEventListener("keyup", (e) =>
+      filtrarUsuarios(e.target.value.toLowerCase()),
+    );
 
-  // Carrega a Dashboard inicial
   carregarDashboard();
+  configurarFormularioAnuncio(); // ✅ chamado apenas UMA vez
 }
 
-// === 3. NAVEGAÇÃO ENTRE ABAS ===
+/* =========================================================================
+   NAVEGAÇÃO
+   ========================================================================= */
 function configurarNavegacao() {
   const links = document.querySelectorAll(".menu-link");
   const panels = document.querySelectorAll(".panel");
+  const titulos = {
+    dashboard: "Painel de Controle",
+    users: "Gestão de Utilizadores",
+    reports: "Aprovações Pendentes",
+    config: "Gestão de Anúncios",
+  };
 
   links.forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
-
       links.forEach((l) => l.classList.remove("active"));
       panels.forEach((p) => p.classList.remove("active"));
-
       link.classList.add("active");
-      const targetId = link.getAttribute("data-target");
-      document.getElementById(targetId).classList.add("active");
+      const id = link.dataset.target;
+      document.getElementById(id)?.classList.add("active");
+      document.getElementById("nav-titulo").innerText = titulos[id] || "Admin";
 
-      if (targetId === "dashboard") carregarDashboard();
-      if (targetId === "users") carregarUsuarios();
-      if (targetId === "reports") carregarAprovacoes();
+      if (id === "dashboard") carregarDashboard();
+      if (id === "users") carregarUsuarios();
+      if (id === "reports") carregarAprovacoes();
+      if (id === "config") carregarConfig();
     });
   });
 }
 
-// === 4. DASHBOARD (VISÃO GERAL + GESTÃO DE ATIVOS) ===
+/* =========================================================================
+   DASHBOARD
+   ========================================================================= */
 async function carregarDashboard() {
   try {
-    // A. Contadores
-    const usersSnap = await getDocs(collection(db, "users"));
-    document.getElementById("count-users").innerText = usersSnap.size;
-
-    // ALTERAÇÃO: Conta os documentos diretamente da coleção casos_pendentes
-    const reportsSnap = await getDocs(collection(db, "casos_pendentes"));
-    document.getElementById("count-reports").innerText = reportsSnap.size;
-
-    // B. Tabela de Casos Ativos (Para mudar status)
-    const activeBody = document.getElementById("active-cases-body");
-    if (activeBody) {
-      activeBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Carregando casos ativos...</td></tr>';
-
-      // Busca casos que estão visíveis no site (aprovado, encontrado, desmentido) na coleção oficial 'casos'
-      const qAtivos = query(
-        collection(db, "casos"),
-        where("status", "in", ["aprovado", "encontrado", "desmentido"]),
-      );
-      const snapAtivos = await getDocs(qAtivos);
-
-      activeBody.innerHTML = "";
-
-      if (snapAtivos.empty) {
-        activeBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum caso ativo.</td></tr>';
-      } else {
-        snapAtivos.forEach((doc) => {
-          const data = doc.data();
-          const tr = document.createElement("tr");
-          tr.style.borderBottom = "1px solid #eee";
-
-          const selectHtml = `
-              <select class="status-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: var(--font-base);">
-                  <option value="aprovado" ${data.status === "aprovado" ? "selected" : ""}>Ativo (Procurando)</option>
-                  <option value="encontrado" ${data.status === "encontrado" ? "selected" : ""}>🟢 Encontrado</option>
-                  <option value="desmentido" ${data.status === "desmentido" ? "selected" : ""}>⚫ Desmentido</option>
-                  <option value="rejeitado" ${data.status === "rejeitado" ? "selected" : ""}>🔴 Arquivar/Remover</option>
-              </select>
-          `;
-
-          tr.innerHTML = `
-              <td style="padding: 10px;">${data.nome || "Desconhecido"}</td>
-              <td style="padding: 10px;">${data.municipio || "-"}</td>
-              <td style="padding: 10px;">${selectHtml}</td>
-              <td style="padding: 10px;">
-                  <button class="btn-save-status" data-id="${doc.id}" style="background: #0c7ab5; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Salvar</button>
-              </td>
-          `;
-          activeBody.appendChild(tr);
-        });
-
-        // Eventos dos botões Salvar
-        document.querySelectorAll(".btn-save-status").forEach((btn) => {
-          btn.addEventListener("click", async (e) => {
-            const id = e.target.getAttribute("data-id");
-            const row = e.target.closest("tr");
-            const novoStatus = row.querySelector(".status-select").value;
-
-            try {
-              e.target.innerText = "...";
-              await updateDoc(doc(db, "casos", id), { status: novoStatus });
-              showAlert(`Status atualizado para: ${novoStatus}`, { onOk: carregarDashboard });
-            } catch (err) {
-              showAlert("Erro: " + err.message);
-              e.target.innerText = "Salvar";
-            }
-          });
-        });
-      }
+    // Cada query é independente — se uma falhar não afecta as outras
+    let usersCount = "—";
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      usersCount =
+        typeof usersSnap.size === "number"
+          ? usersSnap.size
+          : (() => {
+              let c = 0;
+              usersSnap.forEach(() => c++);
+              return c;
+            })();
+    } catch (e) {
+      usersCount = "—";
     }
-  } catch (error) {
-    console.error("Erro no dashboard:", error);
+
+    let pendCount = "—";
+    try {
+      const pendSnap = await getDocs(collection(db, "casos_pendentes"));
+      pendCount =
+        typeof pendSnap.size === "number"
+          ? pendSnap.size
+          : (() => {
+              let c = 0;
+              pendSnap.forEach(() => c++);
+              return c;
+            })();
+    } catch (e) {
+      pendCount = "—";
+    }
+
+    let aprovCount = "—";
+    try {
+      const aprovSnap = await getDocs(
+        query(collection(db, "casos"), where("status", "==", "aprovado")),
+      );
+      aprovCount =
+        typeof aprovSnap.size === "number"
+          ? aprovSnap.size
+          : (() => {
+              let c = 0;
+              aprovSnap.forEach(() => c++);
+              return c;
+            })();
+    } catch (e) {
+      aprovCount = "—";
+    }
+
+    document.getElementById("count-users").innerText = usersCount;
+    document.getElementById("count-reports").innerText = pendCount;
+    document.getElementById("count-aprovados").innerText = aprovCount;
+
+    // Anúncios: query separada para não bloquear o resto
+    try {
+      const anuncSnap = await getDocs(collection(db, "anuncios"));
+      const ativos = [];
+      anuncSnap.forEach((d) => {
+        const data = d.data();
+        const ativo = data.ativo;
+        const isAtivo = (function (v) {
+          if (v === true) return true;
+          if (v === false) return false;
+          if (v == null) return true;
+          if (typeof v === "number") return v !== 0;
+          if (typeof v === "string") {
+            const s = v.trim().toLowerCase();
+            return ["true", "1", "on", "yes", "sim"].includes(s);
+          }
+          return Boolean(v);
+        })(ativo);
+        if (isAtivo) ativos.push(d);
+      });
+      document.getElementById("count-anuncios").innerText = ativos.length;
+    } catch (_) {
+      document.getElementById("count-anuncios").innerText = "—";
+    }
+
+    // Tabela casos ativos
+    const activeBody = document.getElementById("active-cases-body");
+    if (!activeBody) return;
+    activeBody.innerHTML = `<tr><td colspan="4" class="tc">Carregando...</td></tr>`;
+
+    const qAtivos = query(
+      collection(db, "casos"),
+      where("status", "in", ["aprovado", "encontrado", "desmentido"]),
+    );
+    const snapAtivos = await getDocs(qAtivos);
+
+    activeBody.innerHTML = "";
+    if (snapAtivos.empty) {
+      activeBody.innerHTML = `<tr><td colspan="4" class="tc">Nenhum caso ativo.</td></tr>`;
+      return;
+    }
+
+    snapAtivos.forEach((d) => {
+      const data = d.data();
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid #eee";
+      tr.innerHTML = `
+        <td style="padding:10px;">${data.nome || "—"}</td>
+        <td style="padding:10px;">${data.municipio || "—"}</td>
+        <td style="padding:10px;">
+          <select class="status-select admin-select-sm">
+            <option value="aprovado"   ${data.status === "aprovado" ? "selected" : ""}>🔵 Ativo</option>
+            <option value="encontrado" ${data.status === "encontrado" ? "selected" : ""}>🟢 Encontrado</option>
+            <option value="desmentido" ${data.status === "desmentido" ? "selected" : ""}>⚫ Desmentido</option>
+            <option value="rejeitado"  ${data.status === "rejeitado" ? "selected" : ""}>🔴 Arquivar</option>
+          </select>
+        </td>
+        <td style="padding:10px;">
+          <button class="btn-save-status btn-admin-sm" data-id="${d.id}">Guardar</button>
+        </td>`;
+      activeBody.appendChild(tr);
+    });
+
+    activeBody.querySelectorAll(".btn-save-status").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        const id = btn.dataset.id;
+        const novoStatus = btn
+          .closest("tr")
+          .querySelector(".status-select").value;
+        btn.innerText = "...";
+        btn.disabled = true;
+        try {
+          await updateDoc(doc(db, "casos", id), { status: novoStatus });
+          showAlert(`✅ Status actualizado: ${novoStatus}`, {
+            onOk: carregarDashboard,
+          });
+        } catch (err) {
+          showAlert("Erro: " + err.message);
+          btn.innerText = "Guardar";
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    console.error("Erro dashboard:", err);
   }
 }
 
-// === 5. GESTÃO DE USUÁRIOS (COM DATA E PESQUISA) ===
+/* =========================================================================
+   UTILIZADORES
+   ========================================================================= */
 async function carregarUsuarios() {
   const tbody = document.getElementById("users-table-body");
-  tbody.innerHTML =
-    '<tr><td colspan="5" style="text-align:center;">Carregando usuários...</td></tr>';
-
+  tbody.innerHTML = `<tr><td colspan="5" class="tc">Carregando...</td></tr>`;
   try {
-    const querySnapshot = await getDocs(collection(db, "users"));
-    todosUsuarios = []; // Limpa a global
-
-    querySnapshot.forEach((doc) => {
-      let u = doc.data();
-      u.id = doc.id;
-      todosUsuarios.push(u);
-    });
-
+    const snap = await getDocs(collection(db, "users"));
+    todosUsuarios = [];
+    snap.forEach((d) => todosUsuarios.push({ id: d.id, ...d.data() }));
     renderizarTabelaUsuarios(todosUsuarios);
-  } catch (error) {
-    console.error("Erro usuarios:", error);
-    tbody.innerHTML = '<tr><td colspan="5">Erro ao carregar.</td></tr>';
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="tc">Erro ao carregar.</td></tr>`;
   }
 }
 
 function renderizarTabelaUsuarios(lista) {
   const tbody = document.getElementById("users-table-body");
   tbody.innerHTML = "";
-
-  if (lista.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="5" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="tc">Nenhum utilizador encontrado.</td></tr>`;
     return;
   }
-
   lista.forEach((user) => {
     let rawDate = user.ultimoLogin || user.criadoEm;
-    let dataTexto = "Desconhecido";
+    let dataTexto = "—";
     let labelTipo = "";
-
     if (rawDate) {
-      let dt;
-      if (rawDate.toDate) {
-        dt = rawDate.toDate();
-      } else {
-        dt = new Date(rawDate);
-      }
-
-      if (!isNaN(dt.getTime())) {
-        const hora = String(dt.getHours()).padStart(2, "0");
-        const min = String(dt.getMinutes()).padStart(2, "0");
-        const dia = String(dt.getDate()).padStart(2, "0");
-        const mes = String(dt.getMonth() + 1).padStart(2, "0");
-        const ano = dt.getFullYear();
-
-        dataTexto = `${hora}:${min} - ${dia}/${mes}/${ano}`;
-
-        if (user.ultimoLogin) {
-          labelTipo = `<span style="color:green; font-size:0.8em;">(Ativo)</span>`;
-        } else {
-          labelTipo = `<span style="color:orange; font-size:0.8em;">(Novo)</span>`;
-        }
+      const dt = rawDate.toDate ? rawDate.toDate() : new Date(rawDate);
+      if (!isNaN(dt)) {
+        dataTexto = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")} · ${dt.getDate()}/${dt.getMonth() + 1}/${dt.getFullYear()}`;
+        labelTipo = user.ultimoLogin
+          ? `<span class="label-verde">Ativo</span>`
+          : `<span class="label-laranja">Novo</span>`;
       }
     }
-
-    const row = `
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 12px 10px;">${user.nome || "Sem nome"}</td>
-                <td style="padding: 12px 10px;">${user.email}</td>
-                <td style="padding: 12px 10px;">
-                    <span style="background:${user.role === "admin" ? "#e3f2fd" : "#f5f5f5"}; 
-                                color:${user.role === "admin" ? "#0c7ab5" : "#333"}; 
-                                padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold;">
-                        ${user.role || "user"}
-                    </span>
-                </td>
-                <td style="padding: 12px 10px; color: #555; font-size: 0.9em;">
-                    ${dataTexto} ${labelTipo}
-                </td>
-                <td style="padding: 12px 10px;">
-                    <button onclick="window.excluirUsuario('${user.id}')" title="Excluir Usuário" 
-                            style="color: #dc3545; background: #fff0f1; border: none; width: 32px; height: 32px; border-radius: 4px; cursor: pointer; transition: 0.2s;">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    tbody.innerHTML += row;
+    tbody.innerHTML += `
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:12px 10px;">${user.nome || "—"}</td>
+        <td style="padding:12px 10px;">${user.email}</td>
+        <td style="padding:12px 10px;">
+          <span class="role-badge ${user.role === "admin" ? "role-admin" : "role-user"}">
+            ${user.role || "user"}
+          </span>
+        </td>
+        <td style="padding:12px 10px;font-size:0.88em;color:#555;">${dataTexto} ${labelTipo}</td>
+        <td style="padding:12px 10px;">
+          <button onclick="window.excluirUsuario('${user.id}')" class="btn-danger-sm" title="Remover">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      </tr>`;
   });
 }
 
 function filtrarUsuarios(termo) {
-  // Muda para aba usuários se não estiver nela
-  const usersPanel = document.getElementById("users");
-  if (!usersPanel.classList.contains("active")) {
+  const painel = document.getElementById("users");
+  if (!painel.classList.contains("active"))
     document.querySelector('[data-target="users"]').click();
-  }
-
-  const filtrados = todosUsuarios.filter((u) => {
-    const nome = (u.nome || "").toLowerCase();
-    const email = (u.email || "").toLowerCase();
-    return nome.includes(termo) || email.includes(termo);
-  });
-
-  renderizarTabelaUsuarios(filtrados);
+  renderizarTabelaUsuarios(
+    todosUsuarios.filter(
+      (u) =>
+        (u.nome || "").toLowerCase().includes(termo) ||
+        (u.email || "").toLowerCase().includes(termo),
+    ),
+  );
 }
 
-// === 6. APROVAÇÕES PENDENTES (Lê da 'casos_pendentes' e move para 'casos') ===
+window.excluirUsuario = async function (id) {
+  if (!confirm("Remover este utilizador da base de dados?")) return;
+  try {
+    await deleteDoc(doc(db, "users", id));
+    showAlert("Utilizador removido.", { onOk: carregarUsuarios });
+  } catch (e) {
+    showAlert("Erro: " + e.message);
+  }
+};
+
+/* =========================================================================
+   APROVAÇÕES
+   ========================================================================= */
 async function carregarAprovacoes() {
   const container = document.getElementById("reports-list");
-  container.innerHTML = '<p style="text-align:center;">Buscando casos pendentes...</p>';
-
+  container.innerHTML = `<p class="tc">Buscando pendentes...</p>`;
   try {
-    // BUSCA NA COLEÇÃO CRIADA PELA SUA COLEGA
-    const querySnapshot = await getDocs(collection(db, "casos_pendentes"));
-
+    const snap = await getDocs(collection(db, "casos_pendentes"));
     container.innerHTML = "";
-
-    if (querySnapshot.empty) {
-      container.innerHTML = '<p style="text-align:center; color: #666; margin-top: 20px;">Nenhuma aprovação pendente.</p>';
+    if (snap.empty) {
+      container.innerHTML = `<p class="tc" style="color:#666;margin-top:20px;">Nenhuma aprovação pendente.</p>`;
       return;
     }
-
-    querySnapshot.forEach((docSnap) => {
+    snap.forEach((docSnap) => {
       const data = docSnap.data();
       const id = docSnap.id;
-
       const dias = calcularDias(data.data_desaparecimento);
-      const textoTempo = dias === 0 ? "hoje" : `há ${dias} dias`;
-      const imagemSrc = data.imagem || "imgs/user.jpg";
+      const tempo = dias === 0 ? "hoje" : `há ${dias} dias`;
 
       const card = document.createElement("div");
       card.className = "card-aprovar";
-
       card.innerHTML = `
-          <!-- Lixeira / Rejeitar -->
-          <button class="top-menu-btn btn-rejeitar" data-id="${id}" title="Rejeitar caso">
-              <i class="fa-solid fa-trash"></i>
+        <button class="top-menu-btn btn-rejeitar" data-id="${id}" title="Rejeitar">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+        <div class="card-header-admin">
+          <img src="${data.imagem || "imgs/user.jpg"}" class="admin-avatar" onerror="this.src='imgs/user.jpg'" alt="">
+          <div class="admin-user-info">
+            <h3>${data.nome || "Nome Desconhecido"}</h3>
+            <p>${data.idade || "?"} anos</p>
+          </div>
+        </div>
+        <p class="card-desc">Desapareceu em <strong>${data.provincia || "local desconhecido"}</strong> ${tempo}.</p>
+        <div class="admin-actions">
+          <button class="btn-docs"
+            onclick="window.showAlert('BI: ${data.bi || "N/A"}\\nRoupas: ${data.roupas || "N/A"}\\nRelato: ${data.informacoes_adicionais || "Sem detalhes"}')">
+            Ver Documentos
           </button>
-
-          <!-- Cabeçalho -->
-          <div class="card-header-admin">
-              <img src="${imagemSrc}" class="admin-avatar" alt="Foto">
-              <div class="admin-user-info">
-                  <h3>${data.nome || "Nome Desconhecido"}</h3>
-                  <p>${data.idade || "?"} anos</p>
-              </div>
-          </div>
-
-          <!-- Descrição -->
-          <p class="card-desc">
-              Desapareceu em ${data.provincia || "Local desconhecido"} ${textoTempo}.
-          </p>
-
-          <!-- Botões -->
-          <div class="admin-actions">
-              <button class="btn-docs" onclick="window.showAlert('Detalhes:\\nBI: ${data.bi || "N/A"}\\nRoupas: ${data.roupas || "N/A"}\\nRelato: ${data.informacoes_adicionais || "Sem detalhes"}')">
-                  Ver Documentos
-              </button>
-              <button class="btn-approve-pub" data-id="${id}">
-                  Aprovar Publicação
-              </button>
-          </div>
-      `;
+          <button class="btn-approve-pub" data-id="${id}">Aprovar Publicação</button>
+        </div>`;
       container.appendChild(card);
     });
 
-    // --- EVENTO APROVAR (Move o caso para a coleção oficial) ---
-    document.querySelectorAll(".btn-approve-pub").forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        const docId = e.target.getAttribute("data-id");
-        e.target.innerText = "Aprovando...";
-        e.target.disabled = true;
-
+    // Aprovar
+    container.querySelectorAll(".btn-approve-pub").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        btn.innerText = "Aprovando...";
+        btn.disabled = true;
         try {
-          // 1. Pega os dados do caso pendente
-          const docRefPendente = doc(db, "casos_pendentes", docId);
-          const docSnapUnico = await getDoc(docRefPendente);
-          
-          if (docSnapUnico.exists()) {
-              const casoData = docSnapUnico.data();
-              casoData.status = "aprovado"; // Aprova o status
-
-              // 2. Salva na coleção oficial 'casos'
-              await setDoc(doc(db, "casos", docId), casoData);
-
-              // 3. Exclui da fila de pendentes
-              await deleteDoc(docRefPendente);
-
-              showAlert("Publicação Aprovada! O caso já está público.", { onOk: carregarAprovacoes });
+          const ref = doc(db, "casos_pendentes", id);
+          const snap = await getDoc(ref);
+          if (snap.exists()) {
+            await setDoc(doc(db, "casos", id), {
+              ...snap.data(),
+              status: "aprovado",
+            });
+            await deleteDoc(ref);
+            showAlert("✅ Publicação aprovada!", { onOk: carregarAprovacoes });
           }
         } catch (err) {
           showAlert("Erro: " + err.message);
-          e.target.disabled = false;
+          btn.disabled = false;
         }
       });
     });
 
-    // --- EVENTO REJEITAR ---
-    document.querySelectorAll(".btn-rejeitar").forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        const btnEl = e.target.closest("button");
-        const docId = btnEl.getAttribute("data-id");
-
-        if (confirm("Tem certeza que deseja rejeitar este caso?")) {
-          try {
-            const docRefPendente = doc(db, "casos_pendentes", docId);
-            await deleteDoc(docRefPendente); // Apenas apaga
-            carregarAprovacoes();
-          } catch (err) {
-            showAlert("Erro ao rejeitar: " + err.message);
-          }
+    // Rejeitar
+    container.querySelectorAll(".btn-rejeitar").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.closest("button").dataset.id;
+        if (!confirm("Rejeitar este caso?")) return;
+        try {
+          await deleteDoc(doc(db, "casos_pendentes", id));
+          carregarAprovacoes();
+        } catch (err) {
+          showAlert("Erro: " + err.message);
         }
       });
     });
-
-  } catch (error) {
-    console.error("Erro admin:", error);
+  } catch (err) {
+    console.error("ERRO popularSelectCasos:", err.code, err.message);
   }
 }
 
-// === UTILITÁRIOS ===
+/* =========================================================================
+   CONFIGURAÇÕES — ANÚNCIOS (CRUD COMPLETO)
+   ========================================================================= */
+async function carregarConfig() {
+  await Promise.all([carregarListaAnuncios(), popularSelectCasos()]);
+  // formulário já configurado em iniciarAdmin()
+}
 
+// ── Lista de anúncios ─────────────────────────────────────────
+async function carregarListaAnuncios() {
+  const listEl = document.getElementById("anuncios-list");
+  listEl.innerHTML = `<div class="admin-loader"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>`;
+
+  try {
+    // ✅ Busca tudo e ordena em JS (evita necessidade de índice Firestore)
+    const snap = await getDocs(collection(db, "anuncios"));
+    listEl.innerHTML = "";
+
+    // Ordenar por campo "ordem" em JS
+    const anuncios = [];
+    snap.forEach((d) => anuncios.push({ id: d.id, ...d.data() }));
+    anuncios.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+
+    if (anuncios.length === 0) {
+      listEl.innerHTML = `<p class="tc" style="color:#999;padding:24px 0;">Nenhum anúncio criado ainda.</p>`;
+      return;
+    }
+
+    anuncios.forEach((an) => {
+      const tipoLabel =
+        { dica: "💡 Dica", alerta: "🚨 Alerta", caso_destaque: "📢 Destaque" }[
+          an.tipo
+        ] || an.tipo;
+
+      const isAtivo = (function (v) {
+        if (v === true) return true;
+        if (v === false) return false;
+        if (v == null) return true;
+        if (typeof v === "number") return v !== 0;
+        if (typeof v === "string") {
+          const s = v.trim().toLowerCase();
+          return ["true", "1", "on", "yes", "sim"].includes(s);
+        }
+        return Boolean(v);
+      })(an.ativo);
+
+      const row = document.createElement("div");
+      row.className = `anuncio-row ${isAtivo ? "" : "anuncio-inativo"}`;
+      row.innerHTML = `
+        <div class="anuncio-row-left">
+          <span class="anuncio-ordem">#${an.ordem || "—"}</span>
+          <span class="anuncio-tipo-badge tipo-${an.tipo}">${tipoLabel}</span>
+          <div class="anuncio-row-info">
+            <strong>${an.titulo || "Sem título"}</strong>
+            <span>${(an.conteudo || "").slice(0, 80)}${(an.conteudo || "").length > 80 ? "..." : ""}</span>
+          </div>
+        </div>
+        <div class="anuncio-row-actions">
+          <label class="toggle-switch" title="${isAtivo ? "Desactivar" : "Activar"}">
+            <input type="checkbox" class="toggle-ativo" data-id="${an.id}" ${isAtivo ? "checked" : ""}>
+            <span class="toggle-slider"></span>
+          </label>
+          <button class="btn-admin-icon btn-edit-anuncio" data-id="${an.id}" title="Editar">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="btn-admin-icon btn-delete-anuncio btn-danger-icon" data-id="${an.id}" title="Eliminar">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>`;
+      listEl.appendChild(row);
+    });
+
+    // Toggle ativo/inativo
+    listEl.querySelectorAll(".toggle-ativo").forEach((chk) => {
+      chk.addEventListener("change", async () => {
+        try {
+          await updateDoc(doc(db, "anuncios", chk.dataset.id), {
+            ativo: chk.checked,
+          });
+          chk
+            .closest(".anuncio-row")
+            .classList.toggle("anuncio-inativo", !chk.checked);
+        } catch (err) {
+          showAlert("Erro: " + err.message);
+          chk.checked = !chk.checked;
+        }
+      });
+    });
+
+    // Editar
+    listEl.querySelectorAll(".btn-edit-anuncio").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const snap = await getDoc(doc(db, "anuncios", btn.dataset.id));
+        if (!snap.exists()) return;
+        preencherFormulario(btn.dataset.id, snap.data());
+      });
+    });
+
+    // Eliminar
+    listEl.querySelectorAll(".btn-delete-anuncio").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Eliminar este anúncio permanentemente?")) return;
+        try {
+          await deleteDoc(doc(db, "anuncios", btn.dataset.id));
+          carregarListaAnuncios();
+        } catch (err) {
+          showAlert("Erro: " + err.message);
+        }
+      });
+    });
+  } catch (err) {
+    console.error("ERRO ANUNCIOS:", err.code, err.message, err);
+    listEl.innerHTML = `<div style="padding:20px;text-align:center;">
+      <p style="color:#e74c3c;font-weight:700;margin-bottom:8px;">Erro ao carregar anúncios</p>
+      <code style="background:#fff3f3;padding:6px 12px;border-radius:4px;font-size:12px;color:#c0392b;">
+        ${err.code || err.message || "Erro desconhecido"}
+      </code>
+      <p style="color:#999;font-size:12px;margin-top:8px;">Verifique as Firestore Rules no Firebase Console</p>
+    </div>`;
+  }
+}
+
+// ── Popular select de casos aprovados ────────────────────────
+async function popularSelectCasos() {
+  const sel = document.getElementById("anuncio-caso-select");
+  if (!sel) return;
+  try {
+    const snap = await getDocs(
+      query(collection(db, "casos"), where("status", "==", "aprovado")),
+    );
+    sel.innerHTML = `<option value="">Selecione um caso...</option>`;
+    snap.forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.dataset.nome = d.data().nome || "";
+      opt.dataset.imagem = d.data().imagem || "";
+      opt.dataset.local = d.data().provincia || "";
+      opt.textContent = `${d.data().nome || "Sem nome"} — ${d.data().municipio || ""}`;
+      sel.appendChild(opt);
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// ── Formulário ────────────────────────────────────────────────
+function configurarFormularioAnuncio() {
+  if (formularioConfigurado) return; // ✅ evita listeners duplicados
+  formularioConfigurado = true;
+
+  // Mostrar/ocultar formulário
+  document.getElementById("btn-toggle-form").addEventListener("click", () => {
+    const wrapper = document.getElementById("anuncio-form-wrapper");
+    wrapper.classList.toggle("hidden");
+    if (!wrapper.classList.contains("hidden")) {
+      resetarFormulario();
+      wrapper.scrollIntoView({ behavior: "smooth" });
+    }
+  });
+
+  document.getElementById("btn-cancelar-form").addEventListener("click", () => {
+    document.getElementById("anuncio-form-wrapper").classList.add("hidden");
+    resetarFormulario();
+  });
+
+  // Tipo → mostrar/ocultar campos relevantes
+  document
+    .getElementById("anuncio-tipo")
+    .addEventListener("change", atualizarCamposVisiveis);
+
+  // Quando selecionar caso → preencher título/imagem automaticamente
+  document
+    .getElementById("anuncio-caso-select")
+    .addEventListener("change", function () {
+      const opt = this.options[this.selectedIndex];
+      if (opt.value) {
+        document.getElementById("anuncio-titulo").value =
+          opt.dataset.nome || "";
+        document.getElementById("anuncio-imagem").value =
+          opt.dataset.imagem || "";
+      }
+    });
+
+  // Toggle label
+  document
+    .getElementById("anuncio-ativo")
+    .addEventListener("change", function () {
+      document.getElementById("toggle-label").innerText = this.checked
+        ? "Activo"
+        : "Inactivo";
+    });
+
+  // Guardar
+  document
+    .getElementById("btn-salvar-anuncio")
+    .addEventListener("click", salvarAnuncio);
+}
+
+function atualizarCamposVisiveis() {
+  const tipo = document.getElementById("anuncio-tipo").value;
+  document.getElementById("field-caso").style.display =
+    tipo === "caso_destaque" ? "flex" : "none";
+  document.getElementById("field-icone").style.display =
+    tipo === "dica" ? "flex" : "none";
+  document.getElementById("field-imagem").style.display =
+    tipo !== "dica" ? "flex" : "none";
+}
+
+function resetarFormulario() {
+  editandoId = null;
+  document.getElementById("form-titulo-label").innerHTML =
+    `<i class="fa-solid fa-pen"></i> Criar Novo Anúncio`;
+  document.getElementById("btn-salvar-anuncio").innerHTML =
+    `<i class="fa-solid fa-floppy-disk"></i> Guardar Anúncio`;
+  document.getElementById("anuncio-tipo").value = "dica";
+  document.getElementById("anuncio-titulo").value = "";
+  document.getElementById("anuncio-conteudo").value = "";
+  document.getElementById("anuncio-icone").value = "fa-solid fa-lightbulb";
+  document.getElementById("anuncio-imagem").value = "";
+  document.getElementById("anuncio-link").value = "";
+  document.getElementById("anuncio-ordem").value = "1";
+  document.getElementById("anuncio-ativo").checked = true;
+  document.getElementById("toggle-label").innerText = "Activo";
+  document.getElementById("anuncio-caso-select").value = "";
+  atualizarCamposVisiveis();
+}
+
+function preencherFormulario(id, data) {
+  editandoId = id;
+  document.getElementById("anuncio-form-wrapper").classList.remove("hidden");
+  document.getElementById("form-titulo-label").innerHTML =
+    `<i class="fa-solid fa-pen-to-square"></i> Editar Anúncio`;
+  document.getElementById("btn-salvar-anuncio").innerHTML =
+    `<i class="fa-solid fa-floppy-disk"></i> Actualizar Anúncio`;
+
+  document.getElementById("anuncio-tipo").value = data.tipo || "dica";
+  document.getElementById("anuncio-titulo").value = data.titulo || "";
+  document.getElementById("anuncio-conteudo").value = data.conteudo || "";
+  document.getElementById("anuncio-icone").value =
+    data.icone || "fa-solid fa-lightbulb";
+  document.getElementById("anuncio-imagem").value = data.imagem || "";
+  document.getElementById("anuncio-link").value = data.link || "";
+  document.getElementById("anuncio-ordem").value = data.ordem || 1;
+  document.getElementById("anuncio-ativo").checked = data.ativo !== false;
+  document.getElementById("toggle-label").innerText =
+    data.ativo !== false ? "Activo" : "Inactivo";
+  atualizarCamposVisiveis();
+  document
+    .getElementById("anuncio-form-wrapper")
+    .scrollIntoView({ behavior: "smooth" });
+}
+
+async function salvarAnuncio() {
+  const btn = document.getElementById("btn-salvar-anuncio");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Guardando...`;
+
+  const tipo = document.getElementById("anuncio-tipo").value;
+
+  // Para caso_destaque: pegar imagem do caso selecionado se não digitou URL
+  let imagem = document.getElementById("anuncio-imagem").value.trim();
+  if (tipo === "caso_destaque" && !imagem) {
+    const sel = document.getElementById("anuncio-caso-select");
+    imagem = sel.options[sel.selectedIndex]?.dataset.imagem || "";
+  }
+
+  const dados = {
+    tipo,
+    titulo: document.getElementById("anuncio-titulo").value.trim(),
+    conteudo: document.getElementById("anuncio-conteudo").value.trim(),
+    icone:
+      document.getElementById("anuncio-icone").value.trim() ||
+      "fa-solid fa-lightbulb",
+    imagem,
+    link: document.getElementById("anuncio-link").value.trim(),
+    ordem: parseInt(document.getElementById("anuncio-ordem").value) || 1,
+    ativo: document.getElementById("anuncio-ativo").checked,
+    casoId:
+      tipo === "caso_destaque"
+        ? document.getElementById("anuncio-caso-select").value
+        : "",
+    atualizadoEm: new Date().toISOString(),
+  };
+
+  if (!dados.titulo) {
+    showAlert("Por favor, preencha o Título.");
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Guardar Anúncio`;
+    return;
+  }
+
+  try {
+    if (editandoId) {
+      await updateDoc(doc(db, "anuncios", editandoId), dados);
+    } else {
+      dados.criadoEm = new Date().toISOString();
+      await addDoc(collection(db, "anuncios"), dados);
+    }
+
+    showAlert(
+      editandoId ? "✅ Anúncio actualizado!" : "✅ Anúncio criado com sucesso!",
+      {
+        onOk: () => {
+          document
+            .getElementById("anuncio-form-wrapper")
+            .classList.add("hidden");
+          resetarFormulario();
+          carregarListaAnuncios();
+        },
+      },
+    );
+  } catch (err) {
+    showAlert("Erro ao guardar: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Guardar Anúncio`;
+  }
+}
+
+
+// ── Coordenadas por Província (Angola) ─────────────────────────────────
+const COORDS_PROV_ADMIN = {
+  luanda:         { lat: -8.8368,  lng: 13.2343 },
+  benguela:       { lat: -12.5763, lng: 13.4055 },
+  huambo:         { lat: -12.7760, lng: 15.7388 },
+  bié:            { lat: -12.3764, lng: 17.0557 },
+  cabinda:        { lat: -5.5500,  lng: 12.2000 },
+  cuando_cubango: { lat: -16.9300, lng: 19.8000 },
+  cuanza_norte:   { lat: -9.2000,  lng: 14.7000 },
+  cuanza_sul:     { lat: -10.9000, lng: 14.3000 },
+  cunene:         { lat: -16.9000, lng: 15.8000 },
+  huíla:          { lat: -14.9200, lng: 13.5000 },
+  lunda_norte:    { lat: -8.6500,  lng: 20.4000 },
+  lunda_sul:      { lat: -10.0000, lng: 21.0000 },
+  malanje:        { lat: -9.5400,  lng: 16.3400 },
+  moxico:         { lat: -11.8600, lng: 19.9200 },
+  namibe:         { lat: -15.1961, lng: 12.1522 },
+  uíge:           { lat: -7.6100,  lng: 15.0600 },
+  zaire:          { lat: -6.1000,  lng: 12.8500 },
+};
+
+let mapaAdminInst  = null;
+let mapaAdminMarkers = [];
+
+/* =========================================================================
+   MAPA ADMIN — inicializar e carregar todos os casos aprovados
+   ========================================================================= */
+async function iniciarMapaAdmin() {
+  const el = document.getElementById("mapa-admin-container");
+  if (!el) return;
+
+  // Carregar casos aprovados, encontrados e desmentidos
+  let casos = [];
+  try {
+    const snap = await getDocs(query(
+      collection(db, "casos"),
+      where("status", "in", ["aprovado","encontrado","desmentido"])
+    ));
+    snap.forEach(d => casos.push({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.error("Erro ao carregar casos para mapa:", err);
+    return;
+  }
+
+  // Aguardar Google Maps
+  function tentarIniciar() {
+    if (typeof google === "undefined") { setTimeout(tentarIniciar, 300); return; }
+    renderMapaAdmin(el, casos);
+  }
+  tentarIniciar();
+}
+
+function renderMapaAdmin(el, casos) {
+  if (!mapaAdminInst) {
+    mapaAdminInst = new google.maps.Map(el, {
+      center: { lat: -11.2027, lng: 17.8739 },
+      zoom: 5,
+      mapTypeControl: false,
+      streetViewControl: false,
+    });
+  }
+
+  // Limpar marcadores
+  mapaAdminMarkers.forEach(m => m.setMap(null));
+  mapaAdminMarkers = [];
+
+  const infoWindow = new google.maps.InfoWindow();
+
+  const corStatus = {
+    aprovado:   "#0c7ab5",
+    encontrado: "#2ecc71",
+    desmentido: "#95a5a6",
+  };
+
+  casos.forEach(caso => {
+    let lat = caso.lat ? parseFloat(caso.lat) : null;
+    let lng = caso.lng ? parseFloat(caso.lng) : null;
+    if (!lat || !lng) {
+      const prov = (caso.provincia || "").toLowerCase().replace(/ /g,"_");
+      const coords = COORDS_PROV_ADMIN[prov];
+      if (!coords) return;
+      lat = coords.lat + (Math.random()-0.5)*0.6;
+      lng = coords.lng + (Math.random()-0.5)*0.6;
+    }
+
+    const cor = corStatus[caso.status] || "#0c7ab5";
+    const marker = new google.maps.Marker({
+      position: { lat, lng },
+      map: mapaAdminInst,
+      title: caso.nome || "Desconhecido",
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: cor,
+        fillOpacity: 0.9,
+        strokeColor: "#ffffff",
+        strokeWeight: 2,
+      },
+    });
+
+    const img = caso.imagem
+      ? `<img src="${caso.imagem}" style="width:100%;height:70px;object-fit:cover;border-radius:6px;margin-bottom:6px;">`
+      : "";
+    const labelStatus = { aprovado:"🔵 Activo", encontrado:"🟢 Encontrado", desmentido:"⚫ Desmentido" }[caso.status] || caso.status;
+
+    marker.addListener("click", () => {
+      infoWindow.setContent(`
+        <div style="font-family:'Quicksand',sans-serif;max-width:180px;">
+          ${img}
+          <strong style="font-size:13px;">${caso.nome||"—"}</strong><br>
+          <span style="color:#666;font-size:11px;">${caso.municipio||caso.provincia||"Angola"}</span><br>
+          <span style="font-size:11px;">${labelStatus}</span>
+        </div>`);
+      infoWindow.open(mapaAdminInst, marker);
+    });
+
+    mapaAdminMarkers.push(marker);
+  });
+
+  // Lista resumo abaixo do mapa
+  const listaEl = document.getElementById("mapa-admin-lista");
+  if (listaEl) {
+    const total  = casos.length;
+    const ativos = casos.filter(c=>c.status==="aprovado").length;
+    const enc    = casos.filter(c=>c.status==="encontrado").length;
+    listaEl.innerHTML = `
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div class="card-stat" style="flex:1;min-width:120px;">
+          <span class="card-stat-icon" style="background:#e3f2fd;color:#0c7ab5;">
+            <i class="fa-solid fa-location-dot"></i>
+          </span>
+          <div><h3>Total no Mapa</h3><p class="stat-big">${total}</p></div>
+        </div>
+        <div class="card-stat" style="flex:1;min-width:120px;">
+          <span class="card-stat-icon" style="background:#e3f2fd;color:#0c7ab5;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
+          <div><h3>A Procurar</h3><p class="stat-big">${ativos}</p></div>
+        </div>
+        <div class="card-stat" style="flex:1;min-width:120px;">
+          <span class="card-stat-icon" style="background:#e8f5e9;color:#2ecc71;">
+            <i class="fa-solid fa-circle-check"></i>
+          </span>
+          <div><h3>Encontrados</h3><p class="stat-big">${enc}</p></div>
+        </div>
+      </div>`;
+  }
+}
+
+/* =========================================================================
+   UTILITÁRIOS
+   ========================================================================= */
 function calcularDias(dataString) {
   if (!dataString) return 0;
-  const dataPassada = new Date(dataString);
-  const hoje = new Date();
-  if (isNaN(dataPassada.getTime())) return 0;
-
-  const diferencaTempo = Math.abs(hoje - dataPassada);
-  return Math.ceil(diferencaTempo / (1000 * 60 * 60 * 24));
+  const d = new Date(dataString);
+  if (isNaN(d)) return 0;
+  return Math.ceil(Math.abs(new Date() - d) / 86400000);
 }
-
-// Tornar a função de excluir acessível ao HTML (window)
-window.excluirUsuario = async function (id) {
-  if (
-    confirm("Tem certeza que deseja remover este usuário da base de dados?")
-  ) {
-    try {
-      await deleteDoc(doc(db, "users", id));
-      showAlert("Usuário removido.", { onOk: carregarUsuarios });
-    } catch (e) {
-      showAlert("Erro ao excluir: " + e.message);
-    }
-  }
-};
