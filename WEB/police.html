@@ -1,11 +1,109 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Polícia</title>
+
+  <link rel="stylesheet" href="CSS/variables.css">
+  <link rel="stylesheet" href="CSS/global.css">
+  <link rel="stylesheet" href="CSS/paginas/police.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body>
-    
+
+<body class="pagina">
+
+  <!-- MENU -->
+  <aside class="menu">
+    <h2>MissingAO</h2>
+    <p>Painel Polícia</p>
+
+    <button class="item ativo" data-tab="visao">
+      <i class="fa-solid fa-house"></i> Visão
+    </button>
+
+    <button class="item" data-tab="casos">
+      <i class="fa-solid fa-folder-open"></i> Casos
+    </button>
+
+    <button class="item" data-tab="ocorrencias">
+      <i class="fa-solid fa-list"></i> Ocorrências
+    </button>
+
+    <button class="sair">
+      <i class="fa-solid fa-right-from-bracket"></i> Sair
+    </button>
+  </aside>
+
+  <!-- CONTEUDO -->
+  <div class="topo">
+  <div>
+    <h1>Painel da Esquadra</h1>
+    <p class="subtopo">Unidade policial</p>
+  </div>
+  <input type="text" placeholder="Pesquisar..." class="pesquisa">
+</div>
+
+<div class="perfil-topo">
+  <div class="foto">
+    <img src="imgs/user.jpg">
+  </div>
+
+  <div class="info">
+    <h2>Esquadra Central de Luanda</h2>
+    <p class="tipo">Unidade de Investigação</p>
+
+    <div class="linha">
+      <span>📍 Luanda</span>
+      <span>📞 —</span>
+      <span>✉ —</span>
+    </div>
+
+    <p class="desc">
+      Unidade responsável pelo acompanhamento de casos de desaparecimento.
+    </p>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <p>Casos</p>
+    <h2>0</h2>
+  </div>
+
+  <div class="card">
+    <p>Resolvidos</p>
+    <h2>0</h2>
+  </div>
+
+  <div class="card">
+    <p>Pendentes</p>
+    <h2>0</h2>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="aba ativa" data-tab="casos">Casos</button>
+  <button class="aba" data-tab="ocorrencias">Ocorrências</button>
+</div>
+
+<div class="tab ativo" id="casos">
+  <div class="lista-casos">
+
+    <div class="caso vazio">
+      Nenhum caso ainda
+    </div>
+
+  </div>
+</div>
+
+<div class="tab" id="ocorrencias">
+  <div class="lista-casos">
+    <div class="caso vazio">
+      Sem ocorrências
+    </div>
+  </div>
+</div>
+  <script src="Scripts/police.js"></script>
 </body>
 </html>

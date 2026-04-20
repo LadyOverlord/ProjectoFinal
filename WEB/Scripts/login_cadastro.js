@@ -41,11 +41,14 @@ window.login = async function () {
 
       // 3. Redirecionamento baseado no Role
       if (role === "admin") {
-        window.location.href = "admin.html";
-      } else {
-        // Redireciona usuários comuns e qualquer outro caso
-        window.location.href = "index.html";
-      }
+  window.location.href = "admin.html";
+} 
+else if (role === "policia") {
+  window.location.href = "police.html";
+}
+else {
+  window.location.href = "index.html";
+}
     } else {
       // O usuário existe no Auth, mas não tem documento no Firestore (erro de cadastro)
       console.error("Documento de usuário não encontrado!");
