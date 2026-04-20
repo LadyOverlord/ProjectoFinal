@@ -24,8 +24,9 @@
       <div class="nav">
         <button class="nave_button_none" id="menu"><i class="fa-solid fa-bars"></i></button>
         <div class="search">
-          <button class="nave_button_none"><i class="fa-solid fa-magnifying-glass"></i></button>
-          <input type="search" placeholder="Procurar desaparecidos" />
+          <button class="nave_button_none" id="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <input type="search" id="search-input" placeholder="Procurar desaparecidos" autocomplete="off" />
+          <div id="search-history" class="search-history" style="display:none" aria-hidden="true"></div>
         </div>
         <button class="nave_button_none" id="chatbot"><i class="fa-solid fa-robot" id="chat_bot"></i></button>
         <a href="profile.html" class="nave_button" id="user"><i class="fa-solid fa-user"></i></a>
