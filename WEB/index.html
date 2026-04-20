@@ -6,40 +6,71 @@
     <link rel="stylesheet" href="CSS/variables.css" />
     <link rel="stylesheet" href="CSS/global.css" />
     <link rel="stylesheet" href="CSS/paginas/principal.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
       integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-      crossorigin="anonymous" referrerpolicy="no-referrer" />
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&family=Quicksand:wght@300..700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:opsz,GRAD@17..18,-50&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&family=Quicksand:wght@300..700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Google+Sans:opsz,GRAD@17..18,-50&display=swap"
+      rel="stylesheet"
+    />
     <!-- Google Maps -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC_D3VzW-JvkXyij3z0M8Iz-5hnDj9cpwM&libraries=places" defer></script>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC_D3VzW-JvkXyij3z0M8Iz-5hnDj9cpwM&libraries=places"
+      defer
+    ></script>
     <title>MissingAO - Início</title>
   </head>
   <body>
-
     <!--=====NAVE======-->
     <header>
       <div class="nav">
-        <button class="nave_button_none" id="menu"><i class="fa-solid fa-bars"></i></button>
+        <button class="nave_button_none" id="menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
         <div class="search">
-          <button class="nave_button_none" id="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
-          <input type="search" id="search-input" placeholder="Procurar desaparecidos" autocomplete="off" />
-          <div id="search-history" class="search-history" style="display:none" aria-hidden="true"></div>
+          <button class="nave_button_none" id="search-btn">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </button>
+          <input
+            type="search"
+            id="search-input"
+            placeholder="Procurar desaparecidos"
+            autocomplete="off"
+          />
+          <div
+            id="search-history"
+            class="search-history"
+            style="display: none"
+            aria-hidden="true"
+          ></div>
         </div>
-        <button class="nave_button_none" id="chatbot"><i class="fa-solid fa-robot" id="chat_bot"></i></button>
-        <a href="profile.html" class="nave_button" id="user"><i class="fa-solid fa-user"></i></a>
-        <button class="nave_button" id="relatar">Relatar desaparecimento</button>
+        <button class="nave_button_none" id="chatbot">
+          <i class="fa-solid fa-robot" id="chat_bot"></i>
+        </button>
+        <a href="profile.html"  style="background: none;"  class="nave_button_none" id="user">
+          <img id="nav-avatar" style="border: 2px solid rgb(0, 145, 255);" class="nav-avatar" src="imgs/user.jpg" alt="Perfil" onerror="this.src='imgs/user.jpg'" />
+        </a>
+        
+        <button class="nave_button" id="relatar">
+          Relatar desaparecimento
+        </button>
       </div>
     </header>
 
     <!--======MAIN=======-->
     <section class="main">
-
       <!--==== COLUNA ESQUERDA: Mapa + Filtros ====-->
       <div class="section_map">
-
         <!-- MAPA REAL -->
         <div class="mapa-wrapper">
           <div class="mapa-header">
@@ -49,19 +80,25 @@
           <div id="mapa-desaparecidos" class="mapa-real"></div>
         </div>
 
-        <!-- DESTAQUES -->
+        <!-- DESTAQUES 
         <div class="destaques">
           <h1>EM DESTAQUE</h1>
           <div class="destaque" id="destaque">
             <img src="imgs/user.jpg" alt="" />
             <p>Carregando...</p>
           </div>
-        </div>
+        </div> -->
 
         <!-- FILTROS -->
         <div class="filtros">
           <h1>FILTROS</h1>
-          <hr style="border:0.1px solid rgba(0,0,0,0.089);width:90%;margin:8px 2px;" />
+          <hr
+            style="
+              border: 0.1px solid rgba(0, 0, 0, 0.089);
+              width: 90%;
+              margin: 8px 2px;
+            "
+          />
 
           <div class="onde">
             <h2>ONDE</h2>
@@ -85,8 +122,8 @@
               <option value="uíge">Uíge</option>
               <option value="zaire">Zaire</option>
             </select>
-            <div id="municipio-field" style="display:none;">
-              <select name="municipio" id="municipio" style="width:100%">
+            <div id="municipio-field" style="display: none">
+              <select name="municipio" id="municipio" style="width: 100%">
                 <option value="" hidden>Selecione o município</option>
               </select>
             </div>
@@ -128,12 +165,20 @@
           <div class="caracter">
             <h2>CARACTERÍSTICAS</h2>
             <div class="check-row">
-              <input type="checkbox" id="com_deficiencia" name="com_deficiencia" />
+              <input
+                type="checkbox"
+                id="com_deficiencia"
+                name="com_deficiencia"
+              />
               <label for="com_deficiencia">Com deficiência</label>
             </div>
             <span id="resultado-count"></span>
-            <button data-action="aplicar"><i class="fa-solid fa-filter"></i> Filtrar</button>
-            <button data-action="limpar" style="display:none;"><i class="fa-solid fa-xmark"></i> Limpar</button>
+            <button data-action="aplicar">
+              <i class="fa-solid fa-filter"></i> Filtrar
+            </button>
+            <button data-action="limpar" style="display: none">
+              <i class="fa-solid fa-xmark"></i> Limpar
+            </button>
           </div>
         </div>
       </div>
@@ -166,20 +211,25 @@
           <a href="#">Privacidade</a>
         </footer>
       </div>
-
     </section>
 
     <!-- ====== MODAL RELATAR CASO ====== -->
     <section class="relatar_section" id="relatarSec">
-      <div class="relatar_caso" >
+      <div class="relatar_caso">
         <header>
           <h1>Relatar caso</h1>
           <button><i class="fa-solid fa-xmark"></i></button>
         </header>
         <nav>
-          <a href="#" id="pessoaActive"><i class="fa-solid fa-user"></i> Pessoa</a>
-          <a href="#" id="localActive"><i class="fa-solid fa-location-dot"></i> Local</a>
-          <a href="#" id="detalhesActive"><i class="fa-solid fa-clipboard-list"></i> Detalhes</a>
+          <a href="#" id="pessoaActive"
+            ><i class="fa-solid fa-user"></i> Pessoa</a
+          >
+          <a href="#" id="localActive"
+            ><i class="fa-solid fa-location-dot"></i> Local</a
+          >
+          <a href="#" id="detalhesActive"
+            ><i class="fa-solid fa-clipboard-list"></i> Detalhes</a
+          >
         </nav>
 
         <div class="formulario">
@@ -188,9 +238,19 @@
             <label>Imagem da pessoa desaparecida</label>
             <input type="file" accept="image/*" name="imagem" />
             <label>Nome completo</label>
-            <input type="text" name="nome" placeholder="Nome completo" required />
+            <input
+              type="text"
+              name="nome"
+              placeholder="Nome completo"
+              required
+            />
             <label>Idade</label>
-            <input type="text" name="idade" placeholder="Ex: 25 anos" required />
+            <input
+              type="text"
+              name="idade"
+              placeholder="Ex: 25 anos"
+              required
+            />
             <label>Sexo</label>
             <select name="sexo" id="sexo-form">
               <option value="" hidden>Selecione</option>
@@ -226,16 +286,26 @@
               <option value="uíge">Uíge</option>
               <option value="zaire">Zaire</option>
             </select>
-            <div id="municipio-field-relatar" style="display:none;">
+            <div id="municipio-field-relatar" style="display: none">
               <label>Município</label>
-              <select name="municipio" id="municipio_relatar" style="width:100%" required>
+              <select
+                name="municipio"
+                id="municipio_relatar"
+                style="width: 100%"
+                required
+              >
                 <option value="" hidden>Selecione o município</option>
               </select>
             </div>
 
             <label>Último local conhecido</label>
-            <input type="text" name="ultimo_local" id="ultimo_local_input"
-                   placeholder="Ex: Perto do mercado do São Paulo" required />
+            <input
+              type="text"
+              name="ultimo_local"
+              id="ultimo_local_input"
+              placeholder="Ex: Perto do mercado do São Paulo"
+              required
+            />
 
             <!-- MAPA PICKER -->
             <div class="mapa-form-wrapper">
@@ -244,10 +314,18 @@
                 <span>Clique no mapa para marcar o local exacto</span>
               </div>
               <div id="mapa-form" class="mapa-form-map"></div>
-              <div class="mapa-form-coords" id="mapa-form-coords" style="display:none;">
-                <i class="fa-solid fa-circle-check" style="color:#2ecc71;"></i>
+              <div
+                class="mapa-form-coords"
+                id="mapa-form-coords"
+                style="display: none"
+              >
+                <i class="fa-solid fa-circle-check" style="color: #2ecc71"></i>
                 <span id="mapa-form-addr">Local marcado</span>
-                <button type="button" id="mapa-form-limpar" class="btn-mapa-limpar">
+                <button
+                  type="button"
+                  id="mapa-form-limpar"
+                  class="btn-mapa-limpar"
+                >
                   <i class="fa-solid fa-xmark"></i> Remover
                 </button>
               </div>
@@ -264,21 +342,34 @@
           <!-- 3. DETALHES -->
           <div class="detalhes_div" id="detalhesDiv">
             <label>Roupas que usava</label>
-            <input type="text" name="roupas" placeholder="Ex: Camisa azul e calça jeans" />
+            <input
+              type="text"
+              name="roupas"
+              placeholder="Ex: Camisa azul e calça jeans"
+            />
             <label>Deficiência</label>
             <select name="deficiencia" id="deficiencia">
               <option value="" hidden>Selecione</option>
               <option value="sim">Sim</option>
               <option value="nao">Não</option>
             </select>
-            <div id="tipo_deficiencia_field" style="display:none;">
+            <div id="tipo_deficiencia_field" style="display: none">
               <label for="tipo_deficiencia_input">Tipo de deficiência</label>
-              <input type="text" id="tipo_deficiencia_input" name="tipo_deficiencia"
-                     placeholder="Descreva a deficiência" />
+              <input
+                type="text"
+                id="tipo_deficiencia_input"
+                name="tipo_deficiencia"
+                placeholder="Descreva a deficiência"
+              />
             </div>
             <label>Informações adicionais</label>
-            <textarea name="informacoes_adicionais" id="informacoes_adicionais"
-                      cols="30" rows="5" placeholder="Outras informações úteis..."></textarea>
+            <textarea
+              name="informacoes_adicionais"
+              id="informacoes_adicionais"
+              cols="30"
+              rows="5"
+              placeholder="Outras informações úteis..."
+            ></textarea>
           </div>
         </div>
 
@@ -300,29 +391,93 @@
         </header>
         <div class="chatbot_messages" id="chatbotMessages"></div>
         <div class="chatbot_suggestions" id="chatbotSuggestions">
-          <button class="suggestion_btn" data-suggestion="Como faço para reportar um desaparecimento?">
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como faço para reportar um desaparecimento?"
+          >
             <i class="fa-solid fa-plus"></i> Como reportar um desaparecimento?
           </button>
-          <button class="suggestion_btn" data-suggestion="Quais informações são necessárias?">
-            <i class="fa-solid fa-question"></i> Quais informações são necessárias?
+          <button
+            class="suggestion_btn"
+            data-suggestion="Quais informações são necessárias?"
+          >
+            <i class="fa-solid fa-question"></i> Quais informações são
+            necessárias?
           </button>
-          <button class="suggestion_btn" data-suggestion="Como filtrar casos por localização?">
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como filtrar casos por localização?"
+          >
             <i class="fa-solid fa-location-dot"></i> Filtrar por localização?
           </button>
-          <button class="suggestion_btn" data-suggestion="Como posso ajudar a encontrar alguém?">
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como posso ajudar a encontrar alguém?"
+          >
             <i class="fa-solid fa-heart"></i> Como ajudar a encontrar alguém?
           </button>
         </div>
         <div class="chatbot_input_section">
-          <input type="text" id="chatbotInput" placeholder="Digite sua mensagem..." />
+          <input
+            type="text"
+            id="chatbotInput"
+            placeholder="Digite sua mensagem..."
+          />
           <button id="sendChatbotMessage" title="Enviar">
             <i class="fa-solid fa-paper-plane"></i>
           </button>
         </div>
       </div>
     </div>
+    </div>
 
-    <script src="Scripts/alerts.js"></script>
+    <!-- botão flutuante para reabrir anúncio minimizado -->
+    <button id="mobile-ad-open" class="mobile-ad-open" aria-label="Abrir anúncio" style="display:none">
+      <i class="fa-solid fa-volume-high"></i>
+    </button>
+   
+    <!-- Mobile ad window and bottom menu (visible on small screens) -->
+    <div id="mobile-ad" class="mobile-ad" aria-hidden="false">
+      <!-- Cabeçalho: título + botões minimizar/fechar -->
+      <div class="mobile-ad-header" id="mobile-ad-header">
+        <div class="mobile-ad-header-left">
+          <i class="fa-solid fa-bullhorn"></i>
+          <span>Alertas &amp; Dicas</span>
+        </div>
+        <div class="mobile-ad-controls">
+          <!-- Minimizar: encolhe a janela para ícone -->
+          <button class="mobile-ad-btn" id="mobile-ad-minimize" title="Minimizar">
+            <i class="fa-solid fa-minus"></i>
+          </button>
+          <!-- Fechar: esconde a janela completamente -->
+          <button class="mobile-ad-btn" id="mobile-ad-close" title="Fechar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+      <div class="mobile-ad-inner" id="mobile-ad-inner">
+        <!-- toggle antigo mantido para compatibilidade com JS existente -->
+        <button id="mobile-ad-toggle" class="mobile-ad-toggle" aria-label="Minimizar anúncio" style="display:none">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+        <div id="mobile-ad-content" class="mobile-ad-content">
+          <div class="anuncios-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mobile-bottom-menu" class="mobile-bottom-menu" aria-hidden="false">
+      <button class="mb-btn" id="mb-map" title="Mapa"><i class="fa-solid fa-filter"></i><span>Filtros</span></button>
+      <button class="mb-btn" id="mb-relatar" title="Relatar"><i class="fa-solid fa-pen-to-square"></i><span>Relatar</span></button>
+      <a href="profile.html" style="background: none;" id="user">
+          <img id="nav-avatar"  style="border: 2px solid rgb(0, 145, 255);"  class="nav-avatar" src="imgs/user.jpg" alt="Perfil" onerror="this.src='imgs/user.jpg'" />
+        </a>
+      
+    </div>
+
+     <script src="Scripts/alerts.js"></script>
     <script src="Scripts/chatbot.js"></script>
     <script type="module" src="Scripts/principal.js"></script>
   </body>

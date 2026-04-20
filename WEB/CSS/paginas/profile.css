@@ -2,7 +2,9 @@
    PROFILE PAGE — Instagram Desktop Layout
    ====================================================== */
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   background: #fafafa;
@@ -35,7 +37,9 @@ body {
   border-radius: 8px;
   transition: background 0.2s;
 }
-.btn-voltar:hover { background: #e8f4fb; }
+.btn-voltar:hover {
+  background: #e8f4fb;
+}
 
 .topbar-username {
   font-family: var(--font-title);
@@ -54,7 +58,9 @@ body {
   cursor: pointer;
   transition: background 0.2s;
 }
-.btn-settings:hover { background: #f0f0f0; }
+.btn-settings:hover {
+  background: #f0f0f0;
+}
 
 /* ─── PAGE WRAPPER ───────────────────────────────────── */
 .profile-page {
@@ -110,12 +116,14 @@ body {
   font-size: 60px;
   color: var(--color-quaternary);
 }
-.ig-avatar-img.hidden { display: none; }
+.ig-avatar-img.hidden {
+  display: none;
+}
 
 .ig-avatar-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,20 +133,24 @@ body {
   opacity: 0;
   transition: opacity 0.2s;
 }
-.ig-avatar-ring:hover .ig-avatar-overlay { opacity: 1; }
+.ig-avatar-ring:hover .ig-avatar-overlay {
+  opacity: 1;
+}
 
 /* Upload loader */
 .upload-loader {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(255,255,255,0.82);
+  background: rgba(255, 255, 255, 0.82);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
 }
-.upload-loader.hidden { display: none; }
+.upload-loader.hidden {
+  display: none;
+}
 
 .spinner {
   width: 26px;
@@ -148,7 +160,11 @@ body {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* ─── INFO COLUMN ────────────────────────────────────── */
 .ig-info-col {
@@ -165,6 +181,48 @@ body {
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+/* Badge list (minimal / subtle emblems) */
+.badge-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+}
+.badge-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #444;
+}
+.badge-item i {
+  font-size: 12px;
+  color: var(--color-quaternary);
+}
+.badge-admin {
+  border-color: rgba(13, 110, 253, 0.12);
+  background: linear-gradient(90deg, rgba(13, 110, 253, 0.03), #fff);
+}
+.badge-apoiador i {
+  color: #e74c3c;
+}
+.badge-comentador i {
+  color: #17a2d4;
+}
+.badge-partilhador i {
+  color: #6c757d;
+}
+.badge-publicador i {
+  color: #111;
+}
+.badge-impacto i {
+  color: #28a745;
 }
 
 .ig-username {
@@ -190,7 +248,9 @@ body {
   gap: 6px;
   transition: background 0.15s;
 }
-.ig-edit-btn:hover { background: #ddd; }
+.ig-edit-btn:hover {
+  background: #ddd;
+}
 
 /* Stats (desktop) */
 .ig-stats-row {
@@ -235,7 +295,10 @@ body {
   color: #555;
   margin: 0;
 }
-.ig-meta i { color: #aaa; font-size: 13px; }
+.ig-meta i {
+  color: #aaa;
+  font-size: 13px;
+}
 
 .ig-apoios-received {
   display: inline-flex;
@@ -250,7 +313,9 @@ body {
   width: fit-content;
   margin-top: 4px;
 }
-.ig-apoios-received i { color: #e74c3c; }
+.ig-apoios-received i {
+  color: #e74c3c;
+}
 
 /* ─── MOBILE STATS (oculto no desktop) ──────────────── */
 .ig-stats-mobile {
@@ -288,17 +353,26 @@ body {
   cursor: pointer;
   transition: all 0.2s;
 }
-.ig-tab i { font-size: 14px; }
+.ig-tab i {
+  font-size: 14px;
+}
 
 .ig-tab.active {
   color: #111;
   border-top-color: #111;
 }
-.ig-tab:hover { color: #333; }
+.ig-tab:hover {
+  color: #333;
+}
 
 /* ─── TAB CONTENT ────────────────────────────────────── */
-.ig-tab-content { display: none; padding-top: 4px; }
-.ig-tab-content.active { display: block; }
+.ig-tab-content {
+  display: none;
+  padding-top: 4px;
+}
+.ig-tab-content.active {
+  display: block;
+}
 
 /* ─── GRID INSTAGRAM 3 COLUNAS ──────────────────────── */
 .ig-grid {
@@ -324,13 +398,15 @@ body {
   transition: transform 0.3s ease;
 }
 
-.ig-grid-item:hover img { transform: scale(1.04); }
+.ig-grid-item:hover img {
+  transform: scale(1.04);
+}
 
 /* Overlay ao hover */
 .ig-grid-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -338,7 +414,9 @@ body {
   opacity: 0;
   transition: opacity 0.2s;
 }
-.ig-grid-item:hover .ig-grid-overlay { opacity: 1; }
+.ig-grid-item:hover .ig-grid-overlay {
+  opacity: 1;
+}
 
 .ig-grid-stat {
   display: flex;
@@ -362,9 +440,15 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.ig-grid-badge.pendente  { background: rgba(240,165,0,0.9); }
-.ig-grid-badge.aprovado  { background: rgba(46,204,113,0.9); }
-.ig-grid-badge.rejeitado { background: rgba(231,76,60,0.9); }
+.ig-grid-badge.pendente {
+  background: rgba(240, 165, 0, 0.9);
+}
+.ig-grid-badge.aprovado {
+  background: rgba(46, 204, 113, 0.9);
+}
+.ig-grid-badge.rejeitado {
+  background: rgba(231, 76, 60, 0.9);
+}
 
 /* Placeholder para caso sem imagem */
 .ig-grid-placeholder {
@@ -378,7 +462,10 @@ body {
   gap: 8px;
   color: var(--color-quaternary);
 }
-.ig-grid-placeholder i { font-size: 32px; opacity: 0.6; }
+.ig-grid-placeholder i {
+  font-size: 32px;
+  opacity: 0.6;
+}
 .ig-grid-placeholder span {
   font-size: 11px;
   font-weight: 600;
@@ -414,8 +501,13 @@ body {
   color: #999;
   gap: 12px;
 }
-.ig-grid-empty i { font-size: 48px; opacity: 0.3; }
-.ig-grid-empty p { font-size: 15px; }
+.ig-grid-empty i {
+  font-size: 48px;
+  opacity: 0.3;
+}
+.ig-grid-empty p {
+  font-size: 15px;
+}
 
 /* ─── LIGHTBOX ───────────────────────────────────────── */
 .caso-lightbox {
@@ -426,12 +518,14 @@ body {
   align-items: center;
   justify-content: center;
 }
-.caso-lightbox.hidden { display: none; }
+.caso-lightbox.hidden {
+  display: none;
+}
 
 .lightbox-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
 }
 
@@ -445,19 +539,25 @@ body {
   max-width: 900px;
   width: 90%;
   max-height: 90vh;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   animation: lbIn 0.2s ease;
 }
 @keyframes lbIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .lightbox-close {
   position: absolute;
   top: 14px;
   right: 14px;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   border: none;
   color: #fff;
   width: 32px;
@@ -471,7 +571,9 @@ body {
   justify-content: center;
   transition: background 0.2s;
 }
-.lightbox-close:hover { background: rgba(0,0,0,0.75); }
+.lightbox-close:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
 
 .lb-main-img {
   width: 55%;
@@ -516,8 +618,14 @@ body {
   padding-top: 14px;
   border-top: 1px solid #f0f0f0;
 }
-.lb-stats span { display: flex; align-items: center; gap: 6px; }
-.lb-stats i { color: var(--color-quaternary); }
+.lb-stats span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lb-stats i {
+  color: var(--color-quaternary);
+}
 
 /* Status badges (reutilizados do global) */
 .status-badge {
@@ -531,11 +639,21 @@ body {
   letter-spacing: 0.5px;
 }
 .status-badge.status-aprovado,
-.status-badge.status-ativo  { background: #0c7ab5; }
-.status-badge.status-encontrado { background: #28a745; }
-.status-badge.status-pendente   { background: #f0a500; }
-.status-badge.status-rejeitado  { background: #dc3545; }
-.status-badge.status-desmentido { background: #6c757d; }
+.status-badge.status-ativo {
+  background: #0c7ab5;
+}
+.status-badge.status-encontrado {
+  background: #28a745;
+}
+.status-badge.status-pendente {
+  background: #f0a500;
+}
+.status-badge.status-rejeitado {
+  background: #dc3545;
+}
+.status-badge.status-desmentido {
+  background: #6c757d;
+}
 
 /* ─── MENU DE OPÇÕES ─────────────────────────────────── */
 .options-menu {
@@ -545,7 +663,7 @@ body {
   transform: translateX(-50%);
   background: #fff;
   border-radius: 14px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 280px;
   overflow: hidden;
   z-index: 300;
@@ -583,39 +701,60 @@ body {
   text-align: left;
   transition: background 0.15s;
 }
-.options-item:hover { background: #f7f7f7; }
-.options-item i { width: 18px; color: var(--color-quaternary); }
-.options-item.danger { color: #e74c3c; }
-.options-item.danger i { color: #e74c3c; }
-.options-item.cancel { color: #999; }
-.options-item.cancel i { color: #bbb; }
+.options-item:hover {
+  background: #f7f7f7;
+}
+.options-item i {
+  width: 18px;
+  color: var(--color-quaternary);
+}
+.options-item.danger {
+  color: #e74c3c;
+}
+.options-item.danger i {
+  color: #e74c3c;
+}
+.options-item.cancel {
+  color: #999;
+}
+.options-item.cancel i {
+  color: #bbb;
+}
 
 /* Backdrop */
 .menu-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.28);
+  background: rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(2px);
   z-index: 250;
 }
-.menu-backdrop.hidden { display: none; }
+.menu-backdrop.hidden {
+  display: none;
+}
 
 /* ─── RESPONSIVE ─────────────────────────────────────── */
 @media (max-width: 768px) {
-  .profile-page { padding: 16px 0 60px; }
+  .profile-page {
+    padding: 16px 0 60px;
+    
+  }
 
   .ig-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
     padding: 16px;
+    
   }
 
   .ig-avatar-ring {
     width: 90px;
     height: 90px;
   }
-  .ig-avatar-placeholder { font-size: 36px; }
+  .ig-avatar-placeholder {
+    font-size: 36px;
+  }
 
   /* No mobile, avatar fica numa linha com nome/botão */
   .ig-header {
@@ -624,28 +763,56 @@ body {
     gap: 20px;
   }
 
-  .ig-stats-row { display: none; }
-  .ig-stats-mobile { display: flex; }
+  .ig-stats-row {
+    display: none;
+  }
+  .ig-stats-mobile {
+    display: flex;
+  }
 
-  .ig-username { font-size: 16px; }
-  .ig-edit-btn { font-size: 13px; padding: 5px 12px; }
+  .ig-username {
+    font-size: 16px;
+  }
+  .ig-edit-btn {
+    font-size: 13px;
+    padding: 5px 12px;
+  }
 
-  .ig-grid { gap: 2px; }
+  .ig-grid {
+    gap: 2px;
+  }
 
   /* Lightbox mobile: stack vertical */
   .lightbox-content {
     flex-direction: column;
     max-height: 95vh;
     width: 95%;
+    
   }
-  .lb-main-img { width: 100%; max-height: 50vh; }
+  .lb-main-img {
+    width: 100%;
+    max-height: 50vh;
+  }
 
-  .ig-tab span { display: none; }
-  .ig-tab i { font-size: 18px; }
-  .ig-tab { padding: 12px 0; }
+  .ig-tab span {
+    display: none;
+    
+  }
+  .ig-tab i {
+    font-size: 18px;
+  }
+  .ig-tab {
+    padding: 12px 0;
+  }
 }
 
 @media (max-width: 480px) {
-  .ig-avatar-ring { width: 80px; height: 80px; }
-  .ig-grid { grid-template-columns: repeat(3, 1fr); gap: 1px; }
+  .ig-avatar-ring {
+    width: 80px;
+    height: 80px;
+  }
+  .ig-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+  }
 }

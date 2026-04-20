@@ -11,12 +11,18 @@ import {
   collection,
   query,
   where,
+  addDoc,
+  serverTimestamp,
+  increment,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
 // ─── Estado Global ───────────────────────────────────────────────
-let currentUID  = null;
-let mesCasos    = [];   // Casos que o utilizador submeteu
-let casosApoios = [];   // Casos que o utilizador apoia
+let currentUID = null;
+let mesCasos = []; // Casos que o utilizador submeteu
+let casosApoios = []; // Casos que o utilizador apoia
+let viewedUserData = null; // dados do perfil sendo visualizado
+let targetUID = null; // uid do perfil que está aberto (pode ser outro user)
+let isOwner = false;
 
 // ─── Autenticação ────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
@@ -25,11 +31,30 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   currentUID = user.uid;
-  await carregarPerfil(user);
+
+  // Determinar se estamos a ver outro perfil via ?uid=...
+  targetUID = getQueryParam("uid") || currentUID;
+  isOwner = targetUID === currentUID;
+
+  // Carregar perfil do utilizador alvo e os seus casos/apoios
+  await carregarPerfilUID(targetUID, isOwner);
   await Promise.all([
-    carregarMeusCasos(user.uid),
-    carregarCasosApoiados(user.uid),
+    carregarMeusCasos(targetUID),
+    carregarCasosApoiados(targetUID),
   ]);
+
+  // Actualizar emblemas com base nos dados carregados
+  atualizarBadgeUI();
+
+  // Registar visita se o visitante não for o dono do perfil
+  if (!isOwner) {
+    registrarVisita(targetUID).catch((e) =>
+      console.warn("Visita não registada:", e),
+    );
+    disableEditControls();
+  } else {
+    enableEditControls();
+  }
 });
 
 /* =========================================================================
@@ -44,47 +69,216 @@ async function carregarPerfil(user) {
     const nome = data.nome || "Utilizador";
 
     // Preencher campos
-    document.getElementById("p-nome").innerText         = nome;
+    document.getElementById("p-nome").innerText = nome;
     document.getElementById("topbar-username").innerText = nome;
-    document.querySelector("#p-email span").innerText   = data.email || user.email || "—";
-    document.querySelector("#p-local span").innerText   =
-      [data.municipio, data.provincia].filter(Boolean).join(", ") || "Localização não definida";
+    document.querySelector("#p-email span").innerText =
+      data.email || user.email || "—";
+    document.querySelector("#p-local span").innerText =
+      [data.municipio, data.provincia].filter(Boolean).join(", ") ||
+      "Localização não definida";
 
     // Foto de perfil
     if (data.photoBase64) mostrarFoto(data.photoBase64);
-
   } catch (err) {
     console.error("Erro ao carregar perfil:", err);
   }
+}
+
+// Retorna valor de query param na URL
+function getQueryParam(name) {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Carregar perfil por UID (usado para visitar outros perfis)
+async function carregarPerfilUID(uid, ownerFlag = false) {
+  try {
+    const docSnap = await getDoc(doc(db, "users", uid));
+    if (!docSnap.exists()) {
+      document.getElementById("p-nome").innerText = "Utilizador não encontrado";
+      return;
+    }
+
+    const data = docSnap.data();
+    viewedUserData = data;
+
+    document.getElementById("p-nome").innerText = data.nome || "Utilizador";
+    document.getElementById("topbar-username").innerText =
+      data.nome || "Perfil";
+    document.querySelector("#p-email span").innerText = data.email || "—";
+    document.querySelector("#p-local span").innerText =
+      [data.municipio, data.provincia].filter(Boolean).join(", ") ||
+      "Localização não definida";
+
+    document.getElementById("visitas-count").innerText = data.visitasCount || 0;
+
+    if (data.photoBase64) mostrarFoto(data.photoBase64);
+  } catch (err) {
+    console.error("Erro ao carregar perfil por UID:", err);
+  }
+}
+
+// Regista uma visita (subcolecção + contador) — silencioso em caso de falha
+async function registrarVisita(targetUid) {
+  if (!currentUID || !targetUid || currentUID === targetUid) return;
+  try {
+    await addDoc(collection(db, "users", targetUid, "visitas"), {
+      visitor: currentUID,
+      at: serverTimestamp(),
+    });
+    await updateDoc(doc(db, "users", targetUid), {
+      visitasCount: increment(1),
+    });
+  } catch (err) {
+    console.warn("Erro ao registar visita:", err);
+  }
+}
+
+function disableEditControls() {
+  const btn = document.getElementById("btn-edit-profile");
+  if (btn) btn.style.display = "none";
+  const avatarOverlay = document.querySelector(".ig-avatar-overlay");
+  if (avatarOverlay) avatarOverlay.style.display = "none";
+  const avatarTrigger = document.getElementById("avatar-trigger");
+  if (avatarTrigger) {
+    avatarTrigger.style.pointerEvents = "none";
+    avatarTrigger.style.cursor = "default";
+  }
+}
+
+function enableEditControls() {
+  const btn = document.getElementById("btn-edit-profile");
+  if (btn) btn.style.display = "";
+  const avatarOverlay = document.querySelector(".ig-avatar-overlay");
+  if (avatarOverlay) avatarOverlay.style.display = "";
+  const avatarTrigger = document.getElementById("avatar-trigger");
+  if (avatarTrigger) {
+    avatarTrigger.style.pointerEvents = "";
+    avatarTrigger.style.cursor = "pointer";
+  }
+}
+
+// Renderiza emblemas no perfil a partir dos dados do user + métricas
+function renderBadges(
+  userData,
+  postedCount = 0,
+  supportsCount = 0,
+  totalApoios = 0,
+) {
+  const container = document.getElementById("badge-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const stats = userData?.stats || {};
+  const badges = [];
+
+  // Admin tem um emblema único
+  if (userData?.role === "admin") {
+    badges.push({
+      id: "admin",
+      label: "Admin",
+      icon: "fa-shield-halved",
+      cls: "badge-admin",
+    });
+  }
+
+  if ((stats.apoios || 0) >= 5)
+    badges.push({
+      id: "apoiador",
+      label: "Apoiador",
+      icon: "fa-hand-holding-heart",
+      cls: "badge-apoiador",
+    });
+  if ((stats.comentarios || 0) >= 5)
+    badges.push({
+      id: "comentador",
+      label: "Comentador",
+      icon: "fa-comment",
+      cls: "badge-comentador",
+    });
+  if ((stats.partilhas || 0) >= 3)
+    badges.push({
+      id: "partilhador",
+      label: "Partilha",
+      icon: "fa-share-nodes",
+      cls: "badge-partilhador",
+    });
+  if (postedCount >= 3)
+    badges.push({
+      id: "publicador",
+      label: "Publicador",
+      icon: "fa-clipboard",
+      cls: "badge-publicador",
+    });
+  if (totalApoios >= 10)
+    badges.push({
+      id: "impacto",
+      label: "Impacto",
+      icon: "fa-heart",
+      cls: "badge-impacto",
+    });
+
+  // Se não houver emblemas, manter o container vazio
+  if (badges.length === 0) return;
+
+  badges.forEach((b) => {
+    const el = document.createElement("div");
+    el.className = `badge-item ${b.cls}`;
+    el.title = b.label;
+    el.innerHTML = `<i class="fa-solid ${b.icon}"></i><span>${b.label}</span>`;
+    container.appendChild(el);
+  });
+}
+
+function atualizarBadgeUI() {
+  if (!viewedUserData) return;
+  const postedCount = mesCasos?.length || 0;
+  const supportsCount = casosApoios?.length || 0;
+  const totalApoios =
+    parseInt(
+      document.getElementById("total-apoios-received")?.innerText || "0",
+      10,
+    ) || 0;
+  renderBadges(viewedUserData, postedCount, supportsCount, totalApoios);
 }
 
 /* =========================================================================
    FOTO DE PERFIL
    ========================================================================= */
 function mostrarFoto(base64) {
-  const img         = document.getElementById("profile-photo");
+  const img = document.getElementById("profile-photo");
   const placeholder = document.getElementById("avatar-placeholder");
-  img.src           = base64;
+  img.src = base64;
   img.classList.remove("hidden");
   placeholder.style.display = "none";
 }
 
 function comprimirImagem(file, maxDim = 300, quality = 0.82) {
   return new Promise((resolve, reject) => {
-    const reader   = new FileReader();
+    const reader = new FileReader();
     reader.onerror = () => reject(new Error("Erro ao ler ficheiro."));
-    reader.onload  = (e) => {
-      const img    = new Image();
-      img.onerror  = () => reject(new Error("Imagem inválida."));
-      img.onload   = () => {
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Imagem inválida."));
+      img.onload = () => {
         let { width, height } = img;
         if (width > height) {
-          if (width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
         } else {
-          if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
         }
         const canvas = document.createElement("canvas");
-        canvas.width  = width;
+        canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
         resolve(canvas.toDataURL("image/jpeg", quality));
@@ -114,13 +308,20 @@ function acionarUploadFoto() {
   document.getElementById("photo-input").click();
 }
 
-document.getElementById("avatar-trigger").addEventListener("click", acionarUploadFoto);
+document
+  .getElementById("avatar-trigger")
+  .addEventListener("click", acionarUploadFoto);
 
 document.getElementById("photo-input").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  const tiposPermitidos = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const tiposPermitidos = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+  ];
   if (!tiposPermitidos.includes(file.type)) {
     mostrarNotificacao("⚠️ Formato não suportado. Use JPG, PNG ou WEBP.");
     e.target.value = "";
@@ -149,33 +350,53 @@ async function carregarMeusCasos(uid) {
 
   try {
     // Casos pendentes (submetidos mas ainda não aprovados)
-    const qPendentes   = query(collection(db, "casos_pendentes"), where("userId", "==", uid));
+    const qPendentes = query(
+      collection(db, "casos_pendentes"),
+      where("userId", "==", uid),
+    );
     const snapPendentes = await getDocs(qPendentes);
 
     // Casos já aprovados/ativos
-    const qAprovados   = query(collection(db, "casos"), where("userId", "==", uid));
+    const qAprovados = query(
+      collection(db, "casos"),
+      where("userId", "==", uid),
+    );
     const snapAprovados = await getDocs(qAprovados);
 
     mesCasos = [];
 
-    snapPendentes.forEach((d) => mesCasos.push({ id: d.id, ...d.data(), _origem: "pendente" }));
-    snapAprovados.forEach((d) => mesCasos.push({ id: d.id, ...d.data(), _origem: "casos" }));
+    snapPendentes.forEach((d) =>
+      mesCasos.push({ id: d.id, ...d.data(), _origem: "pendente" }),
+    );
+    snapAprovados.forEach((d) =>
+      mesCasos.push({ id: d.id, ...d.data(), _origem: "casos" }),
+    );
 
     // Calcular estatísticas
-    const aprovados = mesCasos.filter((c) => c.status === "aprovado" || c.status === "encontrado" || c.status === "desmentido").length;
-    const pendentes = mesCasos.filter((c) => !c.status || c.status === "pendente").length;
+    const aprovados = mesCasos.filter(
+      (c) =>
+        c.status === "aprovado" ||
+        c.status === "encontrado" ||
+        c.status === "desmentido",
+    ).length;
+    const pendentes = mesCasos.filter(
+      (c) => !c.status || c.status === "pendente",
+    ).length;
 
     // Apoios totais recebidos nos casos aprovados
-    const totalApoiosRecebidos = mesCasos.reduce((acc, c) => acc + (c.apoios || 0), 0);
+    const totalApoiosRecebidos = mesCasos.reduce(
+      (acc, c) => acc + (c.apoios || 0),
+      0,
+    );
 
     // Atualizar stats desktop + mobile
     setStatAll("stat-aprovados", aprovados);
     setStatAll("stat-pendentes", pendentes);
-    document.getElementById("total-apoios-received").innerText = totalApoiosRecebidos;
+    document.getElementById("total-apoios-received").innerText =
+      totalApoiosRecebidos;
 
     // Renderizar grid
     renderizarGrid(mesCasos, grid, "meus");
-
   } catch (err) {
     console.error("Erro ao carregar casos:", err);
     grid.innerHTML = `<div class="ig-grid-empty"><i class="fa-solid fa-circle-exclamation"></i><p>Erro ao carregar casos.</p></div>`;
@@ -190,7 +411,10 @@ async function carregarCasosApoiados(uid) {
   const grid = document.getElementById("grid-apoios");
 
   try {
-    const q    = query(collection(db, "casos"), where("apoiadoPor", "array-contains", uid));
+    const q = query(
+      collection(db, "casos"),
+      where("apoiadoPor", "array-contains", uid),
+    );
     const snap = await getDocs(q);
 
     casosApoios = [];
@@ -200,7 +424,6 @@ async function carregarCasosApoiados(uid) {
     setStatAll("stat-apoios", casosApoios.length);
 
     renderizarGrid(casosApoios, grid, "apoios");
-
   } catch (err) {
     console.error("Erro ao carregar apoios:", err);
     grid.innerHTML = `<div class="ig-grid-empty"><i class="fa-solid fa-circle-exclamation"></i><p>Erro ao carregar apoios.</p></div>`;
@@ -214,9 +437,10 @@ function renderizarGrid(lista, gridEl, tipo) {
   gridEl.innerHTML = "";
 
   if (lista.length === 0) {
-    const msgVazio = tipo === "apoios"
-      ? "Ainda não apoiou nenhum caso."
-      : "Ainda não submeteu nenhum caso.";
+    const msgVazio =
+      tipo === "apoios"
+        ? "Ainda não apoiou nenhum caso."
+        : "Ainda não submeteu nenhum caso.";
     const iconVazio = tipo === "apoios" ? "fa-heart" : "fa-clipboard";
 
     gridEl.innerHTML = `
@@ -230,12 +454,12 @@ function renderizarGrid(lista, gridEl, tipo) {
 
   lista.forEach((caso) => {
     const item = document.createElement("div");
-    item.className        = "ig-grid-item";
-    item.dataset.id       = caso.id;
-    item.dataset.origem   = caso._origem || "casos";
-    const statusClass     = caso.status || "pendente";
-    const apoiosCount     = caso.apoios  || 0;
-    const comentCount     = caso.comentarios || 0;
+    item.className = "ig-grid-item";
+    item.dataset.id = caso.id;
+    item.dataset.origem = caso._origem || "casos";
+    const statusClass = caso.status || "pendente";
+    const apoiosCount = caso.apoios || 0;
+    const comentCount = caso.comentarios || 0;
 
     if (caso.imagem) {
       item.innerHTML = `
@@ -279,25 +503,30 @@ window.getPlaceholderHtml = (nome) => `
 function abrirLightbox(caso) {
   const lb = document.getElementById("caso-lightbox");
 
-  document.getElementById("lb-img").src         = caso.imagem || "imgs/user.jpg";
-  document.getElementById("lb-nome").innerText  = caso.nome   || "Sem nome";
+  document.getElementById("lb-img").src = caso.imagem || "imgs/user.jpg";
+  document.getElementById("lb-nome").innerText = caso.nome || "Sem nome";
 
-  const status  = document.getElementById("lb-status");
-  status.innerText  = caso.status || "pendente";
-  status.className  = `status-badge status-${caso.status || "pendente"}`;
+  const status = document.getElementById("lb-status");
+  status.innerText = caso.status || "pendente";
+  status.className = `status-badge status-${caso.status || "pendente"}`;
 
   const detalhes = [
-    caso.idade       ? `${caso.idade} anos`                   : null,
-    caso.sexo        ? caso.sexo                               : null,
-    caso.municipio   ? `📍 ${caso.municipio}, ${caso.provincia || ""}` : null,
-    caso.ultimo_local ? `Último local: ${caso.ultimo_local}`   : null,
-    caso.roupas      ? `Vestia: ${caso.roupas}`               : null,
+    caso.idade ? `${caso.idade} anos` : null,
+    caso.sexo ? caso.sexo : null,
+    caso.municipio ? `📍 ${caso.municipio}, ${caso.provincia || ""}` : null,
+    caso.ultimo_local ? `Último local: ${caso.ultimo_local}` : null,
+    caso.roupas ? `Vestia: ${caso.roupas}` : null,
     caso.informacoes_adicionais || null,
-  ].filter(Boolean).join(" · ");
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  document.getElementById("lb-detalhes").innerText      = detalhes || "Sem detalhes disponíveis.";
-  document.getElementById("lb-apoios").innerHTML        = `<i class="fa-solid fa-heart"></i> ${caso.apoios || 0} apoios`;
-  document.getElementById("lb-comentarios").innerHTML   = `<i class="fa-regular fa-comment"></i> ${caso.comentarios || 0} comentários`;
+  document.getElementById("lb-detalhes").innerText =
+    detalhes || "Sem detalhes disponíveis.";
+  document.getElementById("lb-apoios").innerHTML =
+    `<i class="fa-solid fa-heart"></i> ${caso.apoios || 0} apoios`;
+  document.getElementById("lb-comentarios").innerHTML =
+    `<i class="fa-regular fa-comment"></i> ${caso.comentarios || 0} comentários`;
 
   lb.classList.remove("hidden");
   document.body.style.overflow = "hidden";
@@ -308,17 +537,27 @@ function fecharLightbox() {
   document.body.style.overflow = "";
 }
 
-document.getElementById("lightbox-close").addEventListener("click", fecharLightbox);
-document.getElementById("lightbox-backdrop").addEventListener("click", fecharLightbox);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") fecharLightbox(); });
+document
+  .getElementById("lightbox-close")
+  .addEventListener("click", fecharLightbox);
+document
+  .getElementById("lightbox-backdrop")
+  .addEventListener("click", fecharLightbox);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") fecharLightbox();
+});
 
 /* =========================================================================
    TABS
    ========================================================================= */
 document.querySelectorAll(".ig-tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    document.querySelectorAll(".ig-tab").forEach((t) => t.classList.remove("active"));
-    document.querySelectorAll(".ig-tab-content").forEach((c) => c.classList.remove("active"));
+    document
+      .querySelectorAll(".ig-tab")
+      .forEach((t) => t.classList.remove("active"));
+    document
+      .querySelectorAll(".ig-tab-content")
+      .forEach((c) => c.classList.remove("active"));
 
     tab.classList.add("active");
     const targetId = tab.dataset.tab;
@@ -330,7 +569,7 @@ document.querySelectorAll(".ig-tab").forEach((tab) => {
    MENU DE OPÇÕES
    ========================================================================= */
 const optionsMenu = document.getElementById("options-menu");
-const backdrop    = document.getElementById("menu-backdrop");
+const backdrop = document.getElementById("menu-backdrop");
 
 function abrirMenu() {
   optionsMenu.classList.remove("hidden");
@@ -342,8 +581,12 @@ function fecharMenu() {
 }
 
 document.getElementById("btn-open-menu").addEventListener("click", abrirMenu);
-document.getElementById("btn-edit-profile").addEventListener("click", abrirMenu);
-document.getElementById("btn-cancel-menu").addEventListener("click", fecharMenu);
+document
+  .getElementById("btn-edit-profile")
+  .addEventListener("click", abrirMenu);
+document
+  .getElementById("btn-cancel-menu")
+  .addEventListener("click", fecharMenu);
 backdrop.addEventListener("click", fecharMenu);
 
 document.getElementById("btn-change-photo").addEventListener("click", () => {
@@ -366,9 +609,9 @@ document.getElementById("btn-logout").addEventListener("click", () => {
 
 // Atualiza stat em desktop e mobile ao mesmo tempo
 function setStatAll(baseId, value) {
-  const el  = document.getElementById(baseId);
+  const el = document.getElementById(baseId);
   const elM = document.getElementById(baseId + "-m");
-  if (el)  el.innerText  = value;
+  if (el) el.innerText = value;
   if (elM) elM.innerText = value;
 }
 
@@ -380,11 +623,20 @@ function mostrarNotificacao(msg) {
   const toast = document.createElement("div");
   toast.innerText = msg;
   Object.assign(toast.style, {
-    position: "fixed", bottom: "24px", left: "50%",
-    transform: "translateX(-50%)", background: "#222", color: "#fff",
-    padding: "12px 22px", borderRadius: "10px", fontSize: "14px",
-    fontFamily: "var(--font-base)", zIndex: "9999",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.25)", maxWidth: "90vw", textAlign: "center",
+    position: "fixed",
+    bottom: "24px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: "#222",
+    color: "#fff",
+    padding: "12px 22px",
+    borderRadius: "10px",
+    fontSize: "14px",
+    fontFamily: "var(--font-base)",
+    zIndex: "9999",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+    maxWidth: "90vw",
+    textAlign: "center",
   });
   document.body.appendChild(toast);
   setTimeout(() => {

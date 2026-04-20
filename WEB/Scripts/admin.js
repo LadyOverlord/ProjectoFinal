@@ -62,6 +62,20 @@ function iniciarAdmin() {
       filtrarUsuarios(e.target.value.toLowerCase()),
     );
 
+  // Configurar listeners do modal de edição de localização
+  const btnCorrigir = document.getElementById("btn-corrigir-localizacoes");
+  const btnFechar = document.getElementById("btn-fechar-modal");
+  const btnCancelar = document.getElementById("btn-cancelar-modal");
+  const btnSalvar = document.getElementById("btn-salvar-localizacao");
+
+  if (btnCorrigir)
+    btnCorrigir.addEventListener("click", abrirModalEditarLocalizacao);
+  if (btnFechar)
+    btnFechar.addEventListener("click", fecharModalEditarLocalizacao);
+  if (btnCancelar)
+    btnCancelar.addEventListener("click", fecharModalEditarLocalizacao);
+  if (btnSalvar) btnSalvar.addEventListener("click", salvarLocalizacao);
+
   carregarDashboard();
   configurarFormularioAnuncio(); // ✅ chamado apenas UMA vez
 }
@@ -77,6 +91,7 @@ function configurarNavegacao() {
     users: "Gestão de Utilizadores",
     reports: "Aprovações Pendentes",
     config: "Gestão de Anúncios",
+    "mapa-admin": "Mapa de Casos",
   };
 
   links.forEach((link) => {
@@ -93,6 +108,7 @@ function configurarNavegacao() {
       if (id === "users") carregarUsuarios();
       if (id === "reports") carregarAprovacoes();
       if (id === "config") carregarConfig();
+      if (id === "mapa-admin") iniciarMapaAdmin();
     });
   });
 }
@@ -724,29 +740,28 @@ async function salvarAnuncio() {
   }
 }
 
-
 // ── Coordenadas por Província (Angola) ─────────────────────────────────
 const COORDS_PROV_ADMIN = {
-  luanda:         { lat: -8.8368,  lng: 13.2343 },
-  benguela:       { lat: -12.5763, lng: 13.4055 },
-  huambo:         { lat: -12.7760, lng: 15.7388 },
-  bié:            { lat: -12.3764, lng: 17.0557 },
-  cabinda:        { lat: -5.5500,  lng: 12.2000 },
-  cuando_cubango: { lat: -16.9300, lng: 19.8000 },
-  cuanza_norte:   { lat: -9.2000,  lng: 14.7000 },
-  cuanza_sul:     { lat: -10.9000, lng: 14.3000 },
-  cunene:         { lat: -16.9000, lng: 15.8000 },
-  huíla:          { lat: -14.9200, lng: 13.5000 },
-  lunda_norte:    { lat: -8.6500,  lng: 20.4000 },
-  lunda_sul:      { lat: -10.0000, lng: 21.0000 },
-  malanje:        { lat: -9.5400,  lng: 16.3400 },
-  moxico:         { lat: -11.8600, lng: 19.9200 },
-  namibe:         { lat: -15.1961, lng: 12.1522 },
-  uíge:           { lat: -7.6100,  lng: 15.0600 },
-  zaire:          { lat: -6.1000,  lng: 12.8500 },
+  luanda: { lat: -8.8368, lng: 13.2343 },
+  benguela: { lat: -12.5763, lng: 13.4055 },
+  huambo: { lat: -12.776, lng: 15.7388 },
+  bié: { lat: -12.3764, lng: 17.0557 },
+  cabinda: { lat: -5.55, lng: 12.2 },
+  cuando_cubango: { lat: -16.93, lng: 19.8 },
+  cuanza_norte: { lat: -9.2, lng: 14.7 },
+  cuanza_sul: { lat: -10.9, lng: 14.3 },
+  cunene: { lat: -16.9, lng: 15.8 },
+  huíla: { lat: -14.92, lng: 13.5 },
+  lunda_norte: { lat: -8.65, lng: 20.4 },
+  lunda_sul: { lat: -10.0, lng: 21.0 },
+  malanje: { lat: -9.54, lng: 16.34 },
+  moxico: { lat: -11.86, lng: 19.92 },
+  namibe: { lat: -15.1961, lng: 12.1522 },
+  uíge: { lat: -7.61, lng: 15.06 },
+  zaire: { lat: -6.1, lng: 12.85 },
 };
 
-let mapaAdminInst  = null;
+let mapaAdminInst = null;
 let mapaAdminMarkers = [];
 
 /* =========================================================================
@@ -759,11 +774,13 @@ async function iniciarMapaAdmin() {
   // Carregar casos aprovados, encontrados e desmentidos
   let casos = [];
   try {
-    const snap = await getDocs(query(
-      collection(db, "casos"),
-      where("status", "in", ["aprovado","encontrado","desmentido"])
-    ));
-    snap.forEach(d => casos.push({ id: d.id, ...d.data() }));
+    const snap = await getDocs(
+      query(
+        collection(db, "casos"),
+        where("status", "in", ["aprovado", "encontrado", "desmentido"]),
+      ),
+    );
+    snap.forEach((d) => casos.push({ id: d.id, ...d.data() }));
   } catch (err) {
     console.error("Erro ao carregar casos para mapa:", err);
     return;
@@ -771,7 +788,10 @@ async function iniciarMapaAdmin() {
 
   // Aguardar Google Maps
   function tentarIniciar() {
-    if (typeof google === "undefined") { setTimeout(tentarIniciar, 300); return; }
+    if (typeof google === "undefined") {
+      setTimeout(tentarIniciar, 300);
+      return;
+    }
     renderMapaAdmin(el, casos);
   }
   tentarIniciar();
@@ -788,26 +808,26 @@ function renderMapaAdmin(el, casos) {
   }
 
   // Limpar marcadores
-  mapaAdminMarkers.forEach(m => m.setMap(null));
+  mapaAdminMarkers.forEach((m) => m.setMap(null));
   mapaAdminMarkers = [];
 
   const infoWindow = new google.maps.InfoWindow();
 
   const corStatus = {
-    aprovado:   "#0c7ab5",
+    aprovado: "#0c7ab5",
     encontrado: "#2ecc71",
     desmentido: "#95a5a6",
   };
 
-  casos.forEach(caso => {
+  casos.forEach((caso) => {
     let lat = caso.lat ? parseFloat(caso.lat) : null;
     let lng = caso.lng ? parseFloat(caso.lng) : null;
     if (!lat || !lng) {
-      const prov = (caso.provincia || "").toLowerCase().replace(/ /g,"_");
+      const prov = (caso.provincia || "").toLowerCase().replace(/ /g, "_");
       const coords = COORDS_PROV_ADMIN[prov];
       if (!coords) return;
-      lat = coords.lat + (Math.random()-0.5)*0.6;
-      lng = coords.lng + (Math.random()-0.5)*0.6;
+      lat = coords.lat + (Math.random() - 0.5) * 0.6;
+      lng = coords.lng + (Math.random() - 0.5) * 0.6;
     }
 
     const cor = corStatus[caso.status] || "#0c7ab5";
@@ -828,14 +848,19 @@ function renderMapaAdmin(el, casos) {
     const img = caso.imagem
       ? `<img src="${caso.imagem}" style="width:100%;height:70px;object-fit:cover;border-radius:6px;margin-bottom:6px;">`
       : "";
-    const labelStatus = { aprovado:"🔵 Activo", encontrado:"🟢 Encontrado", desmentido:"⚫ Desmentido" }[caso.status] || caso.status;
+    const labelStatus =
+      {
+        aprovado: "🔵 Activo",
+        encontrado: "🟢 Encontrado",
+        desmentido: "⚫ Desmentido",
+      }[caso.status] || caso.status;
 
     marker.addListener("click", () => {
       infoWindow.setContent(`
         <div style="font-family:'Quicksand',sans-serif;max-width:180px;">
           ${img}
-          <strong style="font-size:13px;">${caso.nome||"—"}</strong><br>
-          <span style="color:#666;font-size:11px;">${caso.municipio||caso.provincia||"Angola"}</span><br>
+          <strong style="font-size:13px;">${caso.nome || "—"}</strong><br>
+          <span style="color:#666;font-size:11px;">${caso.municipio || caso.provincia || "Angola"}</span><br>
           <span style="font-size:11px;">${labelStatus}</span>
         </div>`);
       infoWindow.open(mapaAdminInst, marker);
@@ -847,9 +872,9 @@ function renderMapaAdmin(el, casos) {
   // Lista resumo abaixo do mapa
   const listaEl = document.getElementById("mapa-admin-lista");
   if (listaEl) {
-    const total  = casos.length;
-    const ativos = casos.filter(c=>c.status==="aprovado").length;
-    const enc    = casos.filter(c=>c.status==="encontrado").length;
+    const total = casos.length;
+    const ativos = casos.filter((c) => c.status === "aprovado").length;
+    const enc = casos.filter((c) => c.status === "encontrado").length;
     listaEl.innerHTML = `
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <div class="card-stat" style="flex:1;min-width:120px;">
@@ -882,4 +907,174 @@ function calcularDias(dataString) {
   const d = new Date(dataString);
   if (isNaN(d)) return 0;
   return Math.ceil(Math.abs(new Date() - d) / 86400000);
+}
+
+/* =========================================================================
+   EDITAR LOCALIZAÇÃO - Corrigir casos antigos sem coordenadas
+   ========================================================================= */
+let mapaEditarInst = null;
+let casoEmEdicao = null;
+let coordenada_selecionada = null;
+
+function abrirModalEditarLocalizacao() {
+  const modal = document.getElementById("modal-editar-localizacao");
+  modal.classList.remove("hidden");
+
+  setTimeout(() => {
+    if (!mapaEditarInst) {
+      inicializarMapaEditar();
+    }
+    carregarCasosSemCoordenadas();
+  }, 100);
+}
+
+function fecharModalEditarLocalizacao() {
+  const modal = document.getElementById("modal-editar-localizacao");
+  modal.classList.add("hidden");
+  casoEmEdicao = null;
+  coordenada_selecionada = null;
+  document.getElementById("btn-salvar-localizacao").disabled = true;
+}
+
+async function carregarCasosSemCoordenadas() {
+  const lista = document.getElementById("lista-casos-sem-coord");
+  lista.innerHTML = `<div style="padding:16px;text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>`;
+
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, "casos"),
+        where("status", "in", ["aprovado", "encontrado", "desmentido"]),
+      ),
+    );
+
+    let casosSemCoord = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      if (!data.lat || !data.lng) {
+        casosSemCoord.push({ id: d.id, ...data });
+      }
+    });
+
+    if (casosSemCoord.length === 0) {
+      lista.innerHTML = `<div style="padding:16px;text-align:center;color:#666;">✅ Todos os casos têm localização!</div>`;
+      document.getElementById("btn-corrigir-localizacoes").disabled = true;
+      return;
+    }
+
+    lista.innerHTML = "";
+    casosSemCoord.forEach((caso) => {
+      const item = document.createElement("div");
+      item.style.cssText =
+        "padding:12px;border-bottom:1px solid #eee;cursor:pointer;transition:background 0.2s;";
+      item.innerHTML = `
+        <div style="font-weight:600;color:#333;">${caso.nome || "Sem nome"}</div>
+        <div style="font-size:12px;color:#666;">${caso.municipio || caso.provincia}</div>
+        <div style="font-size:11px;color:#999;">ID: ${caso.id.substring(0, 8)}...</div>
+      `;
+      item.addEventListener(
+        "mouseover",
+        () => (item.style.background = "#f5f5f5"),
+      );
+      item.addEventListener(
+        "mouseout",
+        () => (item.style.background = "transparent"),
+      );
+      item.addEventListener("click", () => selecionarCasoParaEditar(caso));
+      lista.appendChild(item);
+    });
+  } catch (err) {
+    lista.innerHTML = `<div style="padding:16px;color:#e74c3c;">Erro ao carregar casos</div>`;
+    console.error(err);
+  }
+}
+
+function selecionarCasoParaEditar(caso) {
+  casoEmEdicao = caso;
+  coordenada_selecionada = null;
+
+  const infoEl = document.getElementById("info-localizacao-selecionada");
+  infoEl.innerHTML = `<strong>${caso.nome}</strong><br>${caso.municipio || caso.provincia}<br><span style="color:#999;">Aguardando localização no mapa...</span>`;
+
+  document.getElementById("btn-salvar-localizacao").disabled = true;
+
+  // Destacar item na lista
+  document.querySelectorAll("#lista-casos-sem-coord > div").forEach((el) => {
+    el.style.background = el.textContent.includes(caso.nome)
+      ? "#e3f2fd"
+      : "transparent";
+  });
+}
+
+function inicializarMapaEditar() {
+  const mapEl = document.getElementById("mapa-editar-localizacao");
+  if (!mapEl) return;
+
+  if (typeof google === "undefined") {
+    setTimeout(inicializarMapaEditar, 300);
+    return;
+  }
+
+  mapaEditarInst = new google.maps.Map(mapEl, {
+    center: { lat: -11.2027, lng: 17.8739 },
+    zoom: 6,
+    mapTypeControl: false,
+    streetViewControl: false,
+  });
+
+  mapaEditarInst.addListener("click", (e) => {
+    if (!casoEmEdicao) {
+      showAlert("Selecione um caso à esquerda primeiro.");
+      return;
+    }
+
+    coordenada_selecionada = {
+      lat: e.latLng.lat(),
+      lng: e.latLng.lng(),
+    };
+
+    const infoEl = document.getElementById("info-localizacao-selecionada");
+    infoEl.innerHTML = `<strong>${casoEmEdicao.nome}</strong><br>${casoEmEdicao.municipio || casoEmEdicao.provincia}<br><span style="color:#0c7ab5;">📍 Lat: ${coordenada_selecionada.lat.toFixed(4)}, Lng: ${coordenada_selecionada.lng.toFixed(4)}</span>`;
+
+    document.getElementById("btn-salvar-localizacao").disabled = false;
+
+    // Limpar marcadores anteriores e adicionar novo
+    mapaEditarInst.setCenter(coordenada_selecionada);
+  });
+}
+
+async function salvarLocalizacao() {
+  if (!casoEmEdicao || !coordenada_selecionada) {
+    showAlert("Selecione um caso e uma localização.");
+    return;
+  }
+
+  const btn = document.getElementById("btn-salvar-localizacao");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Salvando...`;
+
+  try {
+    await updateDoc(doc(db, "casos", casoEmEdicao.id), {
+      lat: coordenada_selecionada.lat.toString(),
+      lng: coordenada_selecionada.lng.toString(),
+    });
+
+    showAlert(
+      `✅ Localização de "${casoEmEdicao.nome}" guardada com sucesso!`,
+      {
+        onOk: () => {
+          casoEmEdicao = null;
+          coordenada_selecionada = null;
+          carregarCasosSemCoordenadas();
+          iniciarMapaAdmin(); // Atualizar mapa principal
+          btn.innerHTML = `<i class="fa-solid fa-save"></i> Salvar Localização`;
+          btn.disabled = true;
+        },
+      },
+    );
+  } catch (err) {
+    showAlert(`Erro ao guardar: ${err.message}`);
+    btn.innerHTML = `<i class="fa-solid fa-save"></i> Salvar Localização`;
+    btn.disabled = false;
+  }
 }

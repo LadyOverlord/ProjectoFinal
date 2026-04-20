@@ -1,184 +1,218 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="CSS/variables.css">
-  <link rel="stylesheet" href="CSS/global.css">
-  <link rel="stylesheet" href="CSS/paginas/profile.css">
-  
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-  <title>Perfil — Missing AO</title>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="CSS/variables.css" />
+    <link rel="stylesheet" href="CSS/global.css" />
+    <link rel="stylesheet" href="CSS/paginas/profile.css" />
 
-  <!-- ─── TOPBAR ──────────────────────────────────── -->
-  <div class="topbar">
-    <a href="index.html" class="btn-voltar">
-      <i class="fa-solid fa-arrow-left"></i>
-      <span>Início</span>
-    </a>
-    <span class="topbar-username" id="topbar-username">Perfil</span>
-    <button id="btn-open-menu" class="btn-settings" title="Opções">
-      <i class="fa-solid fa-ellipsis-vertical"></i>
-    </button>
-  </div>
-
-  <!-- ─── PÁGINA PRINCIPAL ────────────────────────── -->
-  <div class="profile-page">
-
-    <!-- HEADER ESTILO INSTAGRAM -->
-    <div class="ig-header">
-
-      <!-- Avatar -->
-      <div class="ig-avatar-col">
-        <div class="ig-avatar-ring" id="avatar-trigger" title="Alterar foto">
-          <img id="profile-photo" src="" alt="Foto" class="ig-avatar-img hidden">
-          <div id="avatar-placeholder" class="ig-avatar-placeholder">
-            <i class="fa-solid fa-user"></i>
-          </div>
-          <div class="ig-avatar-overlay">
-            <i class="fa-solid fa-camera"></i>
-          </div>
-        </div>
-        <input type="file" id="photo-input" accept="image/*" style="display:none;">
-        <div id="upload-loader" class="upload-loader hidden">
-          <div class="spinner"></div>
-        </div>
-      </div>
-
-      <!-- Info (lado direito no desktop) -->
-      <div class="ig-info-col">
-
-        <!-- Nome + Botão Editar -->
-        <div class="ig-name-row">
-          <h2 id="p-nome" class="ig-username">Carregando...</h2>
-          <button id="btn-edit-profile" class="ig-edit-btn">
-            <i class="fa-solid fa-gear"></i> Editar Perfil
-          </button>
-        </div>
-
-        <!-- Stats (desktop) -->
-        <div class="ig-stats-row">
-          <div class="ig-stat-item" id="stat-apoios-btn">
-            <span class="ig-stat-num" id="stat-apoios">0</span>
-            <span class="ig-stat-lbl">Apoios</span>
-          </div>
-          <div class="ig-stat-item" id="stat-aprovados-btn">
-            <span class="ig-stat-num" id="stat-aprovados">0</span>
-            <span class="ig-stat-lbl">Aprovados</span>
-          </div>
-          <div class="ig-stat-item" id="stat-pendentes-btn">
-            <span class="ig-stat-num" id="stat-pendentes">0</span>
-            <span class="ig-stat-lbl">Pendentes</span>
-          </div>
-        </div>
-
-        <!-- Bio -->
-        <div class="ig-bio">
-          <p class="ig-meta" id="p-email">
-            <i class="fa-solid fa-envelope"></i> <span>—</span>
-          </p>
-          <p class="ig-meta" id="p-local">
-            <i class="fa-solid fa-location-dot"></i> <span>—</span>
-          </p>
-          <div class="ig-apoios-received" id="apoios-received-box">
-            <i class="fa-solid fa-heart"></i>
-            <span>Os seus casos receberam <strong id="total-apoios-received">0</strong> apoios</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stats Mobile (abaixo do avatar) -->
-    <div class="ig-stats-mobile">
-      <div class="ig-stat-item">
-        <span class="ig-stat-num" id="stat-apoios-m">0</span>
-        <span class="ig-stat-lbl">Apoios</span>
-      </div>
-      <div class="ig-stat-item">
-        <span class="ig-stat-num" id="stat-aprovados-m">0</span>
-        <span class="ig-stat-lbl">Aprovados</span>
-      </div>
-      <div class="ig-stat-item">
-        <span class="ig-stat-num" id="stat-pendentes-m">0</span>
-        <span class="ig-stat-lbl">Pendentes</span>
-      </div>
-    </div>
-
-    <!-- TABS -->
-    <div class="ig-tabs-bar">
-      <button class="ig-tab active" data-tab="meus-casos">
-        <i class="fa-solid fa-grid-2"></i>
-        <span>Meus Casos</span>
-      </button>
-      <button class="ig-tab" data-tab="apoios-tab">
-        <i class="fa-solid fa-heart"></i>
-        <span>Apoios</span>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Google+Sans:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>Perfil — Missing AO</title>
+  </head>
+  <body>
+    <!-- ─── TOPBAR ──────────────────────────────────── -->
+    <div class="topbar">
+      <a href="index.html" class="btn-voltar">
+        <i class="fa-solid fa-arrow-left"></i>
+        <span>Início</span>
+      </a>
+      <span class="topbar-username" id="topbar-username">Perfil</span>
+      <button id="btn-open-menu" class="btn-settings" title="Opções">
+        <i class="fa-solid fa-ellipsis-vertical"></i>
       </button>
     </div>
 
-    <!-- TAB: Meus Casos -->
-    <div class="ig-tab-content active" id="meus-casos">
-      <div class="ig-grid" id="grid-meus-casos">
-        <div class="ig-grid-loader">
-          <div class="spinner"></div>
-          <p>Carregando casos...</p>
+    <!-- ─── PÁGINA PRINCIPAL ────────────────────────── -->
+    <div class="profile-page">
+      <!-- HEADER ESTILO INSTAGRAM -->
+      <div class="ig-header">
+        <!-- Avatar -->
+        <div class="ig-avatar-col">
+          <div class="ig-avatar-ring" id="avatar-trigger" title="Alterar foto">
+            <img
+              id="profile-photo"
+              src=""
+              alt="Foto"
+              class="ig-avatar-img hidden"
+            />
+            <div id="avatar-placeholder" class="ig-avatar-placeholder">
+              <i class="fa-solid fa-user"></i>
+            </div>
+            <div class="ig-avatar-overlay">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+          </div>
+          <input
+            type="file"
+            id="photo-input"
+            accept="image/*"
+            style="display: none"
+          />
+          <div id="upload-loader" class="upload-loader hidden">
+            <div class="spinner"></div>
+          </div>
+        </div>
+
+        <!-- Info (lado direito no desktop) -->
+        <div class="ig-info-col">
+          <!-- Nome + Botão Editar -->
+          <div class="ig-name-row">
+            <h2 id="p-nome" class="ig-username">Carregando...</h2>
+            <div
+              id="badge-list"
+              class="badge-list"
+              aria-hidden="true"
+              title="Emblemas do utilizador"
+            ></div>
+            <button id="btn-edit-profile" class="ig-edit-btn">
+              <i class="fa-solid fa-gear"></i> Editar Perfil
+            </button>
+          </div>
+
+          <!-- Stats (desktop) -->
+          <div class="ig-stats-row">
+            <div class="ig-stat-item" id="stat-apoios-btn">
+              <span class="ig-stat-num" id="stat-apoios">0</span>
+              <span class="ig-stat-lbl">Apoios</span>
+            </div>
+            <div class="ig-stat-item" id="stat-aprovados-btn">
+              <span class="ig-stat-num" id="stat-aprovados">0</span>
+              <span class="ig-stat-lbl">Aprovados</span>
+            </div>
+            <div class="ig-stat-item" id="stat-pendentes-btn">
+              <span class="ig-stat-num" id="stat-pendentes">0</span>
+              <span class="ig-stat-lbl">Pendentes</span>
+            </div>
+          </div>
+
+          <!-- Bio -->
+          <div class="ig-bio">
+            <p class="ig-meta" id="p-email">
+              <i class="fa-solid fa-envelope"></i> <span>—</span>
+            </p>
+            <p class="ig-meta" id="p-local">
+              <i class="fa-solid fa-location-dot"></i> <span>—</span>
+            </p>
+            <p class="ig-meta" id="p-visitas">
+              <i class="fa-solid fa-eye"></i>
+              <span id="visitas-count">0</span> visitas
+            </p>
+            <div class="ig-apoios-received" id="apoios-received-box">
+              <i class="fa-solid fa-heart"></i>
+              <span
+                >Os seus casos receberam
+                <strong id="total-apoios-received">0</strong> apoios</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Mobile (abaixo do avatar) -->
+      <div class="ig-stats-mobile">
+        <div class="ig-stat-item">
+          <span class="ig-stat-num" id="stat-apoios-m">0</span>
+          <span class="ig-stat-lbl">Apoios</span>
+        </div>
+        <div class="ig-stat-item">
+          <span class="ig-stat-num" id="stat-aprovados-m">0</span>
+          <span class="ig-stat-lbl">Aprovados</span>
+        </div>
+        <div class="ig-stat-item">
+          <span class="ig-stat-num" id="stat-pendentes-m">0</span>
+          <span class="ig-stat-lbl">Pendentes</span>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="ig-tabs-bar">
+        <button class="ig-tab active" data-tab="meus-casos">
+          <i class="fa-solid fa-grid-2"></i>
+          <span>Meus Casos</span>
+        </button>
+        <button class="ig-tab" data-tab="apoios-tab">
+          <i class="fa-solid fa-heart"></i>
+          <span>Apoios</span>
+        </button>
+      </div>
+
+      <!-- TAB: Meus Casos -->
+      <div class="ig-tab-content active" id="meus-casos">
+        <div class="ig-grid" id="grid-meus-casos">
+          <div class="ig-grid-loader">
+            <div class="spinner"></div>
+            <p>Carregando casos...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Apoios -->
+      <div class="ig-tab-content" id="apoios-tab">
+        <div class="ig-grid" id="grid-apoios">
+          <div class="ig-grid-loader">
+            <div class="spinner"></div>
+            <p>Carregando casos apoiados...</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- TAB: Apoios -->
-    <div class="ig-tab-content" id="apoios-tab">
-      <div class="ig-grid" id="grid-apoios">
-        <div class="ig-grid-loader">
-          <div class="spinner"></div>
-          <p>Carregando casos apoiados...</p>
+    <!-- LIGHTBOX para detalhe do caso -->
+    <div class="caso-lightbox hidden" id="caso-lightbox">
+      <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+      <div class="lightbox-content">
+        <button class="lightbox-close" id="lightbox-close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <img
+          id="lb-img"
+          src=""
+          alt=""
+          class="lb-main-img"
+          onerror="this.src = 'imgs/user.jpg'"
+        />
+        <div class="lb-info">
+          <div class="lb-header">
+            <h3 id="lb-nome"></h3>
+            <span id="lb-status" class="status-badge"></span>
+          </div>
+          <p id="lb-detalhes" class="lb-detalhes"></p>
+          <div class="lb-stats">
+            <span id="lb-apoios"
+              ><i class="fa-solid fa-heart"></i> 0 apoios</span
+            >
+            <span id="lb-comentarios"
+              ><i class="fa-regular fa-comment"></i> 0 comentários</span
+            >
+          </div>
         </div>
       </div>
     </div>
 
-  </div>
-
-  <!-- LIGHTBOX para detalhe do caso -->
-  <div class="caso-lightbox hidden" id="caso-lightbox">
-    <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
-    <div class="lightbox-content">
-      <button class="lightbox-close" id="lightbox-close">
-        <i class="fa-solid fa-xmark"></i>
+    <!-- MENU DE OPÇÕES -->
+    <div class="options-menu hidden" id="options-menu">
+      <div class="options-header">Opções</div>
+      <button class="options-item" id="btn-change-photo">
+        <i class="fa-solid fa-image"></i> Alterar Foto de Perfil
       </button>
-      <img id="lb-img" src="" alt="" class="lb-main-img" onerror="this.src='imgs/user.jpg'">
-      <div class="lb-info">
-        <div class="lb-header">
-          <h3 id="lb-nome"></h3>
-          <span id="lb-status" class="status-badge"></span>
-        </div>
-        <p id="lb-detalhes" class="lb-detalhes"></p>
-        <div class="lb-stats">
-          <span id="lb-apoios"><i class="fa-solid fa-heart"></i> 0 apoios</span>
-          <span id="lb-comentarios"><i class="fa-regular fa-comment"></i> 0 comentários</span>
-        </div>
-      </div>
+      <button class="options-item danger" id="btn-logout">
+        <i class="fa-solid fa-right-from-bracket"></i> Sair da Conta
+      </button>
+      <button class="options-item cancel" id="btn-cancel-menu">
+        <i class="fa-solid fa-xmark"></i> Cancelar
+      </button>
     </div>
-  </div>
+    <div class="menu-backdrop hidden" id="menu-backdrop"></div>
 
-  <!-- MENU DE OPÇÕES -->
-  <div class="options-menu hidden" id="options-menu">
-    <div class="options-header">Opções</div>
-    <button class="options-item" id="btn-change-photo">
-      <i class="fa-solid fa-image"></i> Alterar Foto de Perfil
-    </button>
-    <button class="options-item danger" id="btn-logout">
-      <i class="fa-solid fa-right-from-bracket"></i> Sair da Conta
-    </button>
-    <button class="options-item cancel" id="btn-cancel-menu">
-      <i class="fa-solid fa-xmark"></i> Cancelar
-    </button>
-  </div>
-  <div class="menu-backdrop hidden" id="menu-backdrop"></div>
-
-  <script src="Scripts/alerts.js"></script>
-  <script type="module" src="Scripts/profile.js"></script>
-</body>
+    <script src="Scripts/alerts.js"></script>
+    <script type="module" src="Scripts/profile.js"></script>
+  </body>
 </html>
