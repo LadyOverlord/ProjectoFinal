@@ -5,105 +5,135 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel Polícia</title>
 
-  <link rel="stylesheet" href="CSS/variables.css">
-  <link rel="stylesheet" href="CSS/global.css">
   <link rel="stylesheet" href="CSS/paginas/police.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-
 <body class="pagina">
 
-  <!-- MENU -->
   <aside class="menu">
-    <h2>MissingAO</h2>
-    <p>Painel Polícia</p>
+    <div class="marca">
+      <h2>MissingAO</h2>
+      <p>Painel Polícia</p>
+    </div>
 
     <button class="item ativo" data-tab="visao">
-      <i class="fa-solid fa-house"></i> Visão
+      <i class="fa-solid fa-house"></i>
+      <span>Visão</span>
     </button>
 
     <button class="item" data-tab="casos">
-      <i class="fa-solid fa-folder-open"></i> Casos
+      <i class="fa-solid fa-folder-open"></i>
+      <span>Casos</span>
     </button>
 
     <button class="item" data-tab="ocorrencias">
-      <i class="fa-solid fa-list"></i> Ocorrências
+      <i class="fa-solid fa-list"></i>
+      <span>Ocorrências</span>
     </button>
 
     <button class="sair">
-      <i class="fa-solid fa-right-from-bracket"></i> Sair
+      <i class="fa-solid fa-right-from-bracket"></i>
+      <span>Sair</span>
     </button>
   </aside>
 
-  <!-- CONTEUDO -->
-  <div class="topo">
-  <div>
-    <h1>Painel da Esquadra</h1>
-    <p class="subtopo">Unidade policial</p>
-  </div>
-  <input type="text" placeholder="Pesquisar..." class="pesquisa">
-</div>
+  <main class="conteudo">
+    <div class="topo">
+      <div class="titulo">
+        <h1>Painel Policial</h1>
+        <p>Área da unidade policial</p>
+      </div>
 
-<div class="perfil-topo">
-  <div class="foto">
-    <img src="imgs/user.jpg">
-  </div>
-
-  <div class="info">
-    <h2>Esquadra Central de Luanda</h2>
-    <p class="tipo">Unidade de Investigação</p>
-
-    <div class="linha">
-      <span>📍 Luanda</span>
-      <span>📞 —</span>
-      <span>✉ —</span>
+      <input type="text" class="pesquisa" placeholder="Pesquisar...">
     </div>
 
-    <p class="desc">
-      Unidade responsável pelo acompanhamento de casos de desaparecimento.
-    </p>
-  </div>
-</div>
+    <section class="perfil">
+      <div class="foto">
+        <img src="imgs/user.jpg" alt="Esquadra">
+      </div>
 
-<div class="cards">
-  <div class="card">
-    <p>Casos</p>
-    <h2>0</h2>
-  </div>
+      <div class="dados">
+        <h2>Esquadra Central de Luanda</h2>
+        <p class="tipo">Unidade de Investigação Criminale</p>
 
-  <div class="card">
-    <p>Resolvidos</p>
-    <h2>0</h2>
-  </div>
+        <div class="linha">
+          <span>📍 Luanda</span>
+          <span>📞 93420889</span>
+          <span>✉ Valguem@gmail.com</span>
+        </div>
 
-  <div class="card">
-    <p>Pendentes</p>
-    <h2>0</h2>
-  </div>
-</div>
+        <p class="desc">
+          Unidade responsável pelo acompanhamento de casos de desaparecimento e pelo registo local das ocorrências recebidas.
+        </p>
+      </div>
+    </section>
 
-<div class="tabs">
-  <button class="aba ativa" data-tab="casos">Casos</button>
-  <button class="aba" data-tab="ocorrencias">Ocorrências</button>
-</div>
+    <section class="cards">
+      <div class="card">
+        <i class="fa-solid fa-folder-open azul"></i>
+        <div>
+          <p>Casos</p>
+          <h2>0</h2>
+        </div>
+      </div>
 
-<div class="tab ativo" id="casos">
-  <div class="lista-casos">
+      <div class="card">
+        <i class="fa-solid fa-check verde"></i>
+        <div>
+          <p>Resolvidos</p>
+          <h2>0</h2>
+        </div>
+      </div>
 
-    <div class="caso vazio">
-      Nenhum caso ainda
-    </div>
+      <div class="card">
+        <i class="fa-solid fa-clock amarelo"></i>
+        <div>
+          <p>Pendentes</p>
+          <h2>0</h2>
+        </div>
+      </div>
+    </section>
 
-  </div>
-</div>
+    <section class="abas">
+      <button class="aba ativa" data-tab="visao">Visão</button>
+      <button class="aba" data-tab="casos">Casos</button>
+      <button class="aba" data-tab="ocorrencias">Ocorrências</button>
+    </section>
 
-<div class="tab" id="ocorrencias">
-  <div class="lista-casos">
-    <div class="caso vazio">
-      Sem ocorrências
-    </div>
-  </div>
-</div>
+    <section class="tab ativo" id="visao">
+      <div class="caixa">
+        <h3>Resumo da Esquadra</h3>
+
+        <div class="grade">
+          <p><b>Responsável:</b>Valganho Mauricio</p>
+          <p><b>Turno:</b> 24h</p>
+          <p><b>Província:</b> Luanda</p>
+          <p><b>Município:</b> —</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab" id="casos">
+      <div class="caixa">
+        <h3>Casos da Esquadra</h3>
+
+        <div class="lista">
+          <div class="bloco vazio">Nenhum caso ainda</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab" id="ocorrencias">
+      <div class="caixa">
+        <h3>Ocorrências</h3>
+
+        <div class="lista">
+          <div class="bloco vazio">Sem ocorrências</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
   <script src="Scripts/police.js"></script>
 </body>
 </html>
