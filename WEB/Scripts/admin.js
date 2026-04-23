@@ -26,7 +26,7 @@ let formularioConfigurado = false; // Guard: evita listeners duplicados
 
 // ─── Auth + Segurança ─────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
+    if (!user) {
     window.location.href = "login_cadastro.html";
     return;
   }
@@ -36,10 +36,10 @@ onAuthStateChanged(auth, async (user) => {
       document.body.style.display = "flex";
       iniciarAdmin();
     } else {
-      window.location.href = "index.html";
+      window.location.href = "../index.html";
     }
   } catch {
-    window.location.href = "index.html";
+    window.location.href = "../index.html";
   }
 });
 
@@ -52,7 +52,7 @@ function iniciarAdmin() {
   document
     .getElementById("btn-logout")
     .addEventListener("click", () =>
-      signOut(auth).then(() => (window.location.href = "index.html")),
+      signOut(auth).then(() => (window.location.href = "../index.html")),
     );
 
   // Pesquisa global de utilizadores

@@ -72,7 +72,7 @@ onAuthStateChanged(auth, async (user) => {
         (snap) => {
           if (!snap.exists()) return;
           const data = snap.data();
-          const src = data.photoBase64 || user.photoURL || "imgs/user.jpg";
+          const src = data.photoBase64 || user.photoURL || "WEB/imgs/user.jpg";
           document.querySelectorAll(".nav-avatar").forEach((img) => {
             try {
               img.src = src;
@@ -94,7 +94,7 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     document.querySelectorAll(".nav-avatar").forEach((img) => {
       try {
-        img.src = "imgs/user.jpg";
+        img.src = "WEB/imgs/user.jpg";
       } catch (e) {
         /* ignore */
       }
@@ -419,7 +419,7 @@ function renderizarCasos(lista) {
 
     div.innerHTML = `
       <div class="card-header">
-        <img src="${caso.imagem || "imgs/user.jpg"}" class="avatar-small" alt="Avatar" onerror="this.src='imgs/user.jpg'">
+        <img src="${caso.imagem || "WEB/imgs/user.jpg"}" class="avatar-small" alt="Avatar" onerror="this.src='WEB/imgs/user.jpg'">
         <div class="header-info">
           <h4>${caso.nome || "Nome Desconhecido"}</h4>
           <span>${caso.idade || "?"} anos • ${caso.municipio || "Angola"}</span>
@@ -428,8 +428,8 @@ function renderizarCasos(lista) {
           <span class="status-badge status-${caso.status}">${statusTexto}</span>
         </div>
       </div>
-      <img src="${caso.imagem || "imgs/user.jpg"}" class="card-main-image"
-           alt="Foto" onerror="this.src='imgs/user.jpg'">
+       <img src="${caso.imagem || "WEB/imgs/user.jpg"}" class="card-main-image"
+         alt="Foto" onerror="this.src='WEB/imgs/user.jpg'">
       <div class="card-body">
         <h3 class="card-title">${caso.nome}</h3>
         <div class="card-details">
@@ -470,8 +470,8 @@ function renderizarCasos(lista) {
           </div>
           <div class="comments-list" id="comments-list-${caso.id}"></div>
           <div class="comment-input-row">
-            <img src="imgs/user.jpg" class="comment-avatar"
-                 id="comment-avatar-${caso.id}" onerror="this.src='imgs/user.jpg'">
+              <img src="WEB/imgs/user.jpg" class="comment-avatar"
+                id="comment-avatar-${caso.id}" onerror="this.src='WEB/imgs/user.jpg'">
             <input type="text" class="comment-input"
                    id="comment-input-${caso.id}" placeholder="Escreva um comentário...">
             <button class="btn-send-comment" data-id="${caso.id}">
@@ -644,12 +644,12 @@ async function carregarComentarios(casoId) {
       el.className = "comment-item";
       el.dataset.commentId = cId;
       el.innerHTML = `
-        <a href="profile.html?uid=${c.autorId}" class="comment-avatar-link" title="Ver perfil">
-          <img src="${c.autorFoto || "imgs/user.jpg"}" class="comment-avatar" onerror="this.src='imgs/user.jpg'">
+        <a href="WEB/profile.html?uid=${c.autorId}" class="comment-avatar-link" title="Ver perfil">
+          <img src="${c.autorFoto || "WEB/imgs/user.jpg"}" class="comment-avatar" onerror="this.src='WEB/imgs/user.jpg'">
         </a>
         <div class="comment-bubble">
           <div class="comment-header">
-            <a href="profile.html?uid=${c.autorId}" class="comment-author-link">
+            <a href="WEB/profile.html?uid=${c.autorId}" class="comment-author-link">
               <span class="comment-author">${c.autorNome || "Utilizador"}</span>
             </a>
             ${
@@ -1544,7 +1544,7 @@ function setupMobileUI() {
   });
 
   mbProfile?.addEventListener("click", () => {
-    window.location.href = "profile.html";
+    window.location.href = "WEB/profile.html";
   });
 
   mbRelatar?.addEventListener("click", () => {
@@ -1566,7 +1566,7 @@ async function updateNavAvatar(user) {
   if (!user) {
     els.forEach((img) => {
       try {
-        img.src = "imgs/user.jpg";
+        img.src = "WEB/imgs/user.jpg";
       } catch (e) {
         /* ignore */
       }
@@ -1589,7 +1589,7 @@ async function updateNavAvatar(user) {
       }
     }
     // fallback para photoURL do auth ou imagem padrão
-    const fallback = user.photoURL || "imgs/user.jpg";
+    const fallback = user.photoURL || "WEB/imgs/user.jpg";
     els.forEach((img) => {
       try {
         img.src = fallback;
@@ -1601,7 +1601,7 @@ async function updateNavAvatar(user) {
     console.warn("Erro ao actualizar avatar nav:", err);
     els.forEach((img) => {
       try {
-        img.src = "imgs/user.jpg";
+        img.src = "WEB/imgs/user.jpg";
       } catch (e) {
         /* ignore */
       }

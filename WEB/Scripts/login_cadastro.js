@@ -31,7 +31,7 @@ window.login = async function () {
       return;
     }
 
-    window.location.href = snap.data().role === "admin" ? "admin.html" : "index.html";
+    window.location.href = snap.data().role === "admin" ? "admin.html" : "../index.html";
 
   } catch (err) {
     const msgs = {
