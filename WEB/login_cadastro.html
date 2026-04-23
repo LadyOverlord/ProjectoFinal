@@ -1,95 +1,175 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="CSS/paginas/login_cadastro.css">
-    <link rel="stylesheet" href="CSS/variables.css">
-    <link rel="stylesheet" href="CSS/global.css">
-
-    
-    <title>Document</title>
-   
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="CSS/variables.css">
+  <link rel="stylesheet" href="CSS/global.css">
+  <link rel="stylesheet" href="CSS/paginas/login_cadastro.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+  <title>MissingAO — Acesso</title>
 </head>
 <body>
-    <section class="cadastro_login">
-<div class="option_login">
 
-    <!-- particles.js container --> <div id="particles-js"></div> <!-- stats - count particles -->  <!-- particles.js lib - https://github.com/VincentGarreau/particles.js --> <script src="http://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script> <!-- stats.js lib --> <script src="http://threejs.org/examples/js/libs/stats.min.js"></script>
-     
-            <div class="login" id="login">
-             <h1>Log-in</h1>
-             <p>Lorem ipsum dolor sit amet consectetur.</p>
-                        <form>
-                  <label>Email:</label>
-                  <input type="email" id="loginEmail" placeholder="seu e-mail" required>
-    
-                  <label>Senha:</label>
-                  <input type="password" id="loginSenha" placeholder="sua senha" required>
-    
-                   <button  type="button" onclick="login()">Entrar</button>
-    
-                        </form>
-                        <a onclick="optin_move()">Não tem conta? Cadastre-se aqui</a>
-                </div>
-    
-             <div class="logup" id="logup">
-                 <h1>Log-up</h1>
-                            <form>
-    
-                      <label>Nome do usuario:</label>
-                      <input type="text" id="nome" placeholder="Digite seu nome completo" required>
-                      <label>Email do usuario:</label>
-                      <input type="email" id="email" placeholder="Digite seu e-mail" required>
-                      <label>Data de Nascimento:</label>
-                      <input type="date" id="dataNascimento" required min="1900-01-01" max="2009-12-31">
-                      <label>Província:</label>
-                      <select name="provincia" id="provincia" required>
-                            <option value="" hidden>Selecione a provincia</option>
-                            <option value="luanda">Luanda</option>
-                            <option value="benguela">Benguela</option>
-                            <option value="huambo">Huambo</option>
-                      </select>
-                      <div id="municipio-field" style="display:none;">
-                          <label>Município:</label><br>
-                          <select name="municipio" id="municipio" style="width: 100%;" required>
-                              <option value="" hidden>Selecione o município</option>
-                          </select>
-                      </div>
-                      <label>Número de Telefone:</label>
-                      <input type="tel" id="telefone" placeholder="Insira o número de telefone" required pattern="[0-9+\- ]{6,20}">
-                      <label>Senha:</label>
-                      <input type="password" id="senha" placeholder="Digite uma senha de 6 caracteres" required>
-                      <i id="verifSenha" style="color: red;"></i>
+  <!-- Fundo de partículas -->
+  <div id="particles-js"></div>
 
-                      <label>Confirmar Senha:</label>
-                      <input type="password" id="confirmarSenha" placeholder="Confirme sua senha" required>
-                      <i id="confirSenha" style="color: red;"></i>
-                      
-                      <button type="button" onclick="cadastrar()">Cadastrar</button>
-                            </form>
-                            <a onclick="optin_move()" class="">Já tem conta? Faça login aqui</a>
-             </div>
-</div>
+  <section class="cadastro_login">
 
-            <div class="slider">
-                <img src="imgs/mapa_2.PNG" class="imgmap" alt="">
-                <h1>Onde houver saudade, que a nossa rede leve reencontro</h1>
-            </div>
-    </section>
-    <script>
-         //==========TRANSIÇÃO LOGIN/CADASTRO==========
+    <!-- ── Painel de formulários ─────────────────────── -->
+    <div class="option_login">
+
+      <!-- LOGIN -->
+      <div class="login" id="login">
+        <div class="form-brand">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>MissingAO</span>
+        </div>
+        <h1>Bem-vindo de volta</h1>
+        <p>Entre na sua conta para continuar</p>
+
+        <form>
+          <label for="loginEmail">
+            <i class="fa-solid fa-envelope"></i> Email
+          </label>
+          <input type="email" id="loginEmail" placeholder="o.seu@email.com" required autocomplete="email">
+
+          <label for="loginSenha">
+            <i class="fa-solid fa-lock"></i> Senha
+          </label>
+          <div class="input-pw-wrap">
+            <input type="password" id="loginSenha" placeholder="A sua senha" required autocomplete="current-password">
+            <button type="button" class="btn-eye" data-target="loginSenha" tabindex="-1">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+
+          <button type="button" class="btn-submit" onclick="login()">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Entrar
+          </button>
+        </form>
+
+        <a class="link-switch" onclick="optin_move()">
+          Não tem conta? <strong>Cadastre-se aqui</strong>
+        </a>
+      </div>
+
+      <!-- CADASTRO -->
+      <div class="logup" id="logup">
+        <div class="form-brand">
+          <i class="fa-solid fa-user-plus"></i>
+          <span>Criar conta</span>
+        </div>
+        <h1>Junte-se a nós</h1>
+        <p>Preencha os dados para criar a sua conta</p>
+
+        <form>
+          <label for="nome">
+            <i class="fa-solid fa-user"></i> Nome completo
+          </label>
+          <input type="text" id="nome" placeholder="O seu nome completo" required autocomplete="name">
+
+          <label for="email">
+            <i class="fa-solid fa-envelope"></i> Email
+          </label>
+          <input type="email" id="email" placeholder="o.seu@email.com" required autocomplete="email">
+
+          <label for="dataNascimento">
+            <i class="fa-solid fa-calendar"></i> Data de nascimento
+          </label>
+          <input type="date" id="dataNascimento" required min="1900-01-01" max="2009-12-31">
+
+          <label for="provincia">
+            <i class="fa-solid fa-location-dot"></i> Província
+          </label>
+          <select name="provincia" id="provincia" required>
+            <option value="" hidden>Selecione a província</option>
+            <option value="luanda">Luanda</option>
+            <option value="benguela">Benguela</option>
+            <option value="huambo">Huambo</option>
+          </select>
+
+          <div id="municipio-field" style="display:none;">
+            <label for="municipio">
+              <i class="fa-solid fa-map-pin"></i> Município
+            </label>
+            <select name="municipio" id="municipio" required>
+              <option value="" hidden>Selecione o município</option>
+            </select>
+          </div>
+
+          <label for="telefone">
+            <i class="fa-solid fa-phone"></i> Telefone
+          </label>
+          <input type="tel" id="telefone" placeholder="+244 9XX XXX XXX" required pattern="[0-9+\- ]{6,20}">
+
+          <label for="senha">
+            <i class="fa-solid fa-lock"></i> Senha
+          </label>
+          <div class="input-pw-wrap">
+            <input type="password" id="senha" placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
+            <button type="button" class="btn-eye" data-target="senha" tabindex="-1">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+          <span id="verifSenha" class="field-hint"></span>
+
+          <label for="confirmarSenha">
+            <i class="fa-solid fa-lock"></i> Confirmar senha
+          </label>
+          <div class="input-pw-wrap">
+            <input type="password" id="confirmarSenha" placeholder="Repita a senha" required autocomplete="new-password">
+            <button type="button" class="btn-eye" data-target="confirmarSenha" tabindex="-1">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+          <span id="confirSenha" class="field-hint"></span>
+
+          <button type="button" class="btn-submit" onclick="cadastrar()">
+            <i class="fa-solid fa-user-plus"></i> Criar Conta
+          </button>
+        </form>
+
+        <a class="link-switch" onclick="optin_move()">
+          Já tem conta? <strong>Faça login aqui</strong>
+        </a>
+      </div>
+    </div>
+
+    <!-- ── Painel decorativo ──────────────────────────── -->
+    <div class="slider">
+      <div class="slider-icon">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </div>
+      <h1>Onde houver saudade,<br>que a nossa rede leve reencontro</h1>
+      <p class="slider-sub">Ajude a encontrar pessoas desaparecidas em Angola.</p>
+
+      <div class="slider-stats">
+        <div class="slider-stat">
+          <strong id="s-casos">—</strong>
+          <span>Casos relatados</span>
+        </div>
+        <div class="slider-stat">
+          <strong id="s-enc">—</strong>
+          <span>Encontrados</span>
+        </div>
+      </div>
+
+      <img src="imgs/mapa_2.PNG" class="imgmap" alt="Mapa de Angola" onerror="this.style.display='none'">
+    </div>
+
+  </section>
+
+  <script>
     function optin_move() {
-        document.getElementById('login').classList.toggle('login_move')
-     document.getElementById('logup').classList.toggle('cadastro_move')
+      document.getElementById('login').classList.toggle('login_move');
+      document.getElementById('logup').classList.toggle('cadastro_move');
     }
-    </script>
+  </script>
 
-    <script src="Scripts/alerts.js"></script>
-    <script type="module" src="Scripts/login_cadastro.js"></script>
-    <script type="module" src="Scripts/firebase.js"></script>
-    <script type="module" src="Scripts/auth.js"></script>
-</body>
-
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script src="Scripts/alerts.js"></script>
+  <script type="module" src="Scripts/login_cadastro.js"></script>
+  <script type="module" src="Scripts/auth.js"></script>
 </body>
 </html>
