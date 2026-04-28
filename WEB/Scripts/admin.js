@@ -26,7 +26,7 @@ let formularioConfigurado = false; // Guard: evita listeners duplicados
 
 // ─── Auth + Segurança ─────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
-    if (!user) {
+  if (!user) {
     window.location.href = "login_cadastro.html";
     return;
   }

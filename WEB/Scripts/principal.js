@@ -1478,12 +1478,12 @@ function setupMobileUI() {
     }
   }
 
-  const toggle  = document.getElementById("mobile-ad-toggle"); // antigo (compat)
-  const ad      = document.getElementById("mobile-ad");
+  const toggle = document.getElementById("mobile-ad-toggle"); // antigo (compat)
+  const ad = document.getElementById("mobile-ad");
   const openBtn = document.getElementById("mobile-ad-open");
-  const btnMin  = document.getElementById("mobile-ad-minimize");
-  const btnClose= document.getElementById("mobile-ad-close");
-  const adHeader= document.getElementById("mobile-ad-header");
+  const btnMin = document.getElementById("mobile-ad-minimize");
+  const btnClose = document.getElementById("mobile-ad-close");
+  const adHeader = document.getElementById("mobile-ad-header");
 
   function openAd() {
     ad.style.display = "";
@@ -1500,13 +1500,16 @@ function setupMobileUI() {
   }
 
   // Novos botões de controlo
-  if (btnMin)   btnMin.addEventListener("click",  minimizeAd);
+  if (btnMin) btnMin.addEventListener("click", minimizeAd);
   if (btnClose) btnClose.addEventListener("click", closeAd);
 
   // Clicar no header minimizado → expandir
   if (adHeader) {
     adHeader.addEventListener("click", (e) => {
-      if (ad.classList.contains("minimized") && !e.target.closest(".mobile-ad-btn")) {
+      if (
+        ad.classList.contains("minimized") &&
+        !e.target.closest(".mobile-ad-btn")
+      ) {
         openAd();
       }
     });
