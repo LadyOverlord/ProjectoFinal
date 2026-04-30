@@ -20,13 +20,19 @@ class _ChatbotPageState extends State<ChatbotPage> {
   int _selectedIndex = 2;
   String _userName = 'Usuário';
 
-  // ⚠️ IMPORTANTE: Gera uma chave NOVA em https://aistudio.google.com/app/apikey
-  // A chave anterior pode estar revogada por estar exposta no código
+  // Importante: gerar nova chave em https://aistudio.google.com/app/apikey
+  // Chave anterior pode estar inválida se exposta
   static const String _geminiApiKey = 'AIzaSyApuOtb3jfn0doaKPP3SEy7g-0NX2hWwe0';
 
   final List<Map<String, String>> _quickOptions = [
-    {'label': 'Como postar anúncio?', 'message': 'Como faço para postar um anúncio de desaparecido?'},
-    {'label': 'Ajuda emocional', 'message': 'Preciso de apoio emocional para lidar com o desaparecimento.'},
+    {
+      'label': 'Como postar anúncio?',
+      'message': 'Como faço para postar um anúncio de desaparecido?'
+    },
+    {
+      'label': 'Ajuda emocional',
+      'message': 'Preciso de apoio emocional para lidar com o desaparecimento.'
+    },
     {'label': 'Usar o mapa', 'message': 'Como usar o mapa para ver locais?'},
     {'label': 'Fazer login', 'message': 'Como faço login no app?'},
     {'label': 'Notificações', 'message': 'Como recebo notificações regionais?'},
@@ -56,7 +62,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
       setState(() {
         _messages.add({
           'sender': 'bot',
-          'text': 'Olá $_userName! Sou o Missing AI. Como posso ajudar com desaparecimentos ou o uso do app?'
+          'text':
+              'Olá $_userName! Sou o Missing AI. Como posso ajudar com desaparecimentos ou o uso do app?'
         });
       });
     }
@@ -75,7 +82,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
     try {
       final model = GenerativeModel(
         model: 'gemini-2.5-flash',
-
         apiKey: _geminiApiKey,
       );
 
@@ -94,7 +100,8 @@ Mensagem do utilizador: $message
         setState(() {
           _messages.add({
             'sender': 'bot',
-            'text': response.text ?? 'Não consegui gerar uma resposta. Tenta novamente.'
+            'text': response.text ??
+                'Não consegui gerar uma resposta. Tenta novamente.'
           });
         });
         _scrollToBottom();
@@ -116,7 +123,8 @@ Mensagem do utilizador: $message
         setState(() {
           _messages.add({
             'sender': 'bot',
-            'text': 'Erro de ligação. Verifica a tua internet e tenta novamente.'
+            'text':
+                'Erro de ligação. Verifica a tua internet e tenta novamente.'
           });
         });
       }
@@ -142,7 +150,8 @@ Mensagem do utilizador: $message
     if (index == 0) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => HomePage(mode: UserMode.authenticated)),
+        MaterialPageRoute(
+            builder: (_) => HomePage(mode: UserMode.authenticated)),
       );
     }
   }
@@ -158,7 +167,8 @@ Mensagem do utilizador: $message
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 8, height: 8,
+              width: 8,
+              height: 8,
               decoration: const BoxDecoration(
                 color: Colors.greenAccent,
                 shape: BoxShape.circle,
@@ -166,7 +176,8 @@ Mensagem do utilizador: $message
             ),
             const SizedBox(width: 8),
             const Text('Missing AI',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
           ],
         ),
         centerTitle: true,
@@ -182,10 +193,12 @@ Mensagem do utilizador: $message
                 final message = _messages[index];
                 final isUser = message['sender'] == 'user';
                 return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment:
+                      isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     constraints: BoxConstraints(
                         maxWidth: MediaQuery.of(context).size.width * 0.75),
                     decoration: BoxDecoration(
@@ -199,7 +212,8 @@ Mensagem do utilizador: $message
                     ),
                     child: Text(
                       message['text']!,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4),
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 15, height: 1.4),
                     ),
                   ),
                 );
@@ -214,7 +228,8 @@ Mensagem do utilizador: $message
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: Colors.grey[800],
                     borderRadius: BorderRadius.circular(18),
@@ -240,7 +255,8 @@ Mensagem do utilizador: $message
                     label: Text(option['label']!),
                     onPressed: () => _sendMessage(option['message']!),
                     backgroundColor: Colors.grey[800],
-                    labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                    labelStyle:
+                        const TextStyle(color: Colors.white, fontSize: 12),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
                   ),
@@ -293,9 +309,12 @@ Mensagem do utilizador: $message
         currentIndex: _selectedIndex,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.location_on_outlined), label: 'Mapa'),
-          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Chatbot'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Perfil'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.location_on_outlined), label: 'Mapa'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.auto_awesome), label: 'Chatbot'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline), label: 'Perfil'),
         ],
         onTap: _onItemTapped,
       ),

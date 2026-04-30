@@ -19,12 +19,12 @@ import {
   increment as fsIncrement,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-// ─── Estado Global ────────────────────────────────────────────
+// Estado global
 let todosUsuarios = [];
 let editandoId = null; // ID do anúncio em edição (null = novo)
 let formularioConfigurado = false; // Guard: evita listeners duplicados
 
-// ─── Auth + Segurança ─────────────────────────────────────────
+// Autenticação e segurança
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "login_cadastro.html";
@@ -263,67 +263,288 @@ async function carregarDashboard() {
    ========================================================================= */
 async function carregarUsuarios() {
   const tbody = document.getElementById("users-table-body");
-  tbody.innerHTML = `<tr><td colspan="5" class="tc">Carregando...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7" class="tc">
+    <i class="fa-solid fa-spinner fa-spin"></i> Carregando utilizadores...
+  </td></tr>`;
   try {
     const snap = await getDocs(collection(db, "users"));
     todosUsuarios = [];
     snap.forEach((d) => todosUsuarios.push({ id: d.id, ...d.data() }));
-    renderizarTabelaUsuarios(todosUsuarios);
+
+    // Actualizar total
+    const totalEl = document.getElementById("users-total");
+    if (totalEl) totalEl.textContent = todosUsuarios.length;
+
+    aplicarFiltrosUsuarios();
+    configurarFiltrosUsuarios();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5" class="tc">Erro ao carregar.</td></tr>`;
+    console.error(
+      "[Admin] Erro ao carregar utilizadores:",
+      err.code,
+      err.message,
+    );
+    tbody.innerHTML = `<tr><td colspan="7" class="tc" style="color:#e74c3c;">
+      Erro: ${err.code || err.message}<br>
+      <small>Verifique as Firestore Security Rules</small>
+    </td></tr>`;
   }
+}
+
+// ── Configurar eventos dos filtros (chamado uma única vez) ────────────────────
+let _filtrosConfigurados = false;
+function configurarFiltrosUsuarios() {
+  if (_filtrosConfigurados) return;
+  _filtrosConfigurados = true;
+
+  const ufSearch = document.getElementById("uf-search");
+  const ufClear = document.getElementById("uf-search-clear");
+  const ufAplicar = document.getElementById("uf-aplicar");
+  const ufLimpar = document.getElementById("uf-limpar");
+  const ufExportar = document.getElementById("btn-exportar-users");
+
+  // Pesquisa em tempo real
+  ufSearch?.addEventListener("input", () => {
+    if (ufClear) ufClear.style.display = ufSearch.value ? "flex" : "none";
+    aplicarFiltrosUsuarios();
+  });
+  ufClear?.addEventListener("click", () => {
+    ufSearch.value = "";
+    ufClear.style.display = "none";
+    aplicarFiltrosUsuarios();
+  });
+
+  // Demais filtros aplicam ao mudar
+  ["uf-role", "uf-provincia", "uf-data-de", "uf-data-ate", "uf-ordem"].forEach(
+    (id) => {
+      document
+        .getElementById(id)
+        ?.addEventListener("change", aplicarFiltrosUsuarios);
+    },
+  );
+
+  ufAplicar?.addEventListener("click", aplicarFiltrosUsuarios);
+  ufLimpar?.addEventListener("click", limparFiltrosUsuarios);
+
+  // Exportar CSV
+  ufExportar?.addEventListener("click", exportarCSVUsuarios);
+}
+
+function aplicarFiltrosUsuarios() {
+  const termo = (document.getElementById("uf-search")?.value || "")
+    .toLowerCase()
+    .trim();
+  const role = document.getElementById("uf-role")?.value || "";
+  const provincia = document.getElementById("uf-provincia")?.value || "";
+  const dataDe = document.getElementById("uf-data-de")?.value || "";
+  const dataAte = document.getElementById("uf-data-ate")?.value || "";
+  const ordem = document.getElementById("uf-ordem")?.value || "recente";
+
+  let lista = todosUsuarios.filter((u) => {
+    // Texto
+    if (termo) {
+      const campos = [u.nome || "", u.email || "", u.telefone || ""]
+        .join(" ")
+        .toLowerCase();
+      if (!campos.includes(termo)) return false;
+    }
+    // Função
+    if (role && (u.role || "user") !== role) return false;
+    // Província
+    if (provincia && (u.provincia || "").toLowerCase() !== provincia)
+      return false;
+    // Datas de cadastro
+    if (dataDe || dataAte) {
+      const raw = u.criadoEm;
+      if (!raw) return !dataDe; // sem data: só aparece se não há filtro "de"
+      const dt = raw.toDate ? raw.toDate() : new Date(raw);
+      if (isNaN(dt)) return false;
+      const dStr = dt.toISOString().slice(0, 10);
+      if (dataDe && dStr < dataDe) return false;
+      if (dataAte && dStr > dataAte) return false;
+    }
+    return true;
+  });
+
+  // Ordenação
+  lista.sort((a, b) => {
+    const toMs = (raw) => {
+      if (!raw) return 0;
+      const d = raw.toDate ? raw.toDate() : new Date(raw);
+      return isNaN(d) ? 0 : d.getTime();
+    };
+    if (ordem === "recente") return toMs(b.criadoEm) - toMs(a.criadoEm);
+    if (ordem === "antigo") return toMs(a.criadoEm) - toMs(b.criadoEm);
+    if (ordem === "nome") return (a.nome || "").localeCompare(b.nome || "");
+    if (ordem === "nome-desc")
+      return (b.nome || "").localeCompare(a.nome || "");
+    return 0;
+  });
+
+  const countEl = document.getElementById("users-filtro-count");
+  if (countEl) {
+    const temFiltro = termo || role || provincia || dataDe || dataAte;
+    countEl.textContent = temFiltro
+      ? `${lista.length} utilizador${lista.length !== 1 ? "es" : ""} encontrado${lista.length !== 1 ? "s" : ""}`
+      : "";
+  }
+
+  renderizarTabelaUsuarios(lista);
+}
+
+function limparFiltrosUsuarios() {
+  ["uf-search", "uf-role", "uf-provincia", "uf-data-de", "uf-data-ate"].forEach(
+    (id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    },
+  );
+  const ufOrd = document.getElementById("uf-ordem");
+  if (ufOrd) ufOrd.value = "recente";
+  const ufClear = document.getElementById("uf-search-clear");
+  if (ufClear) ufClear.style.display = "none";
+  aplicarFiltrosUsuarios();
 }
 
 function renderizarTabelaUsuarios(lista) {
   const tbody = document.getElementById("users-table-body");
   tbody.innerHTML = "";
+
   if (!lista.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="tc">Nenhum utilizador encontrado.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="tc" style="padding:28px;">
+      <i class="fa-solid fa-users-slash" style="font-size:24px;color:#ddd;"></i><br>
+      Nenhum utilizador encontrado
+    </td></tr>`;
     return;
   }
+
   lista.forEach((user) => {
-    let rawDate = user.ultimoLogin || user.criadoEm;
-    let dataTexto = "—";
-    let labelTipo = "";
-    if (rawDate) {
-      const dt = rawDate.toDate ? rawDate.toDate() : new Date(rawDate);
-      if (!isNaN(dt)) {
-        dataTexto = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")} · ${dt.getDate()}/${dt.getMonth() + 1}/${dt.getFullYear()}`;
-        labelTipo = user.ultimoLogin
-          ? `<span class="label-verde">Ativo</span>`
-          : `<span class="label-laranja">Novo</span>`;
-      }
+    // Data de cadastro
+    const rawCriado = user.criadoEm;
+    let dataCadastro = "—";
+    if (rawCriado) {
+      const dt = rawCriado.toDate ? rawCriado.toDate() : new Date(rawCriado);
+      if (!isNaN(dt))
+        dataCadastro = `${dt.getDate().toString().padStart(2, "0")}/${(dt.getMonth() + 1).toString().padStart(2, "0")}/${dt.getFullYear()}`;
     }
+
+    // Localização GPS (se o utilizador partilhou)
+    const temGPS = !!(user.lat && user.lng);
+    const gpsHtml = temGPS
+      ? `<span style="color:#2ecc71;font-size:12px;"><i class="fa-solid fa-location-dot"></i> Activa</span>`
+      : `<span style="color:#ccc;font-size:12px;"><i class="fa-solid fa-location-dot"></i> Sem GPS</span>`;
+
+    // Avatar
+    const avatarHtml = user.photoBase64
+      ? `<img src="${user.photoBase64}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+      : `<span style="width:32px;height:32px;border-radius:50%;background:#e3f2fd;color:#0c7ab5;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;"><i class="fa-solid fa-user"></i></span>`;
+
     tbody.innerHTML += `
-      <tr style="border-bottom:1px solid #eee;">
-        <td style="padding:12px 10px;">${user.nome || "—"}</td>
-        <td style="padding:12px 10px;">${user.email}</td>
-        <td style="padding:12px 10px;">
+      <tr style="border-bottom:1px solid #f2f2f2;">
+        <td style="padding:10px;">
+          <div style="display:flex;align-items:center;gap:9px;">
+            ${avatarHtml}
+            <div>
+              <div style="font-weight:700;font-size:13px;color:#222;">${user.nome || "—"}</div>
+              <div style="font-size:11px;color:#aaa;">#${user.id.slice(0, 8)}</div>
+            </div>
+          </div>
+        </td>
+        <td style="padding:10px;font-size:13px;color:#555;">${user.email || "—"}</td>
+        <td style="padding:10px;">
           <span class="role-badge ${user.role === "admin" ? "role-admin" : "role-user"}">
             ${user.role || "user"}
           </span>
         </td>
-        <td style="padding:12px 10px;font-size:0.88em;color:#555;">${dataTexto} ${labelTipo}</td>
-        <td style="padding:12px 10px;">
-          <button onclick="window.excluirUsuario('${user.id}')" class="btn-danger-sm" title="Remover">
-            <i class="fa-solid fa-trash"></i>
-          </button>
+        <td style="padding:10px;font-size:13px;color:#555;">${user.provincia || "—"}</td>
+        <td style="padding:10px;font-size:12px;color:#555;">${dataCadastro}</td>
+        <td style="padding:10px;">${gpsHtml}</td>
+        <td style="padding:10px;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <a href="profile.html?uid=${user.id}" target="_blank"
+               class="btn-admin-icon" title="Ver perfil">
+              <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:12px;"></i>
+            </a>
+            <button onclick="window.promoverUsuario('${user.id}','${user.role || "user"}')",
+               class="btn-admin-icon" title="${user.role === "admin" ? "Rebaixar para user" : "Tornar admin"}">
+              <i class="fa-solid fa-${user.role === "admin" ? "user-minus" : "user-shield"}" style="font-size:12px;"></i>
+            </button>
+            <button onclick="window.excluirUsuario('${user.id}')"
+               class="btn-admin-icon btn-danger-icon" title="Remover utilizador">
+              <i class="fa-solid fa-trash" style="font-size:12px;"></i>
+            </button>
+          </div>
         </td>
       </tr>`;
   });
+}
+
+// ── Promover/rebaixar utilizador ──────────────────────────────────────────────
+window.promoverUsuario = async function (id, roleAtual) {
+  const novoRole = roleAtual === "admin" ? "user" : "admin";
+  const msg =
+    novoRole === "admin"
+      ? "Tornar este utilizador Admin?"
+      : "Remover privilégios de Admin deste utilizador?";
+  if (!confirm(msg)) return;
+  try {
+    await updateDoc(doc(db, "users", id), { role: novoRole });
+    showAlert(`✅ Role actualizado para: ${novoRole}`, {
+      onOk: carregarUsuarios,
+    });
+  } catch (e) {
+    showAlert("Erro: " + e.message);
+  }
+};
+
+// ── Exportar CSV ──────────────────────────────────────────────────────────────
+function exportarCSVUsuarios() {
+  const headers = [
+    "Nome",
+    "Email",
+    "Função",
+    "Província",
+    "Telefone",
+    "Cadastro",
+    "GPS",
+  ];
+  const rows = todosUsuarios.map((u) => {
+    const raw = u.criadoEm;
+    let data = "";
+    if (raw) {
+      const d = raw.toDate ? raw.toDate() : new Date(raw);
+      if (!isNaN(d)) data = d.toLocaleDateString("pt-AO");
+    }
+    return [
+      u.nome || "",
+      u.email || "",
+      u.role || "user",
+      u.provincia || "",
+      u.telefone || "",
+      data,
+      u.lat && u.lng ? `${u.lat},${u.lng}` : "",
+    ]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(",");
+  });
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `utilizadores_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function filtrarUsuarios(termo) {
   const painel = document.getElementById("users");
   if (!painel.classList.contains("active"))
     document.querySelector('[data-target="users"]').click();
-  renderizarTabelaUsuarios(
-    todosUsuarios.filter(
-      (u) =>
-        (u.nome || "").toLowerCase().includes(termo) ||
-        (u.email || "").toLowerCase().includes(termo),
-    ),
-  );
+  const ufSearch = document.getElementById("uf-search");
+  if (ufSearch) {
+    ufSearch.value = termo;
+  }
+  aplicarFiltrosUsuarios();
 }
 
 window.excluirUsuario = async function (id) {

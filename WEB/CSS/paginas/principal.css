@@ -19,14 +19,11 @@ header {
   border: none;
   cursor: pointer;
 }
-.nave_button {
-background: none;
-font-size: 30px;
-color: #7e7d7d;
-
-
+.nave_bot {
+  background: none;
+  font-size: 20px;
+  color: #7e7d7d;
 }
-
 
 .mobile-overlay-close {
   display: none;
@@ -147,7 +144,7 @@ color: #7e7d7d;
   color: var(--color-primary);
 }
 
-/*==========MAIN===============*/
+/* Área principal */
 .main {
   display: flex;
   justify-content: center;
@@ -155,7 +152,7 @@ color: #7e7d7d;
   padding: var(--basic-padding-x) var(--basic-padding-y);
 }
 
-/*===============SECTION MAP ================*/
+/* Seção: Mapa */
 .section_map {
   display: flex;
   flex-direction: column;
@@ -1235,10 +1232,10 @@ textarea {
   background: rgba(255, 255, 255, 0.25);
   color: #fff;
 }
-.mobile-ad{
+.mobile-ad {
   display: none;
 }
- .mobile-bottom-menu {
+.mobile-bottom-menu {
   display: none;
 }
 
@@ -1249,11 +1246,13 @@ textarea {
   .final_section {
     display: none !important;
   }
+  .nave_bot {
+    display: none;
+  }
 
   /* ── Feed central ocupa toda a largura ── */
   .section_main {
     width: 100%;
-  
   }
 
   /* ── Header: reduzir padding lateral ── */
@@ -1309,7 +1308,7 @@ textarea {
     background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(0,0,0,0.08);
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.08);
     align-items: stretch;
     height: 60px;
@@ -1338,9 +1337,13 @@ textarea {
     border-radius: 0;
   }
   .mobile-bottom-menu .mb-btn:hover,
-  .mobile-bottom-menu a:hover { color: var(--color-quaternary); }
+  .mobile-bottom-menu a:hover {
+    color: var(--color-quaternary);
+  }
   .mobile-bottom-menu .mb-btn i,
-  .mobile-bottom-menu a i { font-size: 20px; }
+  .mobile-bottom-menu a i {
+    font-size: 20px;
+  }
   /* Avatar no bottom menu */
   .mobile-bottom-menu .nav-avatar {
     width: 26px;
@@ -1363,8 +1366,10 @@ textarea {
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
     z-index: 80;
     overflow: hidden;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-    border: 1px solid rgba(0,0,0,0.07);
+    transition:
+      transform 0.2s ease,
+      opacity 0.2s ease;
+    border: 1px solid rgba(0, 0, 0, 0.07);
   }
   .mobile-ad-header {
     display: flex;
@@ -1391,7 +1396,7 @@ textarea {
   }
   .mobile-ad-btn {
     border: none;
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
     color: #fff;
     width: 24px;
     height: 24px;
@@ -1403,7 +1408,9 @@ textarea {
     font-size: 11px;
     transition: background 0.15s;
   }
-  .mobile-ad-btn:hover { background: rgba(255,255,255,0.35); }
+  .mobile-ad-btn:hover {
+    background: rgba(255, 255, 255, 0.35);
+  }
   .mobile-ad.minimized {
     width: 46px;
     overflow: hidden;
@@ -1415,10 +1422,18 @@ textarea {
   }
   .mobile-ad.minimized .mobile-ad-header-left span,
   .mobile-ad.minimized .mobile-ad-controls,
-  .mobile-ad.minimized .mobile-ad-inner { display: none; }
-  .mobile-ad.minimized .mobile-ad-header-left i { font-size: 18px; }
-  .mobile-ad-toggle { display: none !important; }
-  .mobile-ad-inner { position: relative; }
+  .mobile-ad.minimized .mobile-ad-inner {
+    display: none;
+  }
+  .mobile-ad.minimized .mobile-ad-header-left i {
+    font-size: 18px;
+  }
+  .mobile-ad-toggle {
+    display: none !important;
+  }
+  .mobile-ad-inner {
+    position: relative;
+  }
   .mobile-ad-content {
     max-height: 160px;
     overflow-y: auto;
@@ -1426,7 +1441,9 @@ textarea {
     color: #333;
     scrollbar-width: none;
   }
-  .mobile-ad-content::-webkit-scrollbar { display: none; }
+  .mobile-ad-content::-webkit-scrollbar {
+    display: none;
+  }
   .mobile-ad-open {
     position: fixed;
     bottom: 68px;
@@ -1443,7 +1460,7 @@ textarea {
     display: none;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 14px rgba(12,122,181,0.4);
+    box-shadow: 0 4px 14px rgba(12, 122, 181, 0.4);
   }
 
   /* ── Overlay de mapa/filtros ── */
@@ -1467,13 +1484,27 @@ textarea {
     animation: slideInLeft 0.25s ease;
   }
   @keyframes slideInLeft {
-    from { transform: translateX(-100%); opacity: 0; }
-    to   { transform: translateX(0);     opacity: 1; }
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
   }
-  .section_map.mobile-active .mapa-wrapper { display: block; }
-  .section_map.mobile-active .filtros { display: block; }
-  .section_map.mobile-active.show-filters .mapa-wrapper { display: none; }
-  .section_map.mobile-active.show-filters .filtros { display: block; }
+  .section_map.mobile-active .mapa-wrapper {
+    display: block;
+  }
+  .section_map.mobile-active .filtros {
+    display: block;
+  }
+  .section_map.mobile-active.show-filters .mapa-wrapper {
+    display: none;
+  }
+  .section_map.mobile-active.show-filters .filtros {
+    display: block;
+  }
   .section_map.mobile-active .mobile-overlay-close {
     display: flex;
     position: sticky;
@@ -1499,16 +1530,33 @@ textarea {
 
 /* ── Sub-breakpoint: telas muito pequenas (≤ 390px) ── */
 @media (max-width: 390px) {
-  .nav { gap: 4px; padding: 0 2px; }
-  .search { padding: 6px 8px; }
-  .search input { font-size: 14px; }
-  header { padding: 6px 8px; }
-  .mobile-bottom-menu { height: 56px; }
+  .nav {
+    gap: 4px;
+    padding: 0 2px;
+  }
+  .search {
+    padding: 6px 8px;
+  }
+  .search input {
+    font-size: 14px;
+  }
+  header {
+    padding: 6px 8px;
+  }
+  .mobile-bottom-menu {
+    height: 56px;
+  }
   .mobile-bottom-menu .mb-btn,
-  .mobile-bottom-menu a { font-size: 9px; }
+  .mobile-bottom-menu a {
+    font-size: 9px;
+  }
   .mobile-bottom-menu .mb-btn i,
-  .mobile-bottom-menu a i { font-size: 18px; }
-  .casos_main { padding: 0 4px; }
+  .mobile-bottom-menu a i {
+    font-size: 18px;
+  }
+  .casos_main {
+    padding: 0 4px;
+  }
 }
 .cs-tag-dica {
   background: rgba(255, 255, 255, 0.25);

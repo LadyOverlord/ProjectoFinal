@@ -53,7 +53,7 @@
           ></div>
         </div>
 
-         <button class="nave_button" id="chatbot">
+         <button class="nave_bot" id="chatbot">
           <i class="fa-solid fa-robot" id="chat_bot"></i>
         </button>
       
@@ -61,7 +61,7 @@
           <img id="nav-avatar" style="border: 2px solid rgb(0, 145, 255);" class="nav-avatar" src="WEB/imgs/user.jpg" alt="Perfil" onerror="this.src='WEB/imgs/user.jpg'" />
         </a>
         
-        <button class="nave_button" id="relatar">
+        <button class="" id="relatar">
           Relatar desaparecimento
         </button>
       </div>
@@ -69,7 +69,7 @@
 
     <!--======MAIN=======-->
     <section class="main">
-      <!--==== COLUNA ESQUERDA: Mapa + Filtros ====-->
+      <!-- Coluna esquerda: Mapa e filtros -->
       <div class="section_map">
         <!-- MAPA REAL -->
         <div class="mapa-wrapper">
@@ -183,14 +183,14 @@
         </div>
       </div>
 
-      <!--====== COLUNA CENTRAL: Feed de Casos =======-->
+      <!-- Coluna central: Feed de casos -->
       <div class="section_main">
         <div class="casos_main">
           <!-- Carregado dinamicamente pelo principal.js -->
         </div>
       </div>
 
-      <!--======= COLUNA DIREITA: Anúncios + Footer ======-->
+      <!-- Coluna direita: Anúncios e rodapé -->
       <div class="final_section">
         <div class="section_anuncio">
           <div class="anuncios-header">
@@ -436,27 +436,27 @@
       <i class="fa-solid fa-volume-high"></i>
     </button>
    
-    <!-- Mobile ad window and bottom menu (visible on small screens) -->
+    <!-- Janela anúncio (mobile) e menu inferior -->
     <div id="mobile-ad" class="mobile-ad" aria-hidden="false">
-      <!-- Cabeçalho: título + botões minimizar/fechar -->
+      <!-- Cabeçalho: título e controles -->
       <div class="mobile-ad-header" id="mobile-ad-header">
         <div class="mobile-ad-header-left">
           <i class="fa-solid fa-bullhorn"></i>
           <span>Alertas &amp; Dicas</span>
         </div>
         <div class="mobile-ad-controls">
-          <!-- Minimizar: encolhe a janela para ícone -->
+          <!-- Minimizar -->
           <button class="mobile-ad-btn" id="mobile-ad-minimize" title="Minimizar">
             <i class="fa-solid fa-minus"></i>
           </button>
-          <!-- Fechar: esconde a janela completamente -->
+          <!-- Fechar -->
           <button class="mobile-ad-btn" id="mobile-ad-close" title="Fechar">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
       </div>
       <div class="mobile-ad-inner" id="mobile-ad-inner">
-        <!-- toggle antigo mantido para compatibilidade com JS existente -->
+        <!-- Toggle antigo (compatibilidade) -->
         <button id="mobile-ad-toggle" class="mobile-ad-toggle" aria-label="Minimizar anúncio" style="display:none">
           <i class="fa-solid fa-minus"></i>
         </button>

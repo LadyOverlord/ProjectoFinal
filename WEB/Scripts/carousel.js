@@ -1,9 +1,5 @@
 /**
- * carousel.js — Carrossel dinâmico de anúncios
- * Lê da coleção "anuncios" no Firestore e renderiza em .anuncios
- *
- * CORRECÇÃO: Remove o where() + orderBy() em conjunto (exigia índice
- * composto no Firestore). Agora busca tudo e filtra/ordena em JS.
+ * carousel.js — Carrossel de anúncios (Firestore)
  */
 
 import { db } from "./firebase.js";

@@ -19,7 +19,7 @@ import {
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 import { iniciarCarrossel } from "./carousel.js";
 
-// ─── Estado Global ───────────────────────────────────────────────
+// Estado global
 let todosOsCasos = [];
 let currentUser = null;
 let mapaDesaparecidos = null; // instância do Google Map principal
@@ -28,7 +28,7 @@ let mapaFormMarker = null; // marcador arrastável no formulário
 const comentariosAbertos = {};
 let navAvatarUnsub = null;
 
-// ─── Coordenadas por Província (Angola) ─────────────────────────
+// Coordenadas por província (Angola)
 const COORDS_PROVINCIA = {
   luanda: { lat: -8.8368, lng: 13.2343 },
   benguela: { lat: -12.5763, lng: 13.4055 },
@@ -49,7 +49,7 @@ const COORDS_PROVINCIA = {
   zaire: { lat: -6.1, lng: 12.85 },
 };
 
-// ─── Auth State ──────────────────────────────────────────────────
+// Estado de autenticação
 onAuthStateChanged(auth, async (user) => {
   // Remover listener anterior, se existir
   if (typeof navAvatarUnsub === "function") {
@@ -102,7 +102,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ─── DOM Ready ───────────────────────────────────────────────────
+// DOM ready
 document.addEventListener("DOMContentLoaded", async function () {
   configurarNavegacaoModal();
   configurarLogicaMunicipios();

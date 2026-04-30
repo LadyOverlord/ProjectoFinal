@@ -186,6 +186,8 @@ body {
 /* Badge list (minimal / subtle emblems) */
 .badge-list {
   display: flex;
+  width: 50vw;
+  overflow-x: scroll;
   align-items: center;
   gap: 8px;
   margin-left: 6px;
@@ -739,6 +741,18 @@ body {
     padding: 16px 0 60px;
     
   }
+  .ig-edit-btn {
+  flex-grow: 1;
+  justify-content: center;
+ 
+}
+  .badge-list {
+  border-radius: 20px;
+  overflow-x: scroll;
+  width: 50vw;
+  box-shadow: 4px 0px 0px 0px rgba(0, 0, 0, 0.104);
+ 
+}
 
   .ig-header {
     flex-direction: column;
@@ -794,10 +808,7 @@ body {
     max-height: 50vh;
   }
 
-  .ig-tab span {
-    display: none;
-    
-  }
+  
   .ig-tab i {
     font-size: 18px;
   }
@@ -815,4 +826,35 @@ body {
     grid-template-columns: repeat(3, 1fr);
     gap: 1px;
   }
+}
+
+/* ─── Banner de localização actualizada ─────────────── */
+.location-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #222c;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 24px;
+  font-family: var(--font-base);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 999;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  transition: opacity 0.5s ease;
+  max-width: 90vw;
+}
+.location-banner i:first-child { color: #2ecc71; font-size: 15px; }
+.location-banner button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  margin-left: 4px;
 }

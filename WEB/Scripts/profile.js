@@ -16,7 +16,7 @@ import {
   increment,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-// ─── Estado Global ───────────────────────────────────────────────
+// Estado global
 let currentUID = null;
 let mesCasos = []; // Casos que o utilizador submeteu
 let casosApoios = []; // Casos que o utilizador apoia
@@ -24,7 +24,7 @@ let viewedUserData = null; // dados do perfil sendo visualizado
 let targetUID = null; // uid do perfil que está aberto (pode ser outro user)
 let isOwner = false;
 
-// ─── Autenticação ────────────────────────────────────────────────
+// Autenticação
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "login_cadastro.html";
@@ -54,6 +54,8 @@ onAuthStateChanged(auth, async (user) => {
     disableEditControls();
   } else {
     enableEditControls();
+    // Actualizar localização automaticamente (com permissão do user)
+    atualizarLocalizacaoAutomatica();
   }
 });
 
@@ -644,4 +646,85 @@ function mostrarNotificacao(msg) {
     toast.style.transition = "opacity 0.4s";
     setTimeout(() => toast.remove(), 500);
   }, 3000);
+}
+
+/* =========================================================================
+   LOCALIZAÇÃO AUTOMÁTICA DO UTILIZADOR
+   Pede permissão GPS, converte coordenadas em província/município via
+   geocodificação reversa (OpenStreetMap Nominatim — gratuito, sem chave).
+   Actualiza Firestore e avisa o utilizador.
+   ========================================================================= */
+async function atualizarLocalizacaoAutomatica() {
+  if (!navigator.geolocation) return; // browser não suporta
+  if (!isOwner || !currentUID) return;
+
+  // Verificar se já pedimos permissão nesta sessão
+  const jaAtualizado = sessionStorage.getItem("localizacao_atualizada");
+  if (jaAtualizado) return;
+
+  try {
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        timeout: 8000,
+        maximumAge: 300000, // aceitar posição de até 5 min atrás
+      }),
+    );
+
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+
+    // Geocodificação reversa via Nominatim (OpenStreetMap) — sem chave API
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt`,
+      { headers: { "User-Agent": "MissingAO-App/1.0" } },
+    );
+    const geo = await res.json();
+    const addr = geo.address || {};
+
+    // Angola divide-se por "state" (província) e "county"/"city" (município)
+    const provinciaGeo = addr.state || addr.region || "";
+    const municipioGeo =
+      addr.county || addr.city || addr.town || addr.village || "";
+
+    // Guardar no Firestore (lat/lng + localização textual)
+    await updateDoc(doc(db, "users", currentUID), {
+      lat,
+      lng,
+      localizacaoAtualEm: new Date().toISOString(),
+      ...(provinciaGeo && { provinciaAtual: provinciaGeo }),
+      ...(municipioGeo && { municipioAtual: municipioGeo }),
+    });
+
+    sessionStorage.setItem("localizacao_atualizada", "1");
+
+    // Mostrar feedback na UI
+    mostrarBannerLocalizacao(
+      municipioGeo || provinciaGeo || "Localização detectada",
+    );
+
+    console.log(
+      `[Localização] Actualizada: ${municipioGeo}, ${provinciaGeo} (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+    );
+  } catch (err) {
+    // Permissão negada ou timeout — silencioso, não bloquear o perfil
+    if (err.code !== 1) {
+      // 1 = PERMISSION_DENIED (normal, não logar)
+      console.warn("[Localização] Erro:", err.message);
+    }
+  }
+}
+
+function mostrarBannerLocalizacao(local) {
+  // Banner subtil que aparece durante 4 segundos e desaparece
+  const banner = document.createElement("div");
+  banner.className = "location-banner";
+  banner.innerHTML = `
+    <i class="fa-solid fa-location-dot"></i>
+    <span>Localização actualizada: <strong>${local}</strong></span>
+    <button onclick="this.parentElement.remove()" aria-label="Fechar">
+      <i class="fa-solid fa-xmark"></i>
+    </button>`;
+  document.body.appendChild(banner);
+  setTimeout(() => (banner.style.opacity = "0"), 3500);
+  setTimeout(() => banner.remove(), 4000);
 }

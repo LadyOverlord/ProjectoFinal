@@ -138,15 +138,116 @@
            2. UTILIZADORES
            ══════════════════════════════════════════════ -->
       <div id="users" class="panel">
-        <h2>Gestão de Utilizadores</h2>
-        <div class="admin-card" style="margin-top: 20px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+          <div>
+            <h2>Gestão de Utilizadores</h2>
+            <p class="admin-card-desc">Total: <strong id="users-total">—</strong> utilizadores registados</p>
+          </div>
+          <button class="btn-novo-anuncio" id="btn-exportar-users" title="Exportar CSV">
+            <i class="fa-solid fa-file-csv"></i> Exportar CSV
+          </button>
+        </div>
+
+        <!-- Barra de filtros -->
+        <div class="admin-card users-filters-card">
+          <div class="users-filters">
+
+            <!-- Pesquisa por texto -->
+            <div class="filter-field filter-field-wide">
+              <label><i class="fa-solid fa-magnifying-glass"></i> Pesquisar</label>
+              <div class="filter-input-wrap">
+                <input type="text" id="uf-search" class="admin-input"
+                       placeholder="Nome, email ou telefone..." autocomplete="off">
+                <button id="uf-search-clear" class="filter-clear-btn" title="Limpar" style="display:none;">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Filtro por role -->
+            <div class="filter-field">
+              <label><i class="fa-solid fa-id-badge"></i> Função</label>
+              <select id="uf-role" class="admin-select">
+                <option value="">Todos</option>
+                <option value="user">Utilizador</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <!-- Filtro por província -->
+            <div class="filter-field">
+              <label><i class="fa-solid fa-location-dot"></i> Província</label>
+              <select id="uf-provincia" class="admin-select">
+                <option value="">Todas</option>
+                <option value="luanda">Luanda</option>
+                <option value="benguela">Benguela</option>
+                <option value="huambo">Huambo</option>
+                <option value="bié">Bié</option>
+                <option value="cabinda">Cabinda</option>
+                <option value="cuando_cubango">Cuando Cubango</option>
+                <option value="cuanza_norte">Cuanza Norte</option>
+                <option value="cuanza_sul">Cuanza Sul</option>
+                <option value="cunene">Cunene</option>
+                <option value="huíla">Huíla</option>
+                <option value="lunda_norte">Lunda Norte</option>
+                <option value="lunda_sul">Lunda Sul</option>
+                <option value="malanje">Malanje</option>
+                <option value="moxico">Moxico</option>
+                <option value="namibe">Namibe</option>
+                <option value="uíge">Uíge</option>
+                <option value="zaire">Zaire</option>
+              </select>
+            </div>
+
+            <!-- Filtro por data de cadastro (de) -->
+            <div class="filter-field">
+              <label><i class="fa-solid fa-calendar-day"></i> Cadastro de</label>
+              <input type="date" id="uf-data-de" class="admin-input">
+            </div>
+
+            <!-- Filtro por data de cadastro (até) -->
+            <div class="filter-field">
+              <label><i class="fa-solid fa-calendar-day"></i> Cadastro até</label>
+              <input type="date" id="uf-data-ate" class="admin-input">
+            </div>
+
+            <!-- Ordenação -->
+            <div class="filter-field">
+              <label><i class="fa-solid fa-arrow-up-wide-short"></i> Ordenar por</label>
+              <select id="uf-ordem" class="admin-select">
+                <option value="recente">Mais recente</option>
+                <option value="antigo">Mais antigo</option>
+                <option value="nome">Nome (A→Z)</option>
+                <option value="nome-desc">Nome (Z→A)</option>
+              </select>
+            </div>
+
+            <!-- Botão aplicar / limpar -->
+            <div class="filter-field filter-field-actions">
+              <button class="btn-admin-sm" id="uf-aplicar" style="margin-top:20px;">
+                <i class="fa-solid fa-filter"></i> Filtrar
+              </button>
+              <button class="btn-cancelar-form" id="uf-limpar" style="margin-top:20px;">
+                <i class="fa-solid fa-xmark"></i> Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contador de resultados -->
+        <p id="users-filtro-count" class="admin-card-desc" style="margin:8px 0 4px;"></p>
+
+        <!-- Tabela -->
+        <div class="admin-card" style="margin-top:8px;overflow-x:auto;height: 60vh;">
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Nome</th>
+                <th>Utilizador</th>
                 <th>Email</th>
-                <th>Role</th>
-                <th>Último Acesso</th>
+                <th>Função</th>
+                <th>Província</th>
+                <th>Cadastro</th>
+                <th>Localização GPS</th>
                 <th>Ações</th>
               </tr>
             </thead>
