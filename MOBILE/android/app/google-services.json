@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:489576604551:android:d1a5be376b3e2901662922",
+        "mobilesdk_app_id": "1:489576604551:android:a7fdf155239762a3662922",
         "android_client_info": {
-          "package_name": "com.android.application"
+          "package_name": "com.missingao.mobile"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "489576604551-m91lv1eka9qstf0j485qhpg8u31pe1hj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCfFNmU2j0JoHdJDeHs7pzqJpgICXWYfcg"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "489576604551-m91lv1eka9qstf0j485qhpg8u31pe1hj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
