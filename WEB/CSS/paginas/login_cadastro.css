@@ -387,3 +387,23 @@ input::placeholder { color: #bbb; }
   .option_login { padding: 22px 14px 44px; }
   h1 { font-size: 20px; }
 }
+/* ── Link "Esqueci-me da senha" ── */
+.link-forgot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-quaternary, #0c7ab5);
+  text-align: center;
+  cursor: pointer;
+  text-decoration: none;
+  margin-top: 4px;
+  padding: 4px 0;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.link-forgot:hover { opacity: 1; text-decoration: underline; }
+.link-forgot i { font-size: 10px; }

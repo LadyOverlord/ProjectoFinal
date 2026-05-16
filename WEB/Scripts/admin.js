@@ -610,11 +610,14 @@ async function carregarAprovacoes() {
           const ref = doc(db, "casos_pendentes", id);
           const snap = await getDoc(ref);
           if (snap.exists()) {
+            const casoData = snap.data();
             await setDoc(doc(db, "casos", id), {
-              ...snap.data(),
+              ...casoData,
               status: "aprovado",
             });
             await deleteDoc(ref);
+            // Notificar o autor do caso por email
+            await notificarAprovacaoCaso({ id, ...casoData });
             showAlert("✅ Publicação aprovada!", { onOk: carregarAprovacoes });
           }
         } catch (err) {
@@ -1123,6 +1126,87 @@ function renderMapaAdmin(el, casos) {
 /* =========================================================================
    UTILITÁRIOS
    ========================================================================= */
+
+
+/* =========================================================================
+   NOTIFICAÇÃO POR EMAIL — Firebase Trigger Email Extension
+   =========================================================================
+   Pré-requisito: instalar a extensão "Trigger Email from Firestore" no
+   Firebase Console → Extensions. Configurar uma colecção chamada "mail"
+   e ligar ao seu provedor SMTP (Gmail, SendGrid, etc.).
+   O documento que escrevemos aqui é apanhado automaticamente pela extensão
+   e o email é enviado sem código de servidor.
+   ========================================================================= */
+async function notificarAprovacaoCaso(caso) {
+  try {
+    // Buscar o email do autor do caso no Firestore
+    if (!caso.userId) return;
+    const userSnap = await getDoc(doc(db, "users", caso.userId));
+    if (!userSnap.exists()) return;
+    const userData = userSnap.data();
+    const emailDestino = userData.email;
+    if (!emailDestino) return;
+
+    const nomeCaso    = caso.nome        || "Desconhecido";
+    const municipio   = caso.municipio   || caso.provincia || "Angola";
+    const nomeAutor   = userData.nome    || "Utilizador";
+    const linkApp     = window.location.origin + "/index.html";
+
+    // ── Escrever documento na colecção "mail" ──────────────────────────────
+    // A extensão Firebase Trigger Email apanha este documento e envia o email.
+    await addDoc(collection(db, "mail"), {
+      to:      emailDestino,
+      message: {
+        subject: `✅ O seu caso "${nomeCaso}" foi aprovado — MissingAO`,
+        text:
+          `Olá ${nomeAutor},\n\n` +
+          `O caso de "${nomeCaso}" (${municipio}) que submeteu ao MissingAO foi revisto e aprovado. ` +
+          `Já está visível no feed para toda a comunidade.\n\n` +
+          `Aceda à plataforma: ${linkApp}\n\n` +
+          `Obrigado por contribuir para ajudar a encontrar pessoas desaparecidas em Angola.\n\n` +
+          `— Equipa MissingAO`,
+        html: `
+          <div style="font-family:'Quicksand',Arial,sans-serif;max-width:520px;margin:0 auto;color:#222;">
+            <div style="background:#0c7ab5;padding:24px 28px;border-radius:10px 10px 0 0;">
+              <h2 style="color:#fff;margin:0;font-size:20px;">
+                <span style="margin-right:8px;">🔍</span>MissingAO
+              </h2>
+            </div>
+            <div style="background:#fff;padding:28px;border:1px solid #e0ecf5;border-top:none;border-radius:0 0 10px 10px;">
+              <p style="margin:0 0 16px;">Olá <strong>${nomeAutor}</strong>,</p>
+              <div style="background:#e8f5e9;border-left:4px solid #2ecc71;padding:14px 18px;border-radius:6px;margin-bottom:20px;">
+                <strong style="color:#1a7a3c;font-size:15px;">✅ Caso aprovado e publicado!</strong>
+              </div>
+              <p>O caso de <strong>${nomeCaso}</strong> <span style="color:#666;">(${municipio})</span>
+                que submeteu foi revisto pela nossa equipa de administração e está agora
+                <strong>visível no feed público</strong> do MissingAO.</p>
+              <p style="color:#555;margin-top:12px;">
+                A comunidade já pode apoiar, comentar e partilhar o caso para ajudar a encontrar
+                esta pessoa.
+              </p>
+              <div style="text-align:center;margin:28px 0;">
+                <a href="${linkApp}" style="background:#0c7ab5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">
+                  Ver o caso no MissingAO
+                </a>
+              </div>
+              <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+              <p style="color:#aaa;font-size:12px;text-align:center;margin:0;">
+                Obrigado por contribuir para ajudar a encontrar pessoas desaparecidas em Angola.<br>
+                — Equipa MissingAO
+              </p>
+            </div>
+          </div>`,
+      },
+      criadoEm: serverTimestamp(),
+    });
+
+    console.log(`[Email] Notificação enviada para ${emailDestino} sobre o caso "${nomeCaso}"`);
+  } catch (err) {
+    // Silencioso — falha no email não deve bloquear a aprovação
+    console.warn("[Email] Erro ao enviar notificação:", err.code || err.message);
+  }
+}
+
 function calcularDias(dataString) {
   if (!dataString) return 0;
   const d = new Date(dataString);

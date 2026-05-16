@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase.js";
-import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 import {
   doc,
   getDoc,
@@ -35,7 +35,7 @@ window.login = async function () {
     }
 
     window.location.href =
-      snap.data().role === "admin" ? "admin.html" : "../index.html";
+      snap.data().role === "admin" ? "admin.html" : "../index.htm";
   } catch (err) {
     const msgs = {
       "auth/invalid-credential": "Email ou senha incorrectos.",
@@ -51,6 +51,46 @@ window.login = async function () {
       btn.innerHTML =
         '<i class="fa-solid fa-arrow-right-to-bracket"></i> Entrar';
     }
+  }
+};
+
+/* =========================================================================
+   RECUPERAR SENHA
+   ========================================================================= */
+window.recuperarSenha = async function () {
+  const email = document.getElementById("loginEmail").value.trim();
+  const link  = document.getElementById("link-forgot");
+
+  if (!email) {
+    showAlert("Por favor, insira seu email para recuperação.");
+    document.getElementById("loginEmail").focus();
+    return;
+  }
+
+  // Validação básica de formato
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showAlert("Formato de email inválido.");
+    return;
+  }
+
+  // Estado de loading no link
+  if (link) { link.textContent = "A enviar..."; link.style.pointerEvents = "none"; }
+
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showAlert(
+      `✅ Email de recuperação enviado para ${email}. Verifique a caixa de entrada e a pasta Spam.`,
+      { onOk: () => {} }
+    );
+  } catch (err) {
+    const msgs = {
+      "auth/user-not-found":   "Não existe conta com este email.",
+      "auth/invalid-email":    "Formato de email inválido.",
+      "auth/too-many-requests":"Demasiadas tentativas. Aguarde alguns minutos.",
+    };
+    showAlert(msgs[err.code] || "Erro ao enviar: " + err.message);
+  } finally {
+    if (link) { link.textContent = "Esqueci-me da senha"; link.style.pointerEvents = ""; }
   }
 };
 
