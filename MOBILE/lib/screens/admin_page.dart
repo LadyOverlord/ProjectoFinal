@@ -1,8 +1,10 @@
+// screens/admin_page.dart
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/notification_service.dart';
 
 // ─── PALETA DE CORES ────────────────────────────────────────────────
 class _C {
@@ -143,9 +145,7 @@ class _NotifBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('casos_pendentes')
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('casos_pendentes').snapshots(),
       builder: (_, snap) {
         final count = snap.hasData ? snap.data!.docs.length : 0;
         return Stack(
@@ -221,7 +221,7 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-// ─── SIDE MENU (tablet/desktop) ──────────────────────────────────────
+// ─── SIDE MENU ───────────────────────────────────────────────────────
 class _SideMenu extends StatelessWidget {
   final String section;
   final void Function(String) onNav;
@@ -264,7 +264,6 @@ class _MenuContent extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 40),
-        // Logo
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.all(16),
@@ -299,10 +298,10 @@ class _MenuContent extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         _label('NAVEGAÇÃO'),
-        _item('dashboard', Icons.grid_view_rounded,    'Dashboard',    section, onNav),
-        _item('users',     Icons.people_alt_rounded,   'Utilizadores', section, onNav),
-        _item('reports',   Icons.fact_check_rounded,   'Aprovações',   section, onNav),
-        _item('config',    Icons.tune_rounded,          'Configurações',section, onNav),
+        _item('dashboard', Icons.grid_view_rounded,   'Dashboard',    section, onNav),
+        _item('users',     Icons.people_alt_rounded,  'Utilizadores', section, onNav),
+        _item('reports',   Icons.fact_check_rounded,  'Aprovações',   section, onNav),
+        _item('config',    Icons.tune_rounded,         'Configurações',section, onNav),
         const Spacer(),
         Divider(color: _C.border, height: 1),
         _LogoutTile(),
@@ -392,8 +391,7 @@ class _DashboardPanel extends StatelessWidget {
             )),
             const SizedBox(width: 14),
             Expanded(child: _StatCard(
-              label: 'Casos Pendentes',
-              collection: 'casos_pendentes',
+              label: 'Casos Pendentes', collection: 'casos_pendentes',
               icon: Icons.hourglass_top_rounded, color: _C.orange, colorSoft: _C.orangeSoft,
             )),
           ],
@@ -481,8 +479,7 @@ class _StatCard extends StatelessWidget {
                 child: Icon(icon, color: color, size: 20),
               ),
               const SizedBox(height: 16),
-              Text('$count',
-                style: TextStyle(color: color, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1)),
+              Text('$count', style: TextStyle(color: color, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1)),
               const SizedBox(height: 2),
               Text(label, style: const TextStyle(color: _C.grey2, fontSize: 12, fontWeight: FontWeight.w500)),
             ],
@@ -531,7 +528,7 @@ class _ActiveCasesTableState extends State<_ActiveCasesTable> {
           children: docs.map((doc) {
             final d = doc.data() as Map<String, dynamic>;
             final current = _pendingStatus[doc.id] ?? d['status'] as String? ?? 'aprovado';
-            final saving = _saving.contains(doc.id);
+            final saving  = _saving.contains(doc.id);
             final changed = _pendingStatus.containsKey(doc.id);
             return _CaseRow(
               name: d['nome'] ?? 'Desconhecido',
@@ -562,11 +559,11 @@ class _CaseRow extends StatelessWidget {
 
   Color get _statusColor {
     switch (currentStatus) {
-      case 'aprovado': return _C.accent;
+      case 'aprovado':   return _C.accent;
       case 'encontrado': return _C.green;
       case 'desmentido': return _C.grey3;
-      case 'rejeitado': return _C.red;
-      default: return _C.grey2;
+      case 'rejeitado':  return _C.red;
+      default:           return _C.grey2;
     }
   }
 
@@ -630,10 +627,10 @@ class _CaseRow extends StatelessWidget {
                       isExpanded: true,
                       onChanged: (v) { if (v != null) onStatusChanged(v); },
                       items: const [
-                        DropdownMenuItem(value: 'aprovado',   child: Text('🔵 Ativo (Procurando)')),
-                        DropdownMenuItem(value: 'encontrado', child: Text('🟢 Encontrado')),
-                        DropdownMenuItem(value: 'desmentido', child: Text('⚫ Desmentido')),
-                        DropdownMenuItem(value: 'rejeitado',  child: Text('🔴 Arquivar/Remover')),
+                        DropdownMenuItem(value: 'aprovado',   child: Text('Ativo (Procurando)')),
+                        DropdownMenuItem(value: 'encontrado', child: Text('Encontrado')),
+                        DropdownMenuItem(value: 'desmentido', child: Text('Desmentido')),
+                        DropdownMenuItem(value: 'rejeitado',  child: Text('Arquivar/Remover')),
                       ],
                     ),
                   ),
@@ -727,7 +724,7 @@ class _UsersPanelState extends State<_UsersPanel> {
                   itemCount: docs.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (_, i) {
-                    final u = docs[i].data() as Map<String, dynamic>;
+                    final u  = docs[i].data() as Map<String, dynamic>;
                     final id = docs[i].id;
                     return _UserCard(userData: u, docId: id, onDelete: () => _delete(id));
                   },
@@ -757,13 +754,13 @@ class _UserCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final email = userData['email'] ?? '';
-    final nome = userData['nome'] ?? email;
-    final role = (userData['role'] ?? 'user') as String;
-    final isAdmin = role == 'admin';
-    final date = _formatDate(userData['ultimoLogin'] ?? userData['criadoEm']);
+    final email    = userData['email'] ?? '';
+    final nome     = userData['nome']  ?? email;
+    final role     = (userData['role'] ?? 'user') as String;
+    final isAdmin  = role == 'admin';
+    final date     = _formatDate(userData['ultimoLogin'] ?? userData['criadoEm']);
     final isActive = userData['ultimoLogin'] != null;
-    final letter = email.isNotEmpty ? email[0].toUpperCase() : '?';
+    final letter   = email.isNotEmpty ? email[0].toUpperCase() : '?';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -773,7 +770,6 @@ class _UserCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Avatar
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
@@ -850,9 +846,7 @@ class _ApprovalsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('casos_pendentes')
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('casos_pendentes').snapshots(),
       builder: (_, snap) {
         if (snap.connectionState == ConnectionState.waiting) return _loading();
         final docs = snap.data?.docs ?? [];
@@ -898,8 +892,9 @@ class _ApprovalCard extends StatefulWidget {
 }
 
 class _ApprovalCardState extends State<_ApprovalCard> {
-  bool _expanded = false;
-  bool _approving = false, _rejecting = false;
+  bool _expanded  = false;
+  bool _approving = false;
+  bool _rejecting = false;
 
   Map<String, dynamic> get d => widget.doc.data() as Map<String, dynamic>;
 
@@ -907,7 +902,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     final img = d['imagem'] as String?;
     if (img == null) return null;
     if (img.startsWith('data:image')) {
-      return base64Decode(img.split(',').last);
+      try { return base64Decode(img.split(',').last); } catch (_) { return null; }
     }
     return null;
   }
@@ -921,18 +916,37 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     return diff == 0 ? 'hoje' : 'há $diff dias';
   }
 
+  // ── APROVAR + enviar Amber Alert ──────────────────────
   Future<void> _aprovar() async {
     setState(() => _approving = true);
     try {
       final data = Map<String, dynamic>.from(d);
-      data['status'] = 'aprovado';
+      data['status']     = 'aprovado';
       data['aprovadoEm'] = Timestamp.now();
-      // Copia para 'casos' e deleta de 'casos_pendentes'
+
       await FirebaseFirestore.instance.collection('casos').add(data);
-      await FirebaseFirestore.instance.collection('casos_pendentes').doc(widget.doc.id).delete();
+      await FirebaseFirestore.instance
+          .collection('casos_pendentes')
+          .doc(widget.doc.id)
+          .delete();
+
+      // Enviar Amber Alert para utilizadores de Luanda
+      await NotificationService.instance.enviarAlertaDesaparecido(
+        nome:         d['nome']                   as String? ?? '',
+        provincia:    d['provincia']              as String? ?? '',
+        municipio:    d['municipio']              as String? ?? '',
+        ultimoLocal:  d['ultimo_local']           as String? ?? '',
+        idade:        d['idade']?.toString()      ?? '',
+        sexo:         d['sexo']                   as String? ?? '',
+        roupas:       d['roupas']                 as String? ?? '',
+        informacoes:  d['informacoes_adicionais'] as String? ?? '',
+        casoId:       widget.doc.id,
+        imagemBase64: d['imagem']                 as String?,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✅ Caso aprovado e publicado!'),
+          content: Text('Caso aprovado e alerta enviado!'),
           backgroundColor: _C.green,
           behavior: SnackBarBehavior.floating,
         ));
@@ -940,7 +954,8 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     } catch (e) {
       setState(() => _approving = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Erro: $e'), backgroundColor: _C.red,
+        content: Text('Erro: $e'),
+        backgroundColor: _C.red,
         behavior: SnackBarBehavior.floating,
       ));
     }
@@ -951,7 +966,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
       context: context,
       builder: (_) => _ConfirmDialog(
         title: 'Rejeitar Caso',
-        message: 'O caso será marcado como rejeitado e não aparecerá no mapa.',
+        message: 'O caso sera removido e nao aparecera no mapa.',
         confirmLabel: 'Rejeitar',
         confirmColor: _C.red,
       ),
@@ -959,10 +974,12 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     if (ok != true || !mounted) return;
     setState(() => _rejecting = true);
     try {
-      // Deleta de 'casos_pendentes'
-      await FirebaseFirestore.instance.collection('casos_pendentes').doc(widget.doc.id).delete();
+      await FirebaseFirestore.instance
+          .collection('casos_pendentes')
+          .doc(widget.doc.id)
+          .delete();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('❌ Caso rejeitado e removido.'),
+        content: Text('Caso rejeitado e removido.'),
         backgroundColor: _C.red,
         behavior: SnackBarBehavior.floating,
       ));
@@ -990,7 +1007,6 @@ class _ApprovalCardState extends State<_ApprovalCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image header
           if (imgBytes != null)
             Stack(
               children: [
@@ -1004,7 +1020,6 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                     ),
                   ),
                 ),
-                // Reject button top right
                 Positioned(
                   top: 12, right: 12,
                   child: _RoundIconBtn(
@@ -1016,7 +1031,6 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                 ),
               ],
             ),
-          // Body
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1025,13 +1039,14 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (imgBytes == null)
+                    if (imgBytes == null) ...[
                       Container(
                         width: 52, height: 52,
                         decoration: BoxDecoration(color: _C.accentSoft, borderRadius: BorderRadius.circular(14)),
                         child: const Icon(Icons.person_rounded, color: _C.accent, size: 28),
                       ),
-                    if (imgBytes == null) const SizedBox(width: 14),
+                      const SizedBox(width: 14),
+                    ],
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1064,8 +1079,6 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                     style: const TextStyle(color: _C.grey3, fontSize: 13)),
                 ]),
                 const SizedBox(height: 12),
-
-                // Expandable details
                 GestureDetector(
                   onTap: () => setState(() => _expanded = !_expanded),
                   child: Container(
@@ -1094,19 +1107,17 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _DetailRow('BI', d['bi'] ?? 'N/A'),
                         _DetailRow('Roupas', d['roupas'] ?? 'N/A'),
-                        _DetailRow('Data', d['data_desaparecimento'] ?? 'N/A'),
+                        _DetailRow('Data',   d['data_desaparecimento'] ?? 'N/A'),
+                        _DetailRow('Local',  d['ultimo_local'] ?? 'N/A'),
                         const Divider(color: _C.border, height: 16),
-                        Text(d['informacoes_adicionais'] ?? 'Sem informações adicionais.',
+                        Text(d['informacoes_adicionais'] ?? 'Sem informacoes adicionais.',
                           style: const TextStyle(color: _C.grey2, fontSize: 13, height: 1.5)),
                       ],
                     ),
                   ),
                 ],
                 const SizedBox(height: 16),
-
-                // Actions
                 Row(
                   children: [
                     Expanded(
@@ -1123,8 +1134,8 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                     Expanded(
                       flex: 2,
                       child: _ActionBtn(
-                        label: 'Aprovar Publicação',
-                        icon: Icons.check_rounded,
+                        label: 'Aprovar + Alertar',
+                        icon: Icons.notifications_active_rounded,
                         color: _C.white, bg: _C.accent,
                         border: _C.accent,
                         loading: _approving,
@@ -1239,7 +1250,7 @@ class _ConfigPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle('Configurações', subtitle: 'Opções do sistema'),
+          _SectionTitle('Configuracoes', subtitle: 'Opcoes do sistema'),
           const SizedBox(height: 30),
           Center(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -1249,9 +1260,9 @@ class _ConfigPanel extends StatelessWidget {
                 child: const Icon(Icons.construction_rounded, color: _C.accent, size: 36),
               ),
               const SizedBox(height: 16),
-              const Text('Em Construção', style: TextStyle(color: _C.white, fontSize: 20, fontWeight: FontWeight.w700)),
+              const Text('Em Construcao', style: TextStyle(color: _C.white, fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              const Text('Esta secção estará disponível em breve.', style: TextStyle(color: _C.grey3, fontSize: 14)),
+              const Text('Esta seccao estara disponivel em breve.', style: TextStyle(color: _C.grey3, fontSize: 14)),
             ]),
           ),
         ],
