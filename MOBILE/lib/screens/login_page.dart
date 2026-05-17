@@ -1,3 +1,4 @@
+// screens/login_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -6,6 +7,7 @@ import 'home_page.dart';
 import 'register_page.dart';
 import 'admin_page.dart';
 import '../models/user_mode.dart';
+import '../services/notification_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,14 +17,14 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _emailController = TextEditingController();
+  final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
 
+  // ── Login com Email ───────────────────────────────────
   Future<void> _loginWithEmail(BuildContext context) async {
     try {
-      UserCredential userCredential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email:    _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
@@ -34,6 +36,9 @@ class _LoginPageState extends State<LoginPage> {
       final role = userDoc.exists
           ? (userDoc.data() as Map<String, dynamic>)['role'] ?? 'user'
           : 'user';
+
+      // Guardar token FCM após login
+      await NotificationService.instance.salvarTokenAposLogin();
 
       if (!mounted) return;
 
@@ -47,73 +52,72 @@ class _LoginPageState extends State<LoginPage> {
       );
     } on FirebaseAuthException catch (e) {
       String errorMessage;
-
       switch (e.code) {
-        case 'user-not-found':
-          errorMessage = 'Conta não encontrada.';
-          break;
-        case 'wrong-password':
-          errorMessage = 'Senha incorreta.';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Email inválido.';
-          break;
-        case 'user-disabled':
-          errorMessage = 'Conta desativada.';
-          break;
-        default:
-          errorMessage = 'Erro ao fazer login.';
+        case 'user-not-found':  errorMessage = 'Conta não encontrada.'; break;
+        case 'wrong-password':  errorMessage = 'Senha incorreta.'; break;
+        case 'invalid-email':   errorMessage = 'Email inválido.'; break;
+        case 'user-disabled':   errorMessage = 'Conta desativada.'; break;
+        default:                errorMessage = 'Erro ao fazer login.';
       }
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(errorMessage)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro inesperado.')),
       );
     }
   }
 
+  // ── Login com Google ──────────────────────────────────
   Future<void> _loginWithGoogle(BuildContext context) async {
     try {
       final googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) return;
 
       final googleAuth = await googleUser.authentication;
-
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+        idToken:     googleAuth.idToken,
       );
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCredential.user;
+      if (user == null) return;
 
-      final user = FirebaseAuth.instance.currentUser;
+      // Criar documento do user no Firestore se não existir
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final userDoc = await userRef.get();
 
-      if (user != null) {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-
-        final role = userDoc.exists
-            ? (userDoc.data() as Map<String, dynamic>)['role'] ?? 'user'
-            : 'user';
-
-        if (!mounted) return;
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => role == 'admin'
-                ? const AdminPage()
-                : const HomePage(mode: UserMode.authenticated),
-          ),
-        );
+      if (!userDoc.exists) {
+        await userRef.set({
+          'nome':      user.displayName ?? 'Utilizador',
+          'email':     user.email ?? '',
+          'role':      'user',
+          'criadoEm':  FieldValue.serverTimestamp(),
+          'stats':     {'apoios': 0, 'comentarios': 0, 'partilhas': 0},
+        });
       }
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro no login com Google.')),
+
+      final role = userDoc.exists
+          ? (userDoc.data() as Map<String, dynamic>)['role'] ?? 'user'
+          : 'user';
+
+      // Guardar token FCM após login
+      await NotificationService.instance.salvarTokenAposLogin();
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => role == 'admin'
+              ? const AdminPage()
+              : const HomePage(mode: UserMode.authenticated),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Erro Google Sign-In: $e');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro: ${e.toString()}')),
       );
     }
   }
@@ -123,101 +127,62 @@ class _LoginPageState extends State<LoginPage> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      resizeToAvoidBottomInset: false, // 🔥 impede layout subir
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 🔵 Rodapé azul FIXO
+          // Rodapé azul fixo
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 120,
-              color: const Color(0xFF0077B6),
-            ),
+            bottom: 0, left: 0, right: 0,
+            child: Container(height: 120, color: const Color(0xFF0077B6)),
           ),
 
-          // Conteúdo principal
           SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: 30),
             child: Column(
               children: [
                 SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Entrar",
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Text(
-                          "Bem-vindo de volta!",
-                          style: TextStyle(color: Colors.grey),
-                        ),
+                        const Text('Entrar',
+                          style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold)),
+                        const Text('Bem-vindo de volta!',
+                          style: TextStyle(color: Colors.grey)),
                         const SizedBox(height: 30),
-                        _buildTextField("Email:", "seu e-mail",
-                            controller: _emailController),
+                        _buildTextField('Email:', 'seu e-mail', controller: _emailController),
                         const SizedBox(height: 12),
-                        _buildTextField("Senha:", "sua senha",
-                            controller: _passwordController,
-                            obscureText: true),
+                        _buildTextField('Senha:', 'sua senha',
+                          controller: _passwordController, obscureText: true),
                         const SizedBox(height: 20),
                         SizedBox(
-                          width: double.infinity,
-                          height: 52,
+                          width: double.infinity, height: 52,
                           child: ElevatedButton(
                             onPressed: () => _loginWithEmail(context),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF90E0EF),
                               foregroundColor: Colors.black87,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
-                            child: const Text("Entrar"),
+                            child: const Text('Entrar'),
                           ),
                         ),
                         TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const RegisterPage()));
-                          },
-                          child: const Text(
-                              "Não tem conta? Cadastre-se aqui"),
+                          onPressed: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const RegisterPage())),
+                          child: const Text('Não tem conta? Cadastre-se aqui'),
                         ),
                         const SizedBox(height: 15),
                         Row(
                           children: [
-                            Expanded(
-                              child: _socialButton(
-                                  "Google",
-                                  Icons.g_mobiledata,
-                                  Colors.red,
-                                  () => _loginWithGoogle(context)),
-                            ),
+                            Expanded(child: _socialButton('Google', Icons.g_mobiledata, Colors.red,
+                              () => _loginWithGoogle(context))),
                             const SizedBox(width: 12),
-                            Expanded(
-                              child: _socialButton(
-                                  "Convidado",
-                                  Icons.person_outline,
-                                  Colors.blueGrey,
-                                  () => Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                const HomePage(
-                                                    mode:
-                                                        UserMode.guest)),
-                                      )),
-                            ),
+                            Expanded(child: _socialButton('Convidado', Icons.person_outline, Colors.blueGrey,
+                              () => Navigator.pushReplacement(context,
+                                MaterialPageRoute(builder: (_) => const HomePage(mode: UserMode.guest))))),
                           ],
                         ),
                       ],
@@ -225,11 +190,11 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
 
-                // 🗺️ IMAGEM CENTRALIZADA
+                // Imagem
                 Container(
                   height: screenHeight * 0.35,
                   width: double.infinity,
-                  alignment: Alignment.center, // 🔥 centraliza
+                  alignment: Alignment.center,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -243,25 +208,8 @@ class _LoginPageState extends State<LoginPage> {
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              const Color(0xFF0077B6)
-                                  .withOpacity(0.7),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 60),
-                        child: Text(
-                          "",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, const Color(0xFF0077B6).withOpacity(0.7)],
                           ),
                         ),
                       ),
@@ -277,13 +225,11 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildTextField(String label, String hint,
-      {TextEditingController? controller,
-      bool obscureText = false}) {
+      {TextEditingController? controller, bool obscureText = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -292,16 +238,14 @@ class _LoginPageState extends State<LoginPage> {
             hintText: hint,
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),
       ],
     );
   }
 
-  Widget _socialButton(String label, IconData icon,
-      Color color, VoidCallback onPressed) {
+  Widget _socialButton(String label, IconData icon, Color color, VoidCallback onPressed) {
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, color: color),

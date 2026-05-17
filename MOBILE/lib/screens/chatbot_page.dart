@@ -1,7 +1,14 @@
+// screens/chatbot_page.dart
+// A chave da API está em lib/config.dart (não versionado no git)
+
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'home_page.dart';
+import 'login_page.dart';
+import 'profile.dart';
+import 'map_page.dart';
 import '../models/user_mode.dart';
+import '../config.dart'; // ← chave protegida
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -44,20 +51,28 @@ class _ChatbotPageState extends State<ChatbotPage> {
     _loadUserName();
   }
 
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadUserName() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      if (userDoc.exists && mounted) {
-        setState(() {
-          _userName = userDoc.data()!['nome'] ?? 'Usuário';
-        });
-      }
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists && mounted) {
+          setState(() {
+            _userName = userDoc.data()!['nome'] as String? ?? 'Utilizador';
+          });
+        }
+      } catch (_) {}
     }
-    // Mensagem de boas-vindas depois de carregar o nome
     if (mounted) {
       setState(() {
         _messages.add({
@@ -86,7 +101,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
       );
 
       final prompt = '''
-Você é o Missing AI, assistente especializado em casos de desaparecimento em Angola.
+Você é o Missing AI, assistente virtual do aplicativo Missing AO especializado em casos de desaparecimento em Angola.
 Responda com empatia, de forma clara e em português de Angola.
 Ajude com: registar casos, usar o app, apoio emocional, e informações sobre desaparecidos.
 Seja conciso (máximo 3 parágrafos).
@@ -107,13 +122,12 @@ Mensagem do utilizador: $message
         _scrollToBottom();
       }
     } on GenerativeAIException catch (e) {
-      // Erro específico da API Gemini
       debugPrint('Erro Gemini: $e');
       if (mounted) {
         setState(() {
           _messages.add({
             'sender': 'bot',
-            'text': 'Erro na API: ${e.message}. Verifica a tua chave de API.'
+            'text': 'Erro na API. Tenta novamente mais tarde.'
           });
         });
       }
@@ -146,6 +160,7 @@ Mensagem do utilizador: $message
   }
 
   void _onItemTapped(int index) {
+    if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
     if (index == 0) {
       Navigator.pushReplacement(
@@ -163,6 +178,10 @@ Mensagem do utilizador: $message
       appBar: AppBar(
         backgroundColor: Colors.grey[900],
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -184,6 +203,7 @@ Mensagem do utilizador: $message
       ),
       body: Column(
         children: [
+          // ── Lista de mensagens ──
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -221,7 +241,7 @@ Mensagem do utilizador: $message
             ),
           ),
 
-          // Indicador de digitação
+          // ── Indicador a escrever ──
           if (_isLoading)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -234,13 +254,11 @@ Mensagem do utilizador: $message
                     color: Colors.grey[800],
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Text('Missing AI está a escrever...',
-                      style: TextStyle(color: Colors.grey, fontSize: 13)),
                 ),
               ),
             ),
 
-          // Quick options
+          // ── Sugestões rápidas ──
           SizedBox(
             height: 50,
             child: ListView.builder(
@@ -265,7 +283,7 @@ Mensagem do utilizador: $message
             ),
           ),
 
-          // Campo de texto
+          // ── Input ──
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -280,19 +298,20 @@ Mensagem do utilizador: $message
                       filled: true,
                       fillColor: Colors.grey[800],
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     ),
                     onSubmitted: _sendMessage,
+                    textInputAction: TextInputAction.send,
                   ),
                 ),
                 const SizedBox(width: 8),
                 CircleAvatar(
                   backgroundColor: Colors.blueAccent,
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
                     onPressed: () => _sendMessage(_messageController.text),
                   ),
                 ),

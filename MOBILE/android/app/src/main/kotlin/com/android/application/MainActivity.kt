@@ -1,4 +1,4 @@
-package com.android.application
+package com.missingao.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
