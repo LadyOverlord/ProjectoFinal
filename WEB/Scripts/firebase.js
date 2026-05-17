@@ -74,3 +74,51 @@ export async function navigateToLogin() {
   console.warn('navigateToLogin: no candidate found, using fallback', fallback);
   window.location.href = fallback;
 }
+
+// Navega para um alvo testando múltiplos candidatos para evitar 404s.
+export async function navigateToTarget(name) {
+  const base = window.location.href;
+  const origin = window.location.origin || '';
+  const candidates = [
+    // Prefer root absolute (most servers serve index at root)
+    origin + '/' + name,
+    // Then try parent-relative (e.g., from WEB/login_cadastro.html -> ../index.html)
+    new URL('../' + name, base).href,
+    // Then same-directory (e.g., WEB/index.html)
+    new URL(name, base).href,
+    // Then /WEB/name
+    origin + '/WEB/' + name,
+    new URL('WEB/' + name, base).href,
+  ].filter(Boolean);
+
+  for (const url of candidates) {
+    try {
+      console.debug('navigateToTarget: testing', url);
+      const res = await fetch(url, { method: 'HEAD' });
+      console.debug('navigateToTarget: HEAD', url, res && res.status);
+      if (res && res.ok) {
+        console.debug('navigateToTarget: redirecting to', url);
+        window.location.href = url;
+        return;
+      }
+    } catch (e) {
+      try {
+        console.debug('navigateToTarget: HEAD failed, trying GET', url, e);
+        const res2 = await fetch(url, { method: 'GET' });
+        console.debug('navigateToTarget: GET', url, res2 && res2.status);
+        if (res2 && res2.ok) {
+          console.debug('navigateToTarget: redirecting to (GET)', url);
+          window.location.href = url;
+          return;
+        }
+      } catch (e2) {
+        console.debug('navigateToTarget: GET also failed', url, e2);
+        // ignore and try next
+      }
+    }
+  }
+
+  // fallback: try parent-relative then same-dir then first candidate
+  const fallback = new URL('../' + name, base).href || new URL(name, base).href || candidates[0] || name;
+  window.location.href = fallback;
+}

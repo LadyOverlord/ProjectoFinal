@@ -1,5 +1,10 @@
-import { auth, db } from "./firebase.js";
-import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+import { auth, db, navigateToTarget } from "./firebase.js";
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut,
+  sendEmailVerification,
+} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 import {
   doc,
   getDoc,
@@ -28,7 +33,7 @@ window.login = async function () {
 
   try {
     const cred = await signInWithEmailAndPassword(auth, email, senha);
-    const user  = cred.user;
+    const user = cred.user;
 
     // ── Verificação de email obrigatória (admins ficam isentos) ──────────
     if (!user.emailVerified) {
@@ -39,7 +44,7 @@ window.login = async function () {
       } catch (_) {}
 
       if (role !== "admin") {
-        await signOut(auth);          // não manter sessão não verificada
+        await signOut(auth); // não manter sessão não verificada
         mostrarModalVerificacao(email, user);
         return;
       }
@@ -53,8 +58,11 @@ window.login = async function () {
       return;
     }
 
-    window.location.href =
-      snap.data().role === "admin" ? "admin.html" : "index.html";
+    if (snap.data().role === "admin") {
+      await navigateToTarget("admin.html");
+    } else {
+      await navigateToTarget("index.html");
+    }
   } catch (err) {
     const msgs = {
       "auth/invalid-credential": "Email ou senha incorrectos.",
@@ -76,29 +84,32 @@ window.login = async function () {
 /* =========================================================================
    RECUPERAR SENHA
    ========================================================================= */
-window.recuperarSenha = async function() {
-    const email = document.getElementById("loginEmail").value;
-    
-    if (!email) {
-        alert("Por favor, digite o seu e-mail no campo de E-mail acima para recuperar a senha.");
-        return;
-    }
+window.recuperarSenha = async function () {
+  const email = document.getElementById("loginEmail").value;
 
-    try {
-        await sendPasswordResetEmail(auth, email);
-        alert(`Um e-mail de recuperação foi enviado para: ${email}. Verifique a sua caixa de entrada (e a pasta Spam).`);
-    } catch (error) {
-        console.error("Erro ao recuperar senha:", error);
-        if (error.code === 'auth/user-not-found') {
-            alert("Não encontramos nenhuma conta com este e-mail.");
-        } else if (error.code === 'auth/invalid-email') {
-            alert("Por favor, digite um formato de e-mail válido.");
-        } else {
-            alert("Erro: " + error.message);
-        }
+  if (!email) {
+    alert(
+      "Por favor, digite o seu e-mail no campo de E-mail acima para recuperar a senha.",
+    );
+    return;
+  }
+
+  try {
+    await sendPasswordResetEmail(auth, email);
+    alert(
+      `Um e-mail de recuperação foi enviado para: ${email}. Verifique a sua caixa de entrada (e a pasta Spam).`,
+    );
+  } catch (error) {
+    console.error("Erro ao recuperar senha:", error);
+    if (error.code === "auth/user-not-found") {
+      alert("Não encontramos nenhuma conta com este e-mail.");
+    } else if (error.code === "auth/invalid-email") {
+      alert("Por favor, digite um formato de e-mail válido.");
+    } else {
+      alert("Erro: " + error.message);
     }
+  }
 };
-
 
 /* =========================================================================
    MODAL — EMAIL NÃO VERIFICADO
@@ -140,7 +151,9 @@ function mostrarModalVerificacao(email, userObj) {
   document.body.appendChild(modal);
 
   modal.querySelector("#mv-bd").addEventListener("click", () => modal.remove());
-  modal.querySelector("#mv-fechar").addEventListener("click", () => modal.remove());
+  modal
+    .querySelector("#mv-fechar")
+    .addEventListener("click", () => modal.remove());
 
   modal.querySelector("#mv-reenviar").addEventListener("click", async () => {
     const btn = modal.querySelector("#mv-reenviar");
@@ -149,21 +162,28 @@ function mostrarModalVerificacao(email, userObj) {
     try {
       if (userObj) {
         await sendEmailVerification(userObj);
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Enviado! Verifique a caixa de entrada.';
+        btn.innerHTML =
+          '<i class="fa-solid fa-check"></i> Enviado! Verifique a caixa de entrada.';
         setTimeout(() => {
-          btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
+          btn.innerHTML =
+            '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
           btn.disabled = false;
         }, 5000);
       } else {
         showAlert("Não foi possível reenviar. Tente fazer login novamente.");
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
+        btn.innerHTML =
+          '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
       }
     } catch (err) {
-      const msgs = { "auth/too-many-requests": "Demasiadas tentativas. Aguarde alguns minutos." };
+      const msgs = {
+        "auth/too-many-requests":
+          "Demasiadas tentativas. Aguarde alguns minutos.",
+      };
       showAlert(msgs[err.code] || "Erro: " + err.message);
       btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
+      btn.innerHTML =
+        '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
     }
   });
 }
