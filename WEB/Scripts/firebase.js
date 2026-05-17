@@ -22,3 +22,55 @@ console.log('Firebase inicializado para projeto:', firebaseConfig.projectId);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Retorna o caminho correto para a página de login/registro
+export function getLoginPath() {
+  try {
+    const p = window.location.pathname || "";
+    // Se a página actual já estiver dentro da pasta /WEB, use caminho relativo
+    if (/\/WEB(\/|$)/.test(p)) return "login_cadastro.html";
+    // Caso contrário, redirecionar para a página dentro da pasta WEB a partir da raiz
+    return "WEB/login_cadastro.html";
+  } catch (e) {
+    return "WEB/login_cadastro.html";
+  }
+}
+
+export async function navigateToLogin() {
+  const origin = window.location.origin || '';
+  const base = window.location.href;
+  const candidates = [
+    new URL('login_cadastro.html', base).href,
+    new URL('WEB/login_cadastro.html', base).href,
+    origin + '/login_cadastro.html',
+    origin + '/WEB/login_cadastro.html',
+  ].filter(Boolean);
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      if (res && res.ok) {
+        console.log('navigateToLogin: redirecting to', url);
+        window.location.href = url;
+        return;
+      }
+    } catch (e) {
+      // HEAD may be blocked; try GET as fallback
+      try {
+        const res2 = await fetch(url, { method: 'GET' });
+        if (res2 && res2.ok) {
+          console.log('navigateToLogin: redirecting to (GET)', url);
+          window.location.href = url;
+          return;
+        }
+      } catch (e2) {
+        // ignore and try next
+      }
+    }
+  }
+
+  // Fallback: try relative path
+  const fallback = 'WEB/login_cadastro.html';
+  console.warn('navigateToLogin: no candidate found, using fallback', fallback);
+  window.location.href = fallback;
+}

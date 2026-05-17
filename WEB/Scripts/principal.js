@@ -1,4 +1,4 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, navigateToLogin } from "./firebase.js";
 import {
   collection,
   addDoc,
@@ -538,7 +538,9 @@ function registarEventosBotoes() {
    ========================================================================= */
 async function toggleApoio(casoId, btn) {
   if (!currentUser) {
-    showAlert("Faça login para apoiar um caso.");
+    showAlert("Faça login para apoiar um caso.", {
+      onOk: () => navigateToLogin(),
+    });
     return;
   }
   btn.disabled = true;
@@ -684,7 +686,7 @@ async function carregarComentarios(casoId) {
 
 async function enviarComentario(casoId) {
   if (!currentUser) {
-    showAlert("Faça login para comentar.");
+    showAlert("Faça login para comentar.", { onOk: () => navigateToLogin() });
     return;
   }
   const inputEl = document.getElementById(`comment-input-${casoId}`);
@@ -913,7 +915,9 @@ function destacarFiltrosAtivos() {
 async function enviarRelato() {
   const user = auth.currentUser;
   if (!user) {
-    showAlert("Você precisa estar logado para relatar um caso.");
+    showAlert("Você precisa estar logado para relatar um caso.", {
+      onOk: () => navigateToLogin(),
+    });
     return;
   }
   const btn = document.getElementById("enviarRelato");
@@ -1075,7 +1079,7 @@ function configurarNavegacaoModal() {
 
   relatarBtn?.addEventListener("click", () => {
     if (!auth.currentUser) {
-      showAlert("Faça login para relatar.");
+      showAlert("Faça login para relatar.", { onOk: () => navigateToLogin() });
       return;
     }
     relatarSec.style.display = "flex";

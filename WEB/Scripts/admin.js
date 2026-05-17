@@ -1,4 +1,4 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, navigateToLogin } from "./firebase.js";
 import {
   onAuthStateChanged,
   signOut,
@@ -27,7 +27,7 @@ let formularioConfigurado = false; // Guard: evita listeners duplicados
 // Autenticação e segurança
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    window.location.href = "login_cadastro.html";
+    navigateToLogin();
     return;
   }
   try {
@@ -1127,7 +1127,6 @@ function renderMapaAdmin(el, casos) {
    UTILITÁRIOS
    ========================================================================= */
 
-
 /* =========================================================================
    NOTIFICAÇÃO POR EMAIL — Firebase Trigger Email Extension
    =========================================================================
@@ -1147,15 +1146,15 @@ async function notificarAprovacaoCaso(caso) {
     const emailDestino = userData.email;
     if (!emailDestino) return;
 
-    const nomeCaso    = caso.nome        || "Desconhecido";
-    const municipio   = caso.municipio   || caso.provincia || "Angola";
-    const nomeAutor   = userData.nome    || "Utilizador";
-    const linkApp     = window.location.origin + "/index.html";
+    const nomeCaso = caso.nome || "Desconhecido";
+    const municipio = caso.municipio || caso.provincia || "Angola";
+    const nomeAutor = userData.nome || "Utilizador";
+    const linkApp = window.location.origin + "/index.html";
 
     // ── Escrever documento na colecção "mail" ──────────────────────────────
     // A extensão Firebase Trigger Email apanha este documento e envia o email.
     await addDoc(collection(db, "mail"), {
-      to:      emailDestino,
+      to: emailDestino,
       message: {
         subject: `✅ O seu caso "${nomeCaso}" foi aprovado — MissingAO`,
         text:
@@ -1200,10 +1199,15 @@ async function notificarAprovacaoCaso(caso) {
       criadoEm: serverTimestamp(),
     });
 
-    console.log(`[Email] Notificação enviada para ${emailDestino} sobre o caso "${nomeCaso}"`);
+    console.log(
+      `[Email] Notificação enviada para ${emailDestino} sobre o caso "${nomeCaso}"`,
+    );
   } catch (err) {
     // Silencioso — falha no email não deve bloquear a aprovação
-    console.warn("[Email] Erro ao enviar notificação:", err.code || err.message);
+    console.warn(
+      "[Email] Erro ao enviar notificação:",
+      err.code || err.message,
+    );
   }
 }
 

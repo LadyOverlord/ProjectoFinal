@@ -1,10 +1,11 @@
 import { auth, db } from "./firebase.js";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 import {
   doc,
   getDoc,
   collection,
   getDocs,
+  updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
 /* =========================================================================
@@ -27,15 +28,33 @@ window.login = async function () {
 
   try {
     const cred = await signInWithEmailAndPassword(auth, email, senha);
-    const snap = await getDoc(doc(db, "users", cred.user.uid));
+    const user  = cred.user;
 
+    // ── Verificação de email obrigatória (admins ficam isentos) ──────────
+    if (!user.emailVerified) {
+      let role = "user";
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (snap.exists()) role = snap.data().role || "user";
+      } catch (_) {}
+
+      if (role !== "admin") {
+        await signOut(auth);          // não manter sessão não verificada
+        mostrarModalVerificacao(email, user);
+        return;
+      }
+    }
+
+    // ── Utilizador verificado → buscar perfil e redirecionar ─────────────
+    const snap = await getDoc(doc(db, "users", user.uid));
     if (!snap.exists()) {
+      await signOut(auth);
       showAlert("Perfil não encontrado. Contacte o suporte.");
       return;
     }
 
     window.location.href =
-      snap.data().role === "admin" ? "admin.html" : "../index.htm";
+      snap.data().role === "admin" ? "admin.html" : "index.html";
   } catch (err) {
     const msgs = {
       "auth/invalid-credential": "Email ou senha incorrectos.",
@@ -57,42 +76,97 @@ window.login = async function () {
 /* =========================================================================
    RECUPERAR SENHA
    ========================================================================= */
-window.recuperarSenha = async function () {
-  const email = document.getElementById("loginEmail").value.trim();
-  const link  = document.getElementById("link-forgot");
+window.recuperarSenha = async function() {
+    const email = document.getElementById("loginEmail").value;
+    
+    if (!email) {
+        alert("Por favor, digite o seu e-mail no campo de E-mail acima para recuperar a senha.");
+        return;
+    }
 
-  if (!email) {
-    showAlert("Por favor, insira seu email para recuperação.");
-    document.getElementById("loginEmail").focus();
-    return;
-  }
-
-  // Validação básica de formato
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    showAlert("Formato de email inválido.");
-    return;
-  }
-
-  // Estado de loading no link
-  if (link) { link.textContent = "A enviar..."; link.style.pointerEvents = "none"; }
-
-  try {
-    await sendPasswordResetEmail(auth, email);
-    showAlert(
-      `✅ Email de recuperação enviado para ${email}. Verifique a caixa de entrada e a pasta Spam.`,
-      { onOk: () => {} }
-    );
-  } catch (err) {
-    const msgs = {
-      "auth/user-not-found":   "Não existe conta com este email.",
-      "auth/invalid-email":    "Formato de email inválido.",
-      "auth/too-many-requests":"Demasiadas tentativas. Aguarde alguns minutos.",
-    };
-    showAlert(msgs[err.code] || "Erro ao enviar: " + err.message);
-  } finally {
-    if (link) { link.textContent = "Esqueci-me da senha"; link.style.pointerEvents = ""; }
-  }
+    try {
+        await sendPasswordResetEmail(auth, email);
+        alert(`Um e-mail de recuperação foi enviado para: ${email}. Verifique a sua caixa de entrada (e a pasta Spam).`);
+    } catch (error) {
+        console.error("Erro ao recuperar senha:", error);
+        if (error.code === 'auth/user-not-found') {
+            alert("Não encontramos nenhuma conta com este e-mail.");
+        } else if (error.code === 'auth/invalid-email') {
+            alert("Por favor, digite um formato de e-mail válido.");
+        } else {
+            alert("Erro: " + error.message);
+        }
+    }
 };
+
+
+/* =========================================================================
+   MODAL — EMAIL NÃO VERIFICADO
+   Aparece quando o utilizador tenta entrar sem verificar o email.
+   ========================================================================= */
+function mostrarModalVerificacao(email, userObj) {
+  document.getElementById("modal-verificacao")?.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modal-verificacao";
+  modal.style.cssText =
+    "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;";
+  modal.innerHTML = `
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);" id="mv-bd"></div>
+    <div style="position:relative;background:#fff;border-radius:16px;padding:36px 32px;max-width:400px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.25);font-family:var(--font-base,'Quicksand',sans-serif);">
+      <div style="width:64px;height:64px;background:#e3f2fd;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#0c7ab5;margin:0 auto 18px;">
+        <i class="fa-solid fa-envelope-circle-check"></i>
+      </div>
+      <h2 style="margin:0 0 10px;font-size:20px;color:#111;">Verifique o seu email</h2>
+      <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 6px;">
+        Foi enviado um email de confirmação para<br>
+        <strong style="color:#0c7ab5;">${email}</strong>
+      </p>
+      <p style="color:#999;font-size:12px;margin:0 0 24px;">
+        Clique no link do email para activar a conta.<br>
+        Depois volte aqui e faça login novamente.
+      </p>
+      <button id="mv-reenviar" style="width:100%;padding:12px;margin-bottom:10px;border:none;border-radius:8px;background:#0c7ab5;color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.2s;">
+        <i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação
+      </button>
+      <button id="mv-fechar" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;color:#666;font-size:14px;font-weight:600;cursor:pointer;">
+        Fechar
+      </button>
+      <p style="margin:14px 0 0;font-size:11px;color:#aaa;">
+        Não encontra? Verifique a pasta <strong>Spam</strong>.
+      </p>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  modal.querySelector("#mv-bd").addEventListener("click", () => modal.remove());
+  modal.querySelector("#mv-fechar").addEventListener("click", () => modal.remove());
+
+  modal.querySelector("#mv-reenviar").addEventListener("click", async () => {
+    const btn = modal.querySelector("#mv-reenviar");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> A enviar...';
+    try {
+      if (userObj) {
+        await sendEmailVerification(userObj);
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Enviado! Verifique a caixa de entrada.';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
+          btn.disabled = false;
+        }, 5000);
+      } else {
+        showAlert("Não foi possível reenviar. Tente fazer login novamente.");
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
+      }
+    } catch (err) {
+      const msgs = { "auth/too-many-requests": "Demasiadas tentativas. Aguarde alguns minutos." };
+      showAlert(msgs[err.code] || "Erro: " + err.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Reenviar email de verificação';
+    }
+  });
+}
 
 /* =========================================================================
    MUNICÍPIOS DINÂMICOS

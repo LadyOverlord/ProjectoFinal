@@ -1,4 +1,4 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, navigateToLogin } from "./firebase.js";
 import {
   onAuthStateChanged,
   signOut,
@@ -27,7 +27,7 @@ let isOwner = false;
 // Autenticação
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    window.location.href = "login_cadastro.html";
+    navigateToLogin();
     return;
   }
   currentUID = user.uid;
@@ -601,7 +601,7 @@ document.getElementById("btn-change-photo").addEventListener("click", () => {
    ========================================================================= */
 document.getElementById("btn-logout").addEventListener("click", () => {
   signOut(auth)
-    .then(() => (window.location.href = "login_cadastro.html"))
+    .then(() => navigateToLogin())
     .catch((err) => mostrarNotificacao("❌ Erro ao sair: " + err.message));
 });
 

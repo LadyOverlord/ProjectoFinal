@@ -112,15 +112,17 @@ window.cadastrar = async function () {
     console.log("Documento criado no Firestore para:", uid);
 
     showAlert(
-      "Cadastro realizado com sucesso! Verifique seu e-mail para confirmar a conta.",
+      "✅ Conta criada com sucesso! Enviámos um email de verificação para " + email + ". " +
+      "Clique no link do email e depois faça login.",
+      { onOk: () => {} }
     );
 
-    // Opcional: Deslogar o usuário para obrigá-lo a logar apenas após verificar o e-mail
-    // await signOut(auth);
+    // Deslogar imediatamente — o utilizador só pode entrar após verificar o email
+    await signOut(auth);
 
-    // Transição de tela
-    document.getElementById("logup").classList.toggle("cadastro_move");
-    document.getElementById("login").classList.toggle("login_move");
+    // Transição de tela → voltar ao login com mensagem clara
+    document.getElementById("logup").classList.remove("cadastro_move");
+    document.getElementById("login").classList.remove("login_move");
   } catch (error) {
     console.error("Erro no cadastro:", error);
 
