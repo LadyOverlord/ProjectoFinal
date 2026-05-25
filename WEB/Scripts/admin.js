@@ -464,7 +464,7 @@ function renderizarTabelaUsuarios(lista) {
                class="btn-admin-icon" title="Ver perfil">
               <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:12px;"></i>
             </a>
-            <button onclick="window.promoverUsuario('${user.id}','${user.role || "user"}')",
+          <button onclick="window.promoverUsuario('${user.id}','${user.role || "user"}')"
                class="btn-admin-icon" title="${user.role === "admin" ? "Rebaixar para user" : "Tornar admin"}">
               <i class="fa-solid fa-${user.role === "admin" ? "user-minus" : "user-shield"}" style="font-size:12px;"></i>
             </button>
@@ -570,32 +570,99 @@ async function carregarAprovacoes() {
       container.innerHTML = `<p class="tc" style="color:#666;margin-top:20px;">Nenhuma aprovação pendente.</p>`;
       return;
     }
-    snap.forEach((docSnap) => {
-      const data = docSnap.data();
-      const id = docSnap.id;
+    // Recolher casos e buscar perfis dos relatores em paralelo
+    const casos = [];
+    snap.forEach(d => casos.push({ id: d.id, ...d.data() }));
+
+    const userSnaps = await Promise.all(
+      casos.map(c =>
+        c.userId
+          ? getDoc(doc(db, "users", c.userId)).catch(() => null)
+          : Promise.resolve(null)
+      )
+    );
+
+    casos.forEach((data, i) => {
+      const id   = data.id;
       const dias = calcularDias(data.data_desaparecimento);
       const tempo = dias === 0 ? "hoje" : `há ${dias} dias`;
+
+      // Dados do utilizador que relatou
+      const uSnap       = userSnaps[i];
+      const relator     = uSnap?.exists() ? uSnap.data() : null;
+      const rNome       = relator?.nome  || "Utilizador desconhecido";
+      const rEmail      = relator?.email || "—";
+      const rFoto       = relator?.photoBase64 || "";
+      const rProv       = relator?.provincia ? ` · ${relator.provincia}` : "";
+      const rUID        = data.userId || "";
+      let   rMembro     = "—";
+      if (relator?.criadoEm) {
+        const dt = relator.criadoEm.toDate ? relator.criadoEm.toDate() : new Date(relator.criadoEm);
+        if (!isNaN(dt)) rMembro = `${String(dt.getDate()).padStart(2,"0")}/${String(dt.getMonth()+1).padStart(2,"0")}/${dt.getFullYear()}`;
+      }
+      const rVerif = relator?.emailVerificado === false
+        ? `<span class="relator-badge warn">⚠ Email não verificado</span>`
+        : `<span class="relator-badge ok">✓ Verificado</span>`;
 
       const card = document.createElement("div");
       card.className = "card-aprovar";
       card.innerHTML = `
-        <button class="top-menu-btn btn-rejeitar" data-id="${id}" title="Rejeitar">
-          <i class="fa-solid fa-trash"></i>
+        <!-- Botão rejeitar -->
+        <button class="top-menu-btn btn-rejeitar" data-id="${id}" title="Rejeitar caso">
+          <i class="fa-solid fa-xmark"></i>
         </button>
+
+        <!-- Foto + info do desaparecido -->
         <div class="card-header-admin">
-          <img src="${data.imagem || "imgs/user.jpg"}" class="admin-avatar" onerror="this.src='imgs/user.jpg'" alt="">
+          <img src="${data.imagem || "imgs/user.jpg"}" class="admin-avatar"
+               onerror="this.src='imgs/user.jpg'" alt="Foto do desaparecido">
           <div class="admin-user-info">
             <h3>${data.nome || "Nome Desconhecido"}</h3>
-            <p>${data.idade || "?"} anos</p>
+            <p>${data.idade || "?"}${data.sexo ? " · " + data.sexo : ""} anos</p>
           </div>
         </div>
-        <p class="card-desc">Desapareceu em <strong>${data.provincia || "local desconhecido"}</strong> ${tempo}.</p>
-        <div class="admin-actions">
+
+        <p class="card-desc">
+          Desapareceu em <strong>${data.provincia || "local desconhecido"}</strong>
+          ${data.municipio ? " — " + data.municipio : ""} <em>${tempo}</em>.
+          ${data.ultimo_local
+            ? `<br><i class="fa-solid fa-location-dot" style="color:#e07a5f;"></i> ${data.ultimo_local}`
+            : ""}
+        </p>
+
+        <!-- Acções -->
+        <div class="admin-actions" style="margin-bottom:0;">
           <button class="btn-docs"
-            onclick="window.showAlert('BI: ${data.bi || "N/A"}\\nRoupas: ${data.roupas || "N/A"}\\nRelato: ${data.informacoes_adicionais || "Sem detalhes"}')">
-            Ver Documentos
+            onclick="window.showAlert('BI: ${(data.bi||'N/A')}\nRoupas: ${(data.roupas||'N/A')}\nRelato: ${(data.informacoes_adicionais||'Sem detalhes')}')">
+            <i class="fa-solid fa-file-lines"></i> Ver Detalhes
           </button>
-          <button class="btn-approve-pub" data-id="${id}">Aprovar Publicação</button>
+          <button class="btn-approve-pub" data-id="${id}">
+            <i class="fa-solid fa-circle-check"></i> Aprovar
+          </button>
+        </div>
+
+        <!-- Mini perfil do relator -->
+        <div class="relator-section">
+          <span class="relator-label">
+            <i class="fa-solid fa-user-pen"></i> Relatado por
+          </span>
+          <div class="relator-body">
+            ${rFoto
+              ? `<img src="${rFoto}" class="relator-avatar" onerror="this.style.display='none'" alt="">`
+              : `<div class="relator-avatar-ph"><i class="fa-solid fa-user"></i></div>`}
+            <div class="relator-info">
+              <div class="relator-nome">${rNome} ${rVerif}</div>
+              <div class="relator-meta">
+                <span><i class="fa-solid fa-envelope"></i> ${rEmail}</span>
+                <span><i class="fa-solid fa-calendar"></i> Membro desde ${rMembro}${rProv}</span>
+              </div>
+            </div>
+            ${rUID
+              ? `<a href="profile.html?uid=${rUID}" target="_blank" class="relator-link" title="Ver perfil">
+                   <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                 </a>`
+              : ""}
+          </div>
         </div>`;
       container.appendChild(card);
     });
@@ -1128,86 +1195,44 @@ function renderMapaAdmin(el, casos) {
    ========================================================================= */
 
 /* =========================================================================
-   NOTIFICAÇÃO POR EMAIL — Firebase Trigger Email Extension
-   =========================================================================
-   Pré-requisito: instalar a extensão "Trigger Email from Firestore" no
-   Firebase Console → Extensions. Configurar uma colecção chamada "mail"
-   e ligar ao seu provedor SMTP (Gmail, SendGrid, etc.).
-   O documento que escrevemos aqui é apanhado automaticamente pela extensão
-   e o email é enviado sem código de servidor.
+   NOTIFICAÇÃO POR EMAIL — ALERTA GERAL (EmailJS)
    ========================================================================= */
-async function notificarAprovacaoCaso(caso) {
+async function notificarAprovacaoCaso(casoData) {
   try {
-    // Buscar o email do autor do caso no Firestore
-    if (!caso.userId) return;
-    const userSnap = await getDoc(doc(db, "users", caso.userId));
-    if (!userSnap.exists()) return;
-    const userData = userSnap.data();
-    const emailDestino = userData.email;
-    if (!emailDestino) return;
-
-    const nomeCaso = caso.nome || "Desconhecido";
-    const municipio = caso.municipio || caso.provincia || "Angola";
-    const nomeAutor = userData.nome || "Utilizador";
-    const linkApp = window.location.origin + "/index.html";
-
-    // ── Escrever documento na colecção "mail" ──────────────────────────────
-    // A extensão Firebase Trigger Email apanha este documento e envia o email.
-    await addDoc(collection(db, "mail"), {
-      to: emailDestino,
-      message: {
-        subject: `✅ O seu caso "${nomeCaso}" foi aprovado — MissingAO`,
-        text:
-          `Olá ${nomeAutor},\n\n` +
-          `O caso de "${nomeCaso}" (${municipio}) que submeteu ao MissingAO foi revisto e aprovado. ` +
-          `Já está visível no feed para toda a comunidade.\n\n` +
-          `Aceda à plataforma: ${linkApp}\n\n` +
-          `Obrigado por contribuir para ajudar a encontrar pessoas desaparecidas em Angola.\n\n` +
-          `— Equipa MissingAO`,
-        html: `
-          <div style="font-family:'Quicksand',Arial,sans-serif;max-width:520px;margin:0 auto;color:#222;">
-            <div style="background:#0c7ab5;padding:24px 28px;border-radius:10px 10px 0 0;">
-              <h2 style="color:#fff;margin:0;font-size:20px;">
-                <span style="margin-right:8px;">🔍</span>MissingAO
-              </h2>
-            </div>
-            <div style="background:#fff;padding:28px;border:1px solid #e0ecf5;border-top:none;border-radius:0 0 10px 10px;">
-              <p style="margin:0 0 16px;">Olá <strong>${nomeAutor}</strong>,</p>
-              <div style="background:#e8f5e9;border-left:4px solid #2ecc71;padding:14px 18px;border-radius:6px;margin-bottom:20px;">
-                <strong style="color:#1a7a3c;font-size:15px;">✅ Caso aprovado e publicado!</strong>
-              </div>
-              <p>O caso de <strong>${nomeCaso}</strong> <span style="color:#666;">(${municipio})</span>
-                que submeteu foi revisto pela nossa equipa de administração e está agora
-                <strong>visível no feed público</strong> do MissingAO.</p>
-              <p style="color:#555;margin-top:12px;">
-                A comunidade já pode apoiar, comentar e partilhar o caso para ajudar a encontrar
-                esta pessoa.
-              </p>
-              <div style="text-align:center;margin:28px 0;">
-                <a href="${linkApp}" style="background:#0c7ab5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">
-                  Ver o caso no MissingAO
-                </a>
-              </div>
-              <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-              <p style="color:#aaa;font-size:12px;text-align:center;margin:0;">
-                Obrigado por contribuir para ajudar a encontrar pessoas desaparecidas em Angola.<br>
-                — Equipa MissingAO
-              </p>
-            </div>
-          </div>`,
-      },
-      criadoEm: serverTimestamp(),
+    // 1. Buscar todos os emails de todos os utilizadores registados
+    const usersSnap = await getDocs(collection(db, "users"));
+    const listaEmails = [];
+    
+    usersSnap.forEach((userDoc) => {
+        const email = userDoc.data().email;
+        if (email) listaEmails.push(email); 
     });
 
-    console.log(
-      `[Email] Notificação enviada para ${emailDestino} sobre o caso "${nomeCaso}"`,
-    );
+    // 2. Junta todos os e-mails separados por vírgula para o BCC (Cópia Oculta)
+    const emailsFormatados = listaEmails.join(",");
+
+    // 3. Disparar Alerta Geral via EmailJS
+    if (emailsFormatados.length > 0) {
+        const templateParams = {
+            bcc_emails: emailsFormatados,
+            nome_desaparecido: casoData.nome || "Desconhecido",
+            idade: casoData.idade || "?",
+            local: (casoData.ultimo_local || "") + (casoData.municipio ? " - " + casoData.municipio : ""),
+            data: casoData.data_desaparecimento || "Data desconhecida",
+            roupas: casoData.roupas || "Não informado",
+            info: casoData.informacoes_adicionais || "Sem informações adicionais."
+        };
+
+        // ATENÇÃO: Substitui pelos teus IDs do EmailJS!
+        emailjs.send("service_8fq9usa", "template_366wv9e", templateParams)
+            .then(function(response) {
+                console.log("[EmailJS] Alerta geral enviado com sucesso!", response.status);
+            }, function(error) {
+                console.error("[EmailJS] Falha ao enviar alerta...", error);
+            });
+    }
   } catch (err) {
-    // Silencioso — falha no email não deve bloquear a aprovação
-    console.warn(
-      "[Email] Erro ao enviar notificação:",
-      err.code || err.message,
-    );
+    console.warn("[EmailJS] Erro ao disparar alerta de e-mail:", err);
   }
 }
 
