@@ -907,10 +907,29 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     return null;
   }
 
+  String _formatDate(dynamic raw) {
+    if (raw == null) return 'N/A';
+    DateTime? dt;
+    if (raw is Timestamp) {
+      dt = raw.toDate();
+    } else if (raw is String) {
+      dt = DateTime.tryParse(raw);
+    }
+    if (dt == null) return 'N/A';
+    return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}';
+  }
+
   String _daysAgo() {
-    final str = d['data_desaparecimento'] as String?;
-    if (str == null) return '';
-    final dt = DateTime.tryParse(str);
+    final raw = d['data_desaparecimento'];
+    if (raw == null) return '';
+    
+    DateTime? dt;
+    if (raw is Timestamp) {
+      dt = raw.toDate();
+    } else if (raw is String) {
+      dt = DateTime.tryParse(raw);
+    }
+    
     if (dt == null) return '';
     final diff = DateTime.now().difference(dt).inDays;
     return diff == 0 ? 'hoje' : 'há $diff dias';
@@ -941,6 +960,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
         roupas:       d['roupas']                 as String? ?? '',
         informacoes:  d['informacoes_adicionais'] as String? ?? '',
         casoId:       widget.doc.id,
+        autorUserId:  d['userId']                 as String? ?? '',
         imagemBase64: d['imagem']                 as String?,
       );
 
@@ -1108,7 +1128,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _DetailRow('Roupas', d['roupas'] ?? 'N/A'),
-                        _DetailRow('Data',   d['data_desaparecimento'] ?? 'N/A'),
+                        _DetailRow('Data',   _formatDate(d['data_desaparecimento'])),
                         _DetailRow('Local',  d['ultimo_local'] ?? 'N/A'),
                         const Divider(color: _C.border, height: 16),
                         Text(d['informacoes_adicionais'] ?? 'Sem informacoes adicionais.',

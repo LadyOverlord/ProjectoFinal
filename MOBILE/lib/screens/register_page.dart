@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart'; 
-import 'package:firebase_auth/firebase_auth.dart'; 
-import 'package:cloud_firestore/cloud_firestore.dart'; 
-import 'home_page.dart'; 
-import '../models/user_mode.dart'; 
+// screens/register_page.dart
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home_page.dart';
+import '../models/user_mode.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -12,175 +13,320 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _nameController = TextEditingController(); 
-  final _emailController = TextEditingController(); 
-  final _passwordController = TextEditingController(); 
-  final _confirmPasswordController = TextEditingController(); 
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
-  
-  DateTime? _selectedDate; 
-  String? _selectedProvince; 
-  String? _selectedMunicipio; 
+  DateTime? _selectedDate;
+  String? _selectedProvince;
+  String? _selectedMunicipio;
 
- 
+  bool _isLoading = false;
+
+  // ── Províncias de Angola ──────────────────────────────
   final List<String> _provinces = [
     'Luanda', 'Benguela', 'Huambo', 'Huíla', 'Cunene', 'Namibe', 'Moxico',
     'Cuando Cubango', 'Lunda Norte', 'Lunda Sul', 'Malanje', 'Uíge',
     'Zaire', 'Cabinda', 'Bié', 'Cuanza Norte', 'Cuanza Sul',
   ];
 
-  
- 
+  // ── Municípios por província ──────────────────────────
   final Map<String, List<String>> _municipiosPorProvincia = {
-    'Luanda': ['Luanda', 'Belas', 'Cacuaco', 'Viana'],
-    
+    'Luanda': ['Belas', 'Cacuaco', 'Cazenga', 'Ícolo e Bengo', 'Luanda', 'Quilamba Quiaxi', 'Talatona', 'Viana'],
+    'Benguela': ['Baía Farta', 'Balombo', 'Benguela', 'Bocoio', 'Caimbambo', 'Catumbela', 'Chongoroi', 'Cubal', 'Ganda', 'Lobito'],
+    'Huambo': ['Bailundo', 'Catchiungo', 'Caála', 'Ecunha', 'Huambo', 'Londuimbali', 'Longonjo', 'Mungo', 'Tchicala-Tcholoanga', 'Tchindjenje', 'Ucuma'],
+    'Huíla': ['Caconda', 'Caluquembe', 'Chibia', 'Chicomba', 'Chipindo', 'Cuvango', 'Humpata', 'Jamba', 'Lubango', 'Matala', 'Quilengues', 'Quipungo'],
+    'Cunene': ['Cahama', 'Cuanhama', 'Curoca', 'Cuvelai', 'Namacunde', 'Ombadja'],
+    'Namibe': ['Bibala', 'Camacuio', 'Moçâmedes', 'Tômbua', 'Virei'],
+    'Moxico': ['Alto Zambeze', 'Bundas', 'Camanongue', 'Cameia', 'Léua', 'Luau', 'Luacano', 'Luchazes', 'Lumbala Nguimbo', 'Moxico'],
+    'Cabinda': ['Belize', 'Buco-Zau', 'Cabinda', 'Cacongo'],
+    'Bié': ['Andulo', 'Camacupa', 'Catabola', 'Chinguar', 'Chitembo', 'Cuemba', 'Cunhinga', 'Cuíto', 'Nharea'],
+    'Cuanza Norte': ['Ambaca', 'Banga', 'Bolongongo', 'Cambambe', 'Cazengo', 'Golungo Alto', 'Gonguembo', 'Lucala', 'Quiculungo', 'Samba Cajú'],
+    'Cuanza Sul': ['Amboim', 'Cassongue', 'Cela', 'Conda', 'Ebo', 'Libolo', 'Mussende', 'Porto Amboim', 'Quibala', 'Quilenda', 'Seles', 'Sumbe', 'Waku-Kungo'],
+    'Cuando Cubango': ['Calai', 'Cuangar', 'Cuchi', 'Cuito Cuanavale', 'Dirico', 'Mavinga', 'Menongue', 'Nancova', 'Rivungo'],
+    'Lunda Norte': ['Cambulo', 'Capenda-Camulemba', 'Caungula', 'Chitato', 'Cuango', 'Cuílo', 'Lubalo', 'Lucapa', 'Xá-Muteba'],
+    'Lunda Sul': ['Cacolo', 'Dala', 'Muconda', 'Saurimo'],
+    'Malanje': ['Cacuso', 'Calandula', 'Cambundi-Catembo', 'Cangandala', 'Caombo', 'Cuaba Nzoji', 'Cunda-Dia-Baze', 'Luquembo', 'Malanje', 'Marimba', 'Massango', 'Mucari', 'Quela', 'Quirima'],
+    'Uíge': ['Alto Cauale', 'Ambuíla', 'Bembe', 'Buengas', 'Bungo', 'Damba', 'Maquela do Zombo', 'Mucaba', 'Negage', 'Puri', 'Quimbele', 'Quitexe', 'Sanza Pombo', 'Songo', 'Uíge'],
+    'Zaire': ['Cuimba', 'Mabanza Congo', 'Nóqui', 'Nezeto', 'Soyo', 'Tomboco'],
   };
 
-  
+  // ── Selecionar data de nascimento ─────────────────────
   Future<void> _selectDate(BuildContext context) async {
-    
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)), 
-      firstDate: DateTime(1900), 
-      lastDate: DateTime.now(), 
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now().subtract(const Duration(days: 365 * 16)), // mínimo 16 anos
+      helpText: 'Selecione a data de nascimento',
+      cancelText: 'Cancelar',
+      confirmText: 'Confirmar',
     );
-    
+
     if (picked != null && picked != _selectedDate) {
       setState(() {
-        _selectedDate = picked; 
+        _selectedDate = picked;
       });
     }
   }
 
+  // ── Cadastrar ─────────────────────────────────────────
   Future<void> _register() async {
-    if (_passwordController.text != _confirmPasswordController.text) {
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("As senhas não coincidem")),
-      );
-      return; 
+    // Validações
+    final nome = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final telefone = _phoneController.text.trim();
+    final senha = _passwordController.text;
+    final confirmarSenha = _confirmPasswordController.text;
+
+    if (nome.isEmpty || email.isEmpty || telefone.isEmpty || senha.isEmpty || confirmarSenha.isEmpty) {
+      _showError('Por favor, preencha todos os campos obrigatórios.');
+      return;
     }
 
+    if (!email.contains('@') || !email.contains('.')) {
+      _showError('Por favor, digite um email válido.');
+      return;
+    }
+
+    if (_selectedDate == null) {
+      _showError('Por favor, selecione a data de nascimento.');
+      return;
+    }
+
+    if (_selectedProvince == null) {
+      _showError('Por favor, selecione a província.');
+      return;
+    }
+
+    if (_selectedMunicipio == null) {
+      _showError('Por favor, selecione o município.');
+      return;
+    }
+
+    // Verificar idade mínima (16 anos)
+    final idade = DateTime.now().difference(_selectedDate!).inDays ~/ 365;
+    if (idade < 16) {
+      _showError('É necessário ter pelo menos 16 anos para se cadastrar.');
+      return;
+    }
+
+    if (senha.length < 6) {
+      _showError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (senha != confirmarSenha) {
+      _showError('As senhas não coincidem.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
     try {
-      
+      // Criar usuário no Auth
       UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(), 
-        password: _passwordController.text.trim(),
+        email: email,
+        password: senha,
       );
 
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-        'nome': _nameController.text.trim(), 
-        'nome_normalized': _nameController.text.trim().toLowerCase(), 
-        'email': _emailController.text.trim(), 
-        'emailVerificado': userCredential.user!.emailVerified, 
-        'dataNascimento': _selectedDate?.toIso8601String(),
-        'provincia': _selectedProvince, 
+      final uid = userCredential.user!.uid;
+
+      // Salvar dados no Firestore (igual à versão web)
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'nome': nome,
+        'nome_normalized': nome.toLowerCase(),
+        'email': email,
+        'emailVerificado': false,
+        'dataNascimento': _selectedDate!.toIso8601String(),
+        'provincia': _selectedProvince,
         'municipio': _selectedMunicipio,
-        'role': 'user', 
-        'criadoEm': Timestamp.now(), 
+        'telefone': telefone,
+        'role': 'user',
+        'criadoEm': Timestamp.now(),
+        'visitasCount': 0,
+        'photoBase64': '',
+        'stats': {
+          'apoios': 0,
+          'comentarios': 0,
+          'partilhas': 0,
+        },
       });
 
-      if (!mounted) return; 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const HomePage(mode: UserMode.authenticated),
+      // Enviar email de verificação
+      await userCredential.user!.sendEmailVerification();
+
+      // Fazer logout para forçar verificação antes de usar
+      await FirebaseAuth.instance.signOut();
+
+      if (!mounted) return;
+
+      // Mostrar diálogo de sucesso
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          icon: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF22C55E), size: 48),
+          title: const Text('Conta criada com sucesso!'),
+          content: Text(
+            'Enviamos um email de verificação para:\n$email\n\n'
+            'Verifique a sua caixa de entrada (e a pasta Spam) '
+            'e clique no link para activar a sua conta.\n\n'
+            'Depois, faça login para começar a usar o MissingAO.',
+            style: const TextStyle(fontSize: 14, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context); // Voltar para o login
+              },
+              child: const Text('Ir para o Login'),
+            ),
+          ],
         ),
       );
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Erro ao criar conta")),
-      );
+      String message;
+      switch (e.code) {
+        case 'email-already-in-use':
+          message = 'Este email já está registado.';
+          break;
+        case 'invalid-email':
+          message = 'Formato de email inválido.';
+          break;
+        case 'weak-password':
+          message = 'A senha é muito fraca. Escolha uma senha mais forte.';
+          break;
+        case 'too-many-requests':
+          message = 'Demasiadas tentativas. Aguarde um momento.';
+          break;
+        default:
+          message = 'Erro ao criar conta: ${e.message}';
+      }
+      _showError(message);
     } catch (e) {
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Erro ao salvar dados")),
-      );
+      _showError('Erro inesperado. Tente novamente.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-   
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack( 
+      body: Stack(
         children: [
-          
+          // Rodapé azul fixo
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Container(
-              height: screenHeight * 0.15, 
-              color: const Color.fromARGB(255, 240, 241, 241), 
+              height: screenHeight * 0.15,
+              color: const Color.fromARGB(255, 240, 241, 241),
             ),
           ),
 
-         
           SingleChildScrollView(
-            child: SafeArea( 
+            child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0), 
-                child: Column( 
-                  crossAxisAlignment: CrossAxisAlignment.start, 
+                padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    
                     const Text(
                       "Cadastre-se",
                       style: TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF333333), 
+                        color: Color(0xFF333333),
                       ),
                     ),
                     const Text(
-                      "Crie sua conta!",
+                      "Crie sua conta para ajudar!",
                       style: TextStyle(color: Colors.grey, fontSize: 16),
                     ),
-                    const SizedBox(height: 30), 
+                    const SizedBox(height: 30),
 
-                    _buildTextField("Nome Completo:", "seu nome completo", controller: _nameController),
+                    // ── Nome Completo ──
+                    _buildTextField("Nome Completo:", "seu nome completo",
+                        controller: _nameController, icon: Icons.person_rounded),
                     const SizedBox(height: 12),
 
-                    
-                    _buildTextField("Email:", "seu e-mail", controller: _emailController),
+                    // ── Email ──
+                    _buildTextField("Email:", "seu e-mail",
+                        controller: _emailController,
+                        icon: Icons.email_rounded,
+                        keyboardType: TextInputType.emailAddress),
                     const SizedBox(height: 12),
 
-                    
-                    const Text("Data de Nascimento:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    // ── Telefone ──
+                    _buildTextField("Telefone:", "+244 9XX XXX XXX",
+                        controller: _phoneController,
+                        icon: Icons.phone_rounded,
+                        keyboardType: TextInputType.phone),
+                    const SizedBox(height: 12),
+
+                    // ── Data de Nascimento ──
+                    const Text("Data de Nascimento:",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 6),
-                    
                     GestureDetector(
-                      onTap: () => _selectDate(context), 
-                      child: AbsorbPointer( 
+                      onTap: () => _selectDate(context),
+                      child: AbsorbPointer(
                         child: TextField(
                           decoration: InputDecoration(
                             hintText: _selectedDate == null
-                                ? "Selecione a data" 
-                                : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}", 
+                                ? "Selecione a data"
+                                : "${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}",
+                            prefixIcon: const Icon(Icons.calendar_today_rounded,
+                                color: Color(0xFF0077B6), size: 20),
                             filled: true,
-                            fillColor: const Color(0xFFF8F9FA), 
+                            fillColor: const Color(0xFFF8F9FA),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                            suffixIcon: const Icon(Icons.calendar_today), 
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
 
-                    const Text("Província:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    // ── Província ──
+                    const Text("Província:",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 6),
-                  
                     DropdownButtonFormField<String>(
-                      value: _selectedProvince, 
-                      hint: const Text("Selecione sua província"), 
+                      value: _selectedProvince,
+                      hint: const Text("Selecione sua província"),
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF0077B6)),
                       items: _provinces.map((province) {
                         return DropdownMenuItem<String>(
                           value: province,
@@ -189,88 +335,122 @@ class _RegisterPageState extends State<RegisterPage> {
                       }).toList(),
                       onChanged: (value) {
                         setState(() {
-                          _selectedProvince = value; 
-                          _selectedMunicipio = null; 
+                          _selectedProvince = value;
+                          _selectedMunicipio = null;
                         });
                       },
-                      decoration: InputDecoration( 
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.location_on_rounded,
+                            color: Color(0xFF0077B6), size: 20),
                         filled: true,
                         fillColor: const Color(0xFFF8F9FA),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
 
-                    
-                    const Text("Município:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    // ── Município ──
+                    const Text("Município:",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 6),
-                    
                     DropdownButtonFormField<String>(
                       value: _selectedMunicipio,
                       hint: const Text("Selecione seu município"),
-                      items: _selectedProvince != null && _municipiosPorProvincia.containsKey(_selectedProvince!)
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF0077B6)),
+                      items: _selectedProvince != null &&
+                              _municipiosPorProvincia.containsKey(_selectedProvince!)
                           ? _municipiosPorProvincia[_selectedProvince!]!.map((municipio) {
                               return DropdownMenuItem<String>(
                                 value: municipio,
                                 child: Text(municipio),
                               );
                             }).toList()
-                          : [], 
+                          : [],
                       onChanged: (value) {
                         setState(() {
-                          _selectedMunicipio = value; 
+                          _selectedMunicipio = value;
                         });
                       },
-                      decoration: InputDecoration( 
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.map_rounded,
+                            color: Color(0xFF0077B6), size: 20),
                         filled: true,
                         fillColor: const Color(0xFFF8F9FA),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
 
-                    
-                    _buildTextField("Senha:", "sua senha", controller: _passwordController, obscureText: true),
+                    // ── Senha ──
+                    _buildTextField("Senha:", "mínimo 6 caracteres",
+                        controller: _passwordController,
+                        icon: Icons.lock_rounded,
+                        obscureText: true),
                     const SizedBox(height: 12),
-                    
-                    _buildTextField("Confirmar Senha:", "confirme sua senha", controller: _confirmPasswordController, obscureText: true),
+
+                    // ── Confirmar Senha ──
+                    _buildTextField("Confirmar Senha:", "repita a senha",
+                        controller: _confirmPasswordController,
+                        icon: Icons.lock_rounded,
+                        obscureText: true),
                     const SizedBox(height: 20),
 
-                    
+                    // ── Botão Cadastrar ──
                     SizedBox(
-                      width: double.infinity, 
+                      width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _register,
+                        onPressed: _isLoading ? null : _register,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF90E0EF), 
-                          foregroundColor: Colors.black87, 
-                          elevation: 0, 
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), 
+                          backgroundColor: const Color(0xFF90E0EF),
+                          foregroundColor: Colors.black87,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        child: const Text("Cadastrar", 
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.black87),
+                              )
+                            : const Text("Cadastrar",
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                       ),
                     ),
 
-                    
-                    Align(
-                      alignment: Alignment.centerLeft, 
+                    const SizedBox(height: 16),
+
+                    // ── Link para Login ──
+                    Center(
                       child: TextButton(
                         onPressed: () {
-                          Navigator.pop(context); 
+                          Navigator.pop(context);
                         },
-                        style: TextButton.styleFrom(padding: EdgeInsets.zero), // Remove padding extra
                         child: const Text(
                           "Já tem conta? Entre aqui",
                           style: TextStyle(color: Colors.black54, fontSize: 14),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -281,28 +461,56 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
- 
-  Widget _buildTextField(String label, String hint, {TextEditingController? controller, bool obscureText = false}) {
+  Widget _buildTextField(
+    String label,
+    String hint, {
+    TextEditingController? controller,
+    bool obscureText = false,
+    IconData? icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start, 
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        
         Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        const SizedBox(height: 6), 
-       
+        const SizedBox(height: 6),
         TextField(
-          controller: controller, 
-          obscureText: obscureText, 
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
+            prefixIcon: icon != null
+                ? Icon(icon, color: const Color(0xFF0077B6), size: 20)
+                : null,
             filled: true,
-            fillColor: const Color(0xFFF8F9FA), 
+            fillColor: const Color(0xFFF8F9FA),
             contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)), // Borda
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)), 
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF0077B6), width: 2),
+            ),
           ),
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }
