@@ -1,12 +1,21 @@
-// screens/admin_page.dart
+// FUNCIONALIDADES INTEGRADAS DA VERSÃO WEB
+// ✅ Dashboard com stats em tempo real + tabela de casos ativos
+// ✅ Filtros avançados de utilizadores (role, província, data, ordenação)
+// ✅ Painel de aprovações com mini-perfil do relator
+// ✅ Editar localização de casos no mapa (Google Maps)
+// ✅ Mapa de casos admin com legenda e lista de resumo
+// ✅ Promover/rebaixar utilizadores para admin
+// ✅ Design original mantido (paleta _C intacta)
+
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/notification_service.dart';
 
-// ─── PALETA DE CORES ────────────────────────────────────────────────
+// PALETA DE CORES
 class _C {
   static const bg        = Color(0xFF0D0D0F);
   static const surface   = Color(0xFF141418);
@@ -21,6 +30,8 @@ class _C {
   static const orangeSoft= Color(0x26F59E0B);
   static const red       = Color(0xFFEF4444);
   static const redSoft   = Color(0x26EF4444);
+  static const purple    = Color(0xFF9B5DE5);
+  static const purpleSoft= Color(0x269B5DE5);
   static const white     = Color(0xFFFFFFFF);
   static const grey1     = Color(0xFFE4E4E7);
   static const grey2     = Color(0xFFA1A1AA);
@@ -28,6 +39,28 @@ class _C {
   static const grey4     = Color(0xFF3F3F46);
 }
 
+// COORDENADAS DAS PROVÍNCIAS DE ANGOLA
+const Map<String, LatLng> provCoords = {
+  'luanda':          LatLng(-8.8368,  13.2343),
+  'benguela':        LatLng(-12.5763, 13.4055),
+  'huambo':          LatLng(-12.776,  15.7388),
+  'bié':             LatLng(-12.3764, 17.0557),
+  'cabinda':         LatLng(-5.55,    12.2),
+  'cuando cubango':  LatLng(-16.93,   19.8),
+  'cuanza norte':    LatLng(-9.2,     14.7),
+  'cuanza sul':      LatLng(-10.9,    14.3),
+  'cunene':          LatLng(-16.9,    15.8),
+  'huíla':           LatLng(-14.92,   13.5),
+  'lunda norte':     LatLng(-8.65,    20.4),
+  'lunda sul':       LatLng(-10.0,    21.0),
+  'malanje':         LatLng(-9.54,    16.34),
+  'moxico':          LatLng(-11.86,   19.92),
+  'namibe':          LatLng(-15.1961, 12.1522),
+  'uíge':            LatLng(-7.61,    15.06),
+  'zaire':           LatLng(-6.1,     12.85),
+};
+
+// MAIN WIDGET
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
   @override
@@ -67,7 +100,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
     final wide = MediaQuery.of(context).size.width > 700;
     return Scaffold(
       backgroundColor: _C.bg,
-      appBar: _AppBar(searchCtrl: _searchCtrl),
+      appBar: _AppBar(searchCtrl: _searchCtrl, section: _section),
       drawer: wide ? null : _Drawer(section: _section, onNav: _go),
       body: Row(
         children: [
@@ -88,19 +121,22 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
       case 'dashboard': return _DashboardPanel();
       case 'users':     return _UsersPanel(searchCtrl: _searchCtrl);
       case 'reports':   return _ApprovalsPanel();
-      case 'config':    return _ConfigPanel();
+      case 'mapa':      return _MapaAdminPanel();
       default:          return const SizedBox();
     }
   }
 }
 
-// ─── APP BAR ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// FIX 1: APP BAR — preferredSize aumentado de 110 para 126 para evitar overflow
+// ─────────────────────────────────────────────────────────────────────────────
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   final TextEditingController searchCtrl;
-  const _AppBar({required this.searchCtrl});
+  final String section;
+  const _AppBar({required this.searchCtrl, required this.section});
 
   @override
-  Size get preferredSize => const Size.fromHeight(110);
+  Size get preferredSize => const Size.fromHeight(126); // FIX: era 110, agora 126
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +243,7 @@ class _SearchBar extends StatelessWidget {
               controller: ctrl,
               style: const TextStyle(color: _C.grey1, fontSize: 14),
               decoration: const InputDecoration(
-                hintText: 'Procurar usuários, casos...',
+                hintText: 'Procurar utilizadores, casos...',
                 hintStyle: TextStyle(color: _C.grey3, fontSize: 14),
                 border: InputBorder.none,
                 isDense: true,
@@ -215,13 +251,22 @@ class _SearchBar extends StatelessWidget {
               ),
             ),
           ),
+          ValueListenableBuilder(
+            valueListenable: ctrl,
+            builder: (_, v, __) => v.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded, color: _C.grey3, size: 16),
+                  onPressed: () => ctrl.clear(),
+                )
+              : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
   }
 }
 
-// ─── SIDE MENU ───────────────────────────────────────────────────────
+// SIDE MENU
 class _SideMenu extends StatelessWidget {
   final String section;
   final void Function(String) onNav;
@@ -298,10 +343,10 @@ class _MenuContent extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         _label('NAVEGAÇÃO'),
-        _item('dashboard', Icons.grid_view_rounded,   'Dashboard',    section, onNav),
-        _item('users',     Icons.people_alt_rounded,  'Utilizadores', section, onNav),
-        _item('reports',   Icons.fact_check_rounded,  'Aprovações',   section, onNav),
-        _item('config',    Icons.tune_rounded,         'Configurações',section, onNav),
+        _item('dashboard', Icons.grid_view_rounded,          'Dashboard',    section, onNav),
+        _item('users',     Icons.people_alt_rounded,         'Utilizadores', section, onNav),
+        _item('reports',   Icons.fact_check_rounded,         'Aprovações',   section, onNav),
+        _item('mapa',      Icons.map_rounded,                'Mapa de Casos',section, onNav),
         const Spacer(),
         Divider(color: _C.border, height: 1),
         _LogoutTile(),
@@ -326,7 +371,7 @@ class _MenuContent extends StatelessWidget {
         decoration: BoxDecoration(
           color: isActive ? _C.accentSoft : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: isActive ? Border.all(color: _C.accent.withOpacity(0.3)) : null,
+          border: isActive ? Border.all(color: _C.accent.withValues(alpha: 0.3)) : null,
         ),
         child: Row(
           children: [
@@ -360,7 +405,7 @@ class _LogoutTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: _C.redSoft,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _C.red.withOpacity(0.2)),
+          border: Border.all(color: _C.red.withValues(alpha: 0.2)),
         ),
         child: const Row(
           children: [
@@ -374,7 +419,7 @@ class _LogoutTile extends StatelessWidget {
   }
 }
 
-// ─── DASHBOARD ──────────────────────────────────────────────────────
+// DASHBOARD
 class _DashboardPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -386,7 +431,7 @@ class _DashboardPanel extends StatelessWidget {
         Row(
           children: [
             Expanded(child: _StatCard(
-              label: 'Total Usuários', collection: 'users',
+              label: 'Total Utilizadores', collection: 'users',
               icon: Icons.people_alt_rounded, color: _C.accent, colorSoft: _C.accentSoft,
             )),
             const SizedBox(width: 14),
@@ -408,7 +453,7 @@ class _DashboardPanel extends StatelessWidget {
             Expanded(child: _StatCard(
               label: 'Encontrados',
               collection: 'casos', whereField: 'status', whereValue: 'encontrado',
-              icon: Icons.check_circle_rounded, color: const Color(0xFF9B5DE5), colorSoft: const Color(0x269B5DE5),
+              icon: Icons.check_circle_rounded, color: _C.purple, colorSoft: _C.purpleSoft,
             )),
           ],
         ),
@@ -453,7 +498,9 @@ class _StatCard extends StatelessWidget {
 
   Stream<QuerySnapshot> get _stream {
     final col = FirebaseFirestore.instance.collection(collection);
-    if (whereField != null) return col.where(whereField!, isEqualTo: whereValue).snapshots();
+    if (whereField != null) {
+      return col.where(whereField!, isEqualTo: whereValue).snapshots();
+    }
     return col.snapshots();
   }
 
@@ -490,6 +537,7 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+// Tabela de casos ativos
 class _ActiveCasesTable extends StatefulWidget {
   @override
   State<_ActiveCasesTable> createState() => _ActiveCasesTableState();
@@ -521,9 +569,13 @@ class _ActiveCasesTableState extends State<_ActiveCasesTable> {
       stream: FirebaseFirestore.instance.collection('casos')
           .where('status', whereIn: ['aprovado', 'encontrado', 'desmentido']).snapshots(),
       builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return _loading();
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _loadingWidget();
+        }
         final docs = snap.data?.docs ?? [];
-        if (docs.isEmpty) return _empty('Nenhum caso ativo.');
+        if (docs.isEmpty) {
+          return _empty('Nenhum caso ativo.');
+        }
         return Column(
           children: docs.map((doc) {
             final d = doc.data() as Map<String, dynamic>;
@@ -575,7 +627,7 @@ class _CaseRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _C.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: changed ? _C.accent.withOpacity(0.4) : _C.border),
+        border: Border.all(color: changed ? _C.accent.withValues(alpha: 0.4) : _C.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -599,9 +651,9 @@ class _CaseRow extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _statusColor.withOpacity(0.15),
+                  color: _statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _statusColor.withOpacity(0.4)),
+                  border: Border.all(color: _statusColor.withValues(alpha: 0.4)),
                 ),
                 child: Text(currentStatus.toUpperCase(),
                   style: TextStyle(color: _statusColor, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
@@ -637,21 +689,18 @@ class _CaseRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                child: ElevatedButton(
-                  onPressed: changed && !saving ? onSave : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: changed ? _C.accent : _C.grey4,
-                    foregroundColor: _C.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                    elevation: 0,
-                  ),
-                  child: saving
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _C.white))
-                      : const Text('Salvar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              ElevatedButton(
+                onPressed: changed && !saving ? onSave : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: changed ? _C.accent : _C.grey4,
+                  foregroundColor: _C.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  elevation: 0,
                 ),
+                child: saving
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _C.white))
+                    : const Text('Salvar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -661,7 +710,7 @@ class _CaseRow extends StatelessWidget {
   }
 }
 
-// ─── USERS PANEL ─────────────────────────────────────────────────────
+// USERS PANEL (COM FILTROS AVANÇADOS)
 class _UsersPanel extends StatefulWidget {
   final TextEditingController searchCtrl;
   const _UsersPanel({required this.searchCtrl});
@@ -670,66 +719,303 @@ class _UsersPanel extends StatefulWidget {
 }
 
 class _UsersPanelState extends State<_UsersPanel> {
-  String _query = '';
+  String _query        = '';
+  String _roleFilter   = '';
+  String _provFilter   = '';
+  String _ordem        = 'recente';
+  DateTime? _dataDe;
+  DateTime? _dataAte;
+  bool _showFilters    = false;
+  List<Map<String, dynamic>> _allUsers = [];
+  bool _loading        = true;
+
+  static const _provincias = [
+    'Luanda','Benguela','Huambo','Bié','Cabinda','Cuando Cubango',
+    'Cuanza Norte','Cuanza Sul','Cunene','Huíla','Lunda Norte',
+    'Lunda Sul','Malanje','Moxico','Namibe','Uíge','Zaire',
+  ];
 
   @override
   void initState() {
     super.initState();
-    widget.searchCtrl.addListener(() => setState(() => _query = widget.searchCtrl.text.toLowerCase()));
+    widget.searchCtrl.addListener(_onSearch);
+    _fetchUsers();
+  }
+
+  @override
+  void dispose() {
+    widget.searchCtrl.removeListener(_onSearch);
+    super.dispose();
+  }
+
+  void _onSearch() => setState(() => _query = widget.searchCtrl.text.toLowerCase());
+
+  Future<void> _fetchUsers() async {
+    setState(() => _loading = true);
+    final snap = await FirebaseFirestore.instance.collection('users').get();
+    _allUsers = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    setState(() => _loading = false);
+  }
+
+  List<Map<String, dynamic>> get _filtered {
+    var list = _allUsers.where((u) {
+      if (_query.isNotEmpty) {
+        final haystack = '${u['nome'] ?? ''} ${u['email'] ?? ''} ${u['telefone'] ?? ''}'.toLowerCase();
+        if (!haystack.contains(_query)) return false;
+      }
+      if (_roleFilter.isNotEmpty && (u['role'] ?? 'user') != _roleFilter) return false;
+      if (_provFilter.isNotEmpty && (u['provincia'] ?? '').toString().toLowerCase() != _provFilter.toLowerCase()) return false;
+      if (_dataDe != null || _dataAte != null) {
+        final raw = u['criadoEm'];
+        if (raw == null) return _dataDe == null;
+        final dt = raw is Timestamp ? raw.toDate() : DateTime.tryParse(raw.toString());
+        if (dt == null) return false;
+        if (_dataDe != null && dt.isBefore(_dataDe!)) return false;
+        if (_dataAte != null && dt.isAfter(_dataAte!.add(const Duration(days: 1)))) return false;
+      }
+      return true;
+    }).toList();
+
+    list.sort((a, b) {
+      DateTime? toDate(dynamic raw) {
+        if (raw == null) return null;
+        if (raw is Timestamp) return raw.toDate();
+        return DateTime.tryParse(raw.toString());
+      }
+      switch (_ordem) {
+        case 'recente':   return (toDate(b['criadoEm'])?.millisecondsSinceEpoch ?? 0).compareTo(toDate(a['criadoEm'])?.millisecondsSinceEpoch ?? 0);
+        case 'antigo':    return (toDate(a['criadoEm'])?.millisecondsSinceEpoch ?? 0).compareTo(toDate(b['criadoEm'])?.millisecondsSinceEpoch ?? 0);
+        case 'nome':      return (a['nome'] ?? '').toString().compareTo((b['nome'] ?? '').toString());
+        case 'nome-desc': return (b['nome'] ?? '').toString().compareTo((a['nome'] ?? '').toString());
+        default:          return 0;
+      }
+    });
+    return list;
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _roleFilter = ''; _provFilter = ''; _ordem = 'recente';
+      _dataDe = null; _dataAte = null;
+    });
+    widget.searchCtrl.clear();
+  }
+
+  Future<void> _promover(String id, String roleAtual) async {
+    final novoRole = roleAtual == 'admin' ? 'user' : 'admin';
+    final msg = novoRole == 'admin' ? 'Tornar este utilizador Admin?' : 'Remover privilégios de Admin?';
+    final ok = await showDialog<bool>(context: context, builder: (_) => _ConfirmDialog(
+      title: novoRole == 'admin' ? 'Promover a Admin' : 'Rebaixar para User',
+      message: msg,
+      confirmLabel: novoRole == 'admin' ? 'Promover' : 'Rebaixar',
+      confirmColor: novoRole == 'admin' ? _C.accent : _C.orange,
+    ));
+    if (ok == true) {
+      await FirebaseFirestore.instance.collection('users').doc(id).update({'role': novoRole});
+      _fetchUsers();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Role actualizado para: $novoRole'),
+          backgroundColor: _C.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    }
   }
 
   Future<void> _delete(String id) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => _ConfirmDialog(
-        title: 'Remover Usuário',
-        message: 'Esta ação não pode ser desfeita. Deseja continuar?',
-        confirmLabel: 'Remover',
-        confirmColor: _C.red,
-      ),
-    );
+    final ok = await showDialog<bool>(context: context, builder: (_) => _ConfirmDialog(
+      title: 'Remover Utilizador',
+      message: 'Esta ação não pode ser desfeita. Deseja continuar?',
+      confirmLabel: 'Remover',
+      confirmColor: _C.red,
+    ));
     if (ok == true) {
       await FirebaseFirestore.instance.collection('users').doc(id).delete();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Usuário removido'), backgroundColor: _C.red,
-        behavior: SnackBarBehavior.floating,
-      ));
+      _fetchUsers();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Utilizador removido'), backgroundColor: _C.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  Future<void> _pickDate(bool isDe) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(primary: _C.accent, surface: _C.card),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isDe) {
+          _dataDe = picked;
+        } else {
+          _dataAte = picked;
+        }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) return _loadingWidget();
+    final filtered = _filtered;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle('Gestão de Usuários', subtitle: 'Gerencie todos os utilizadores registados'),
-          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: _SectionTitle('Utilizadores',
+                subtitle: '${_allUsers.length} registados no total')),
+              _IconBtn(
+                icon: _showFilters ? Icons.filter_list_off_rounded : Icons.filter_list_rounded,
+                color: _showFilters ? _C.accent : _C.grey2,
+                bg: _showFilters ? _C.accentSoft : _C.card,
+                onTap: () => setState(() => _showFilters = !_showFilters),
+              ),
+            ],
+          ),
+          if (_showFilters) ...[
+            const SizedBox(height: 16),
+            _FiltersPanel(
+              roleFilter: _roleFilter,
+              provFilter: _provFilter,
+              ordem: _ordem,
+              dataDe: _dataDe,
+              dataAte: _dataAte,
+              provincias: _provincias,
+              onRoleChanged: (v) => setState(() => _roleFilter = v),
+              onProvChanged: (v) => setState(() => _provFilter = v),
+              onOrdemChanged: (v) => setState(() => _ordem = v),
+              onPickDe: () => _pickDate(true),
+              onPickAte: () => _pickDate(false),
+              onClear: _clearFilters,
+            ),
+          ],
+          const SizedBox(height: 12),
+          if (filtered.length != _allUsers.length)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('${filtered.length} utilizador${filtered.length != 1 ? 'es' : ''} encontrado${filtered.length != 1 ? 's' : ''}',
+                style: const TextStyle(color: _C.grey2, fontSize: 12)),
+            ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').snapshots(),
-              builder: (_, snap) {
-                if (!snap.hasData) return _loading();
-                var docs = snap.data!.docs;
-                if (_query.isNotEmpty) {
-                  docs = docs.where((d) {
-                    final u = d.data() as Map<String, dynamic>;
-                    return (u['nome'] ?? '').toString().toLowerCase().contains(_query)
-                        || (u['email'] ?? '').toString().toLowerCase().contains(_query);
-                  }).toList();
-                }
-                if (docs.isEmpty) return _empty('Nenhum utilizador encontrado.');
-                return ListView.separated(
-                  itemCount: docs.length,
+            child: filtered.isEmpty
+              ? _empty('Nenhum utilizador encontrado.')
+              : ListView.separated(
+                  itemCount: filtered.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (_, i) {
-                    final u  = docs[i].data() as Map<String, dynamic>;
-                    final id = docs[i].id;
-                    return _UserCard(userData: u, docId: id, onDelete: () => _delete(id));
+                    final u = filtered[i];
+                    return _UserCard(
+                      userData: u,
+                      docId: u['id'],
+                      onDelete: () => _delete(u['id']),
+                      onPromote: () => _promover(u['id'], u['role'] ?? 'user'),
+                    );
                   },
-                );
-              },
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Painel de filtros
+class _FiltersPanel extends StatelessWidget {
+  final String roleFilter, provFilter, ordem;
+  final DateTime? dataDe, dataAte;
+  final List<String> provincias;
+  final void Function(String) onRoleChanged, onProvChanged, onOrdemChanged;
+  final VoidCallback onPickDe, onPickAte, onClear;
+
+  const _FiltersPanel({
+    required this.roleFilter, required this.provFilter, required this.ordem,
+    required this.dataDe, required this.dataAte, required this.provincias,
+    required this.onRoleChanged, required this.onProvChanged, required this.onOrdemChanged,
+    required this.onPickDe, required this.onPickAte, required this.onClear,
+  });
+
+  String _fmt(DateTime? d) => d == null ? 'Selecionar' : '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _C.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _C.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Filtros', style: TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 14)),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: _FilterDropdown(
+              label: 'Função',
+              value: roleFilter,
+              items: const {'': 'Todos', 'user': 'Utilizador', 'admin': 'Admin'},
+              onChanged: onRoleChanged,
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: _FilterDropdown(
+              label: 'Ordenar',
+              value: ordem,
+              items: const {'recente': 'Mais recente', 'antigo': 'Mais antigo', 'nome': 'Nome A→Z', 'nome-desc': 'Nome Z→A'},
+              onChanged: onOrdemChanged,
+            )),
+          ]),
+          const SizedBox(height: 10),
+          _FilterDropdown(
+            label: 'Província',
+            value: provFilter,
+            items: {
+              '': 'Todas',
+              for (final p in provincias) p: p,
+            },
+            onChanged: onProvChanged,
+          ),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(child: _DateBtn(label: 'Cadastro de', value: _fmt(dataDe), onTap: onPickDe)),
+            const SizedBox(width: 10),
+            Expanded(child: _DateBtn(label: 'Até', value: _fmt(dataAte), onTap: onPickAte)),
+          ]),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: onClear,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: _C.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _C.border),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.clear_all_rounded, color: _C.grey2, size: 16),
+                  SizedBox(width: 6),
+                  Text('Limpar Filtros', style: TextStyle(color: _C.grey2, fontSize: 13, fontWeight: FontWeight.w500)),
+                ],
+              ),
             ),
           ),
         ],
@@ -738,17 +1024,88 @@ class _UsersPanelState extends State<_UsersPanel> {
   }
 }
 
+class _FilterDropdown extends StatelessWidget {
+  final String label, value;
+  final Map<String, String> items;
+  final void Function(String) onChanged;
+  const _FilterDropdown({required this.label, required this.value, required this.items, required this.onChanged});
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: _C.grey3, fontSize: 11, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: _C.surface, borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _C.border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              dropdownColor: _C.cardHover,
+              style: const TextStyle(color: _C.grey1, fontSize: 13),
+              onChanged: (v) { if (v != null) onChanged(v); },
+              items: items.entries.map((e) =>
+                DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))
+              ).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DateBtn extends StatelessWidget {
+  final String label, value;
+  final VoidCallback onTap;
+  const _DateBtn({required this.label, required this.value, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: _C.grey3, fontSize: 11, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+            decoration: BoxDecoration(
+              color: _C.surface, borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _C.border),
+            ),
+            child: Row(children: [
+              const Icon(Icons.calendar_today_rounded, color: _C.grey3, size: 13),
+              const SizedBox(width: 6),
+              Expanded(child: Text(value, style: const TextStyle(color: _C.grey1, fontSize: 12), overflow: TextOverflow.ellipsis)),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// User Card
 class _UserCard extends StatelessWidget {
   final Map<String, dynamic> userData;
   final String docId;
-  final VoidCallback onDelete;
-  const _UserCard({required this.userData, required this.docId, required this.onDelete});
+  final VoidCallback onDelete, onPromote;
+  const _UserCard({required this.userData, required this.docId, required this.onDelete, required this.onPromote});
 
   String _formatDate(dynamic raw) {
     if (raw == null) return 'Desconhecido';
     DateTime dt;
-    if (raw is Timestamp) dt = raw.toDate();
-    else { dt = DateTime.tryParse(raw.toString()) ?? DateTime.now(); }
+    if (raw is Timestamp) {
+      dt = raw.toDate();
+    } else {
+      dt = DateTime.tryParse(raw.toString()) ?? DateTime.now();
+    }
     return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
   }
 
@@ -761,6 +1118,8 @@ class _UserCard extends StatelessWidget {
     final date     = _formatDate(userData['ultimoLogin'] ?? userData['criadoEm']);
     final isActive = userData['ultimoLogin'] != null;
     final letter   = email.isNotEmpty ? email[0].toUpperCase() : '?';
+    final prov     = userData['provincia'] as String?;
+    final temGPS   = userData['lat'] != null && userData['lng'] != null;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -808,6 +1167,20 @@ class _UserCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(email, style: const TextStyle(color: _C.grey3, fontSize: 12), overflow: TextOverflow.ellipsis),
+                if (prov != null) ...[
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    const Icon(Icons.location_on_rounded, size: 11, color: _C.grey3),
+                    const SizedBox(width: 3),
+                    Text(prov, style: const TextStyle(color: _C.grey3, fontSize: 11)),
+                    const SizedBox(width: 8),
+                    Icon(temGPS ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
+                      size: 11, color: temGPS ? _C.green : _C.grey3),
+                    const SizedBox(width: 3),
+                    Text(temGPS ? 'GPS' : 'Sem GPS',
+                      style: TextStyle(color: temGPS ? _C.green : _C.grey3, fontSize: 11)),
+                  ]),
+                ],
                 const SizedBox(height: 5),
                 Row(
                   children: [
@@ -816,24 +1189,45 @@ class _UserCard extends StatelessWidget {
                       size: 8, color: isActive ? _C.green : _C.grey3,
                     ),
                     const SizedBox(width: 5),
-                    Text(
+                    Expanded(child: Text(
                       isActive ? 'Ativo · $date' : 'Novo · $date',
                       style: TextStyle(color: isActive ? _C.green : _C.grey3, fontSize: 11),
-                    ),
+                      overflow: TextOverflow.ellipsis,
+                    )),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onDelete,
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: _C.redSoft, borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _C.red.withOpacity(0.2))),
-              child: const Icon(Icons.delete_outline_rounded, color: _C.red, size: 18),
-            ),
+          Column(
+            children: [
+              GestureDetector(
+                onTap: onPromote,
+                child: Container(
+                  width: 34, height: 34,
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: isAdmin ? _C.orangeSoft : _C.accentSoft,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: (isAdmin ? _C.orange : _C.accent).withValues(alpha: 0.2)),
+                  ),
+                  child: Icon(
+                    isAdmin ? Icons.person_remove_rounded : Icons.admin_panel_settings_rounded,
+                    color: isAdmin ? _C.orange : _C.accent, size: 16,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onDelete,
+                child: Container(
+                  width: 34, height: 34,
+                  decoration: BoxDecoration(color: _C.redSoft, borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _C.red.withValues(alpha: 0.2))),
+                  child: const Icon(Icons.delete_outline_rounded, color: _C.red, size: 16),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -841,21 +1235,21 @@ class _UserCard extends StatelessWidget {
   }
 }
 
-// ─── APPROVALS PANEL ─────────────────────────────────────────────────
+// APPROVALS PANEL
 class _ApprovalsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('casos_pendentes').snapshots(),
       builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return _loading();
+        if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
         final docs = snap.data?.docs ?? [];
         if (docs.isEmpty) {
           return Center(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Container(
                 width: 80, height: 80,
-                decoration: BoxDecoration(color: _C.greenSoft, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: _C.greenSoft, shape: BoxShape.circle),
                 child: const Icon(Icons.check_circle_rounded, color: _C.green, size: 40),
               ),
               const SizedBox(height: 16),
@@ -869,10 +1263,12 @@ class _ApprovalsPanel extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           itemCount: docs.length + 1,
           itemBuilder: (_, i) {
-            if (i == 0) return Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: _SectionTitle('Aprovações Pendentes', subtitle: '${docs.length} caso(s) aguardando revisão'),
-            );
+            if (i == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _SectionTitle('Aprovações Pendentes', subtitle: '${docs.length} caso(s) aguardando revisão'),
+              );
+            }
             return Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: _ApprovalCard(doc: docs[i - 1]),
@@ -896,25 +1292,36 @@ class _ApprovalCardState extends State<_ApprovalCard> {
   bool _approving = false;
   bool _rejecting = false;
 
-  Map<String, dynamic> get d => widget.doc.data() as Map<String, dynamic>;
+  Map<String, dynamic>? _relatorData;
+  bool _loadingRelator = false;
 
-  Uint8List? get _imageBytes {
-    final img = d['imagem'] as String?;
-    if (img == null) return null;
-    if (img.startsWith('data:image')) {
-      try { return base64Decode(img.split(',').last); } catch (_) { return null; }
-    }
-    return null;
+  @override
+  void initState() {
+    super.initState();
+    _loadRelator();
   }
+
+  Future<void> _loadRelator() async {
+    final userId = d['userId'] as String?;
+    if (userId == null || userId.isEmpty) return;
+    setState(() => _loadingRelator = true);
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (snap.exists && mounted) {
+        setState(() { _relatorData = snap.data(); _loadingRelator = false; });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingRelator = false);
+    }
+  }
+
+  Map<String, dynamic> get d => widget.doc.data() as Map<String, dynamic>;
 
   String _formatDate(dynamic raw) {
     if (raw == null) return 'N/A';
     DateTime? dt;
-    if (raw is Timestamp) {
-      dt = raw.toDate();
-    } else if (raw is String) {
-      dt = DateTime.tryParse(raw);
-    }
+    if (raw is Timestamp) dt = raw.toDate();
+    else if (raw is String) dt = DateTime.tryParse(raw);
     if (dt == null) return 'N/A';
     return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}';
   }
@@ -922,20 +1329,14 @@ class _ApprovalCardState extends State<_ApprovalCard> {
   String _daysAgo() {
     final raw = d['data_desaparecimento'];
     if (raw == null) return '';
-    
     DateTime? dt;
-    if (raw is Timestamp) {
-      dt = raw.toDate();
-    } else if (raw is String) {
-      dt = DateTime.tryParse(raw);
-    }
-    
+    if (raw is Timestamp) dt = raw.toDate();
+    else if (raw is String) dt = DateTime.tryParse(raw);
     if (dt == null) return '';
     final diff = DateTime.now().difference(dt).inDays;
     return diff == 0 ? 'hoje' : 'há $diff dias';
   }
 
-  // ── APROVAR + enviar Amber Alert ──────────────────────
   Future<void> _aprovar() async {
     setState(() => _approving = true);
     try {
@@ -944,12 +1345,8 @@ class _ApprovalCardState extends State<_ApprovalCard> {
       data['aprovadoEm'] = Timestamp.now();
 
       await FirebaseFirestore.instance.collection('casos').add(data);
-      await FirebaseFirestore.instance
-          .collection('casos_pendentes')
-          .doc(widget.doc.id)
-          .delete();
+      await FirebaseFirestore.instance.collection('casos_pendentes').doc(widget.doc.id).delete();
 
-      // Enviar Amber Alert para utilizadores de Luanda
       await NotificationService.instance.enviarAlertaDesaparecido(
         nome:         d['nome']                   as String? ?? '',
         provincia:    d['provincia']              as String? ?? '',
@@ -973,48 +1370,46 @@ class _ApprovalCardState extends State<_ApprovalCard> {
       }
     } catch (e) {
       setState(() => _approving = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Erro: $e'),
-        backgroundColor: _C.red,
-        behavior: SnackBarBehavior.floating,
-      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro: $e'), backgroundColor: _C.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 
   Future<void> _rejeitar() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => _ConfirmDialog(
-        title: 'Rejeitar Caso',
-        message: 'O caso sera removido e nao aparecera no mapa.',
-        confirmLabel: 'Rejeitar',
-        confirmColor: _C.red,
-      ),
-    );
+    final ok = await showDialog<bool>(context: context, builder: (_) => _ConfirmDialog(
+      title: 'Rejeitar Caso',
+      message: 'O caso será removido e não aparecerá no mapa.',
+      confirmLabel: 'Rejeitar',
+      confirmColor: _C.red,
+    ));
     if (ok != true || !mounted) return;
     setState(() => _rejecting = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('casos_pendentes')
-          .doc(widget.doc.id)
-          .delete();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Caso rejeitado e removido.'),
-        backgroundColor: _C.red,
-        behavior: SnackBarBehavior.floating,
-      ));
+      await FirebaseFirestore.instance.collection('casos_pendentes').doc(widget.doc.id).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Caso rejeitado e removido.'),
+          backgroundColor: _C.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     } catch (e) {
       setState(() => _rejecting = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Erro: $e'), backgroundColor: _C.red,
-        behavior: SnackBarBehavior.floating,
-      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro: $e'), backgroundColor: _C.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final imgBytes = _imageBytes;
     final dias = _daysAgo();
     final prov = d['provincia'] ?? d['municipio'] ?? 'Local desconhecido';
 
@@ -1027,30 +1422,6 @@ class _ApprovalCardState extends State<_ApprovalCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (imgBytes != null)
-            Stack(
-              children: [
-                Image.memory(imgBytes, height: 200, width: double.infinity, fit: BoxFit.cover),
-                Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, _C.card],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 12, right: 12,
-                  child: _RoundIconBtn(
-                    icon: Icons.delete_outline_rounded,
-                    color: _C.red, bg: _C.redSoft,
-                    onTap: _rejecting ? null : _rejeitar,
-                    loading: _rejecting,
-                  ),
-                ),
-              ],
-            ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1059,14 +1430,12 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (imgBytes == null) ...[
-                      Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(color: _C.accentSoft, borderRadius: BorderRadius.circular(14)),
-                        child: const Icon(Icons.person_rounded, color: _C.accent, size: 28),
-                      ),
-                      const SizedBox(width: 14),
-                    ],
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(color: _C.accentSoft, borderRadius: BorderRadius.circular(14)),
+                      child: const Icon(Icons.person_rounded, color: _C.accent, size: 28),
+                    ),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1082,13 +1451,8 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                         ],
                       ),
                     ),
-                    if (imgBytes == null)
-                      _RoundIconBtn(
-                        icon: Icons.delete_outline_rounded,
-                        color: _C.red, bg: _C.redSoft,
-                        onTap: _rejecting ? null : _rejeitar,
-                        loading: _rejecting,
-                      ),
+                    _RoundIconBtn(icon: Icons.close_rounded, color: _C.red, bg: _C.redSoft,
+                      onTap: _rejecting ? null : _rejeitar, loading: _rejecting),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -1098,15 +1462,29 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                   Text('$prov${dias.isNotEmpty ? " · $dias" : ""}',
                     style: const TextStyle(color: _C.grey3, fontSize: 13)),
                 ]),
+
+                const SizedBox(height: 14),
+                if (_loadingRelator)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _C.border)),
+                    child: const Row(children: [
+                      SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: _C.grey3)),
+                      SizedBox(width: 8),
+                      Text('Carregando perfil do relator...', style: TextStyle(color: _C.grey3, fontSize: 12)),
+                    ]),
+                  )
+                else if (_relatorData != null || d['userId'] != null)
+                  _RelatorCard(relatorData: _relatorData, userId: d['userId'] as String?),
+
                 const SizedBox(height: 12),
                 GestureDetector(
                   onTap: () => setState(() => _expanded = !_expanded),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: _C.surface, borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _C.border),
-                    ),
+                    decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _C.border)),
                     child: Row(
                       children: [
                         const Icon(Icons.info_outline_rounded, size: 16, color: _C.grey2),
@@ -1130,38 +1508,29 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                         _DetailRow('Roupas', d['roupas'] ?? 'N/A'),
                         _DetailRow('Data',   _formatDate(d['data_desaparecimento'])),
                         _DetailRow('Local',  d['ultimo_local'] ?? 'N/A'),
-                        const Divider(color: _C.border, height: 16),
-                        Text(d['informacoes_adicionais'] ?? 'Sem informacoes adicionais.',
+                        _DetailRow('BI',     d['bi'] ?? 'N/A'),
+                        Divider(color: _C.border, height: 16),
+                        Text(d['informacoes_adicionais'] ?? 'Sem informações adicionais.',
                           style: const TextStyle(color: _C.grey2, fontSize: 13, height: 1.5)),
                       ],
                     ),
                   ),
                 ],
+
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Expanded(
-                      child: _ActionBtn(
-                        label: 'Rejeitar',
-                        icon: Icons.close_rounded,
-                        color: _C.red, bg: _C.redSoft,
-                        border: _C.red.withOpacity(0.3),
-                        loading: _rejecting,
-                        onTap: _rejeitar,
-                      ),
-                    ),
+                    Expanded(child: _ActionBtn(
+                      label: 'Rejeitar', icon: Icons.close_rounded,
+                      color: _C.red, bg: _C.redSoft, border: _C.red.withValues(alpha: 0.3),
+                      loading: _rejecting, onTap: _rejeitar,
+                    )),
                     const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: _ActionBtn(
-                        label: 'Aprovar + Alertar',
-                        icon: Icons.notifications_active_rounded,
-                        color: _C.white, bg: _C.accent,
-                        border: _C.accent,
-                        loading: _approving,
-                        onTap: _aprovar,
-                      ),
-                    ),
+                    Expanded(flex: 2, child: _ActionBtn(
+                      label: 'Aprovar + Alertar', icon: Icons.notifications_active_rounded,
+                      color: _C.white, bg: _C.accent, border: _C.accent,
+                      loading: _approving, onTap: _aprovar,
+                    )),
                   ],
                 ),
               ],
@@ -1173,117 +1542,98 @@ class _ApprovalCardState extends State<_ApprovalCard> {
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  final String label, value;
-  const _DetailRow(this.label, this.value);
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 60, child: Text('$label:', style: const TextStyle(color: _C.grey3, fontSize: 12, fontWeight: FontWeight.w600))),
-          Expanded(child: Text(value, style: const TextStyle(color: _C.grey1, fontSize: 12))),
-        ],
-      ),
-    );
-  }
-}
+// Mini perfil do relator
+class _RelatorCard extends StatelessWidget {
+  final Map<String, dynamic>? relatorData;
+  final String? userId;
+  const _RelatorCard({this.relatorData, this.userId});
 
-class _Chip extends StatelessWidget {
-  final String text;
-  final Color textColor, borderColor;
-  const _Chip(this.text, this.textColor, this.borderColor);
+  String _membroDesde(dynamic raw) {
+    if (raw == null) return '—';
+    DateTime? dt;
+    if (raw is Timestamp) dt = raw.toDate();
+    else if (raw is String) dt = DateTime.tryParse(raw);
+    if (dt == null) return '—';
+    return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final rNome   = relatorData?['nome']  as String? ?? 'Utilizador desconhecido';
+    final rEmail  = relatorData?['email'] as String? ?? '—';
+    final rProv   = relatorData?['provincia'] as String?;
+    final rMembro = _membroDesde(relatorData?['criadoEm']);
+    final rVerif  = relatorData?['emailVerificado'];
+    final verificado = rVerif != false;
+    final letter  = rEmail.isNotEmpty ? rEmail[0].toUpperCase() : '?';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: borderColor.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: borderColor),
+        color: _C.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _C.border),
       ),
-      child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w500)),
-    );
-  }
-}
-
-class _RoundIconBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color, bg;
-  final VoidCallback? onTap;
-  final bool loading;
-  const _RoundIconBtn({required this.icon, required this.color, required this.bg, this.onTap, this.loading = false});
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3))),
-        child: loading
-            ? Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: color)))
-            : Icon(icon, color: color, size: 18),
-      ),
-    );
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color, bg, border;
-  final bool loading;
-  final VoidCallback onTap;
-  const _ActionBtn({required this.label, required this.icon, required this.color,
-    required this.bg, required this.border, required this.loading, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: BoxDecoration(
-          color: bg, borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: border.withOpacity(0.4)),
-        ),
-        child: loading
-            ? Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: color)))
-            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(icon, size: 16, color: color),
-                const SizedBox(width: 6),
-                Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
-              ]),
-      ),
-    );
-  }
-}
-
-// ─── CONFIG PANEL ────────────────────────────────────────────────────
-class _ConfigPanel extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle('Configuracoes', subtitle: 'Opcoes do sistema'),
-          const SizedBox(height: 30),
-          Center(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Row(children: [
+            const Icon(Icons.person_pin_circle_rounded, size: 13, color: _C.grey3),
+            const SizedBox(width: 5),
+            const Text('Relatado por', style: TextStyle(color: _C.grey3, fontSize: 11, fontWeight: FontWeight.w500)),
+          ]),
+          const SizedBox(height: 10),
+          Row(
+            children: [
               Container(
-                width: 72, height: 72,
-                decoration: BoxDecoration(color: _C.accentSoft, borderRadius: BorderRadius.circular(20)),
-                child: const Icon(Icons.construction_rounded, color: _C.accent, size: 36),
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  color: _C.accentSoft, borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(child: Text(letter,
+                  style: const TextStyle(color: _C.accent, fontWeight: FontWeight.bold, fontSize: 16))),
               ),
-              const SizedBox(height: 16),
-              const Text('Em Construcao', style: TextStyle(color: _C.white, fontSize: 20, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              const Text('Esta seccao estara disponivel em breve.', style: TextStyle(color: _C.grey3, fontSize: 14)),
-            ]),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Expanded(child: Text(rNome,
+                        style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 13),
+                        overflow: TextOverflow.ellipsis)),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: verificado ? _C.greenSoft : _C.orangeSoft,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          verificado ? '✓ Verificado' : '⚠ Não verificado',
+                          style: TextStyle(
+                            color: verificado ? _C.green : _C.orange,
+                            fontSize: 9, fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 3),
+                    Text(rEmail, style: const TextStyle(color: _C.grey3, fontSize: 11), overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Row(children: [
+                      const Icon(Icons.calendar_today_rounded, size: 10, color: _C.grey3),
+                      const SizedBox(width: 3),
+                      Text('Membro desde $rMembro', style: const TextStyle(color: _C.grey3, fontSize: 10)),
+                      if (rProv != null) ...[
+                        const Text(' · ', style: TextStyle(color: _C.grey3, fontSize: 10)),
+                        Text(rProv, style: const TextStyle(color: _C.grey3, fontSize: 10)),
+                      ],
+                    ]),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1291,7 +1641,583 @@ class _ConfigPanel extends StatelessWidget {
   }
 }
 
-// ─── CONFIRM DIALOG ──────────────────────────────────────────────────
+// MAPA DE CASOS ADMIN
+class _MapaAdminPanel extends StatefulWidget {
+  @override
+  State<_MapaAdminPanel> createState() => _MapaAdminPanelState();
+}
+
+class _MapaAdminPanelState extends State<_MapaAdminPanel> {
+  final Set<Marker> _markers = {};
+  List<Map<String, dynamic>> _casos = [];
+  bool _loading = true;
+  int _ativos = 0, _encontrados = 0, _desmentidos = 0;
+
+  static const _center = LatLng(-11.2027, 17.8739);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCasos();
+  }
+
+  Future<void> _loadCasos() async {
+    setState(() => _loading = true);
+    try {
+      final snap = await FirebaseFirestore.instance.collection('casos')
+          .where('status', whereIn: ['aprovado', 'encontrado', 'desmentido']).get();
+
+      _casos = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      _buildMarkers();
+    } catch (e) {
+      debugPrint('Erro mapa: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _buildMarkers() {
+    _markers.clear();
+    _ativos = 0; _encontrados = 0; _desmentidos = 0;
+
+    for (final caso in _casos) {
+      double? lat = double.tryParse(caso['lat']?.toString() ?? '');
+      double? lng = double.tryParse(caso['lng']?.toString() ?? '');
+
+      if (lat == null || lng == null) {
+        final provKey = (caso['provincia'] ?? '').toString().toLowerCase();
+        final coords = provCoords[provKey];
+        if (coords == null) continue;
+        lat = coords.latitude  + (DateTime.now().microsecond % 10 - 5) * 0.06;
+        lng = coords.longitude + (DateTime.now().microsecond % 10 - 5) * 0.06;
+      }
+
+      final status = caso['status'] as String? ?? 'aprovado';
+      BitmapDescriptor icon;
+      switch (status) {
+        case 'encontrado':
+          icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+          _encontrados++;
+          break;
+        case 'desmentido':
+          icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+          _desmentidos++;
+          break;
+        default:
+          icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
+          _ativos++;
+          break;
+      }
+
+      _markers.add(Marker(
+        markerId: MarkerId(caso['id']),
+        position: LatLng(lat, lng),
+        icon: icon,
+        infoWindow: InfoWindow(
+          title: caso['nome'] ?? 'Desconhecido',
+          snippet: '${caso['municipio'] ?? caso['provincia'] ?? 'Angola'} · $status',
+        ),
+      ));
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _openEditarLocalizacao() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditarLocalizacaoSheet(onSaved: _loadCasos),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: _SectionTitle('Mapa de Casos',
+                subtitle: 'Localização geográfica de todos os casos aprovados')),
+              GestureDetector(
+                onTap: _openEditarLocalizacao,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _C.orangeSoft,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _C.orange.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(children: [
+                    Icon(Icons.edit_location_rounded, color: _C.orange, size: 15),
+                    SizedBox(width: 6),
+                    Text('Corrigir', style: TextStyle(color: _C.orange, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Legenda
+          Row(
+            children: [
+              _LegendaDot(color: _C.accent, label: 'Activo'),
+              const SizedBox(width: 16),
+              _LegendaDot(color: _C.green,  label: 'Encontrado'),
+              const SizedBox(width: 16),
+              _LegendaDot(color: Colors.blueGrey, label: 'Desmentido'),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Mapa
+          Expanded(
+            flex: 3,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: _loading
+                ? Container(
+                    color: _C.card,
+                    child: const Center(child: CircularProgressIndicator(color: _C.accent)),
+                  )
+                : GoogleMap(
+                    initialCameraPosition: const CameraPosition(target: _center, zoom: 5),
+                    markers: _markers,
+                    mapType: MapType.normal,
+                    myLocationButtonEnabled: false,
+                    zoomControlsEnabled: true,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Cards de resumo
+          Row(
+            children: [
+              Expanded(child: _MapStatCard(label: 'Total', count: _casos.length, color: _C.grey2, colorSoft: _C.border)),
+              const SizedBox(width: 10),
+              Expanded(child: _MapStatCard(label: 'Activos', count: _ativos, color: _C.accent, colorSoft: _C.accentSoft)),
+              const SizedBox(width: 10),
+              Expanded(child: _MapStatCard(label: 'Encontrados', count: _encontrados, color: _C.green, colorSoft: _C.greenSoft)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendaDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendaDot({required this.color, required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      const SizedBox(width: 5),
+      Text(label, style: const TextStyle(color: _C.grey2, fontSize: 12)),
+    ]);
+  }
+}
+
+class _MapStatCard extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color, colorSoft;
+  const _MapStatCard({required this.label, required this.count, required this.color, required this.colorSoft});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _C.card, borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _C.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(width: 30, height: 30,
+            decoration: BoxDecoration(color: colorSoft, borderRadius: BorderRadius.circular(8)),
+            child: Center(child: Icon(Icons.location_on_rounded, color: color, size: 16)),
+          ),
+          const SizedBox(height: 8),
+          Text('$count', style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w800)),
+          Text(label, style: const TextStyle(color: _C.grey2, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIX 2 & 3: EDITAR LOCALIZAÇÃO — layout vertical (Column) + SafeArea no botão
+// ─────────────────────────────────────────────────────────────────────────────
+class _EditarLocalizacaoSheet extends StatefulWidget {
+  final VoidCallback onSaved;
+  const _EditarLocalizacaoSheet({required this.onSaved});
+  @override
+  State<_EditarLocalizacaoSheet> createState() => _EditarLocalizacaoSheetState();
+}
+
+class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
+  List<Map<String, dynamic>> _casosSemCoord = [];
+  Map<String, dynamic>? _selectedCaso;
+  LatLng? _selectedLatLng;
+  bool _loadingCasos = true;
+  bool _saving       = false;
+  GoogleMapController? _editMapCtrl;
+  final Set<Marker> _editMarkers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCasosSemCoord();
+  }
+
+  Future<void> _loadCasosSemCoord() async {
+    setState(() => _loadingCasos = true);
+    try {
+      final snap = await FirebaseFirestore.instance.collection('casos')
+          .where('status', whereIn: ['aprovado', 'encontrado', 'desmentido']).get();
+      _casosSemCoord = snap.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .where((c) => (c['lat'] == null || c['lng'] == null ||
+                         c['lat'].toString().isEmpty || c['lng'].toString().isEmpty))
+          .toList();
+    } catch (e) {
+      debugPrint('Erro editar loc: $e');
+    } finally {
+      if (mounted) setState(() => _loadingCasos = false);
+    }
+  }
+
+  void _selectCaso(Map<String, dynamic> caso) {
+    setState(() {
+      _selectedCaso = caso;
+      _selectedLatLng = null;
+      _editMarkers.clear();
+    });
+  }
+
+  void _onMapTap(LatLng latlng) {
+    if (_selectedCaso == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Selecione um caso primeiro.'),
+        backgroundColor: _C.orange, behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    setState(() {
+      _selectedLatLng = latlng;
+      _editMarkers
+        ..clear()
+        ..add(Marker(
+          markerId: const MarkerId('sel'),
+          position: latlng,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          infoWindow: InfoWindow(
+            title: _selectedCaso!['nome'] ?? '',
+            snippet: '${latlng.latitude.toStringAsFixed(4)}, ${latlng.longitude.toStringAsFixed(4)}',
+          ),
+        ));
+    });
+    _editMapCtrl?.animateCamera(CameraUpdate.newLatLng(latlng));
+  }
+
+  Future<void> _salvar() async {
+    if (_selectedCaso == null || _selectedLatLng == null) return;
+    setState(() => _saving = true);
+    try {
+      await FirebaseFirestore.instance.collection('casos').doc(_selectedCaso!['id']).update({
+        'lat': _selectedLatLng!.latitude.toString(),
+        'lng': _selectedLatLng!.longitude.toString(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Localização de "${_selectedCaso!['nome']}" guardada!'),
+          backgroundColor: _C.green, behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+        widget.onSaved();
+        setState(() { _selectedCaso = null; _selectedLatLng = null; _editMarkers.clear(); });
+        _loadCasosSemCoord();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro: $e'), backgroundColor: _C.red, behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+
+    return Container(
+      height: h * 0.92,
+      decoration: const BoxDecoration(
+        color: _C.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      // FIX: Column principal sem overflow — deixa o botão gerir o próprio espaço
+      child: Column(
+        children: [
+          // Handle
+          Container(
+            margin: const EdgeInsets.only(top: 14, bottom: 10),
+            width: 40, height: 4,
+            decoration: BoxDecoration(color: _C.grey4, borderRadius: BorderRadius.circular(2)),
+          ),
+
+          // Cabeçalho
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                const Icon(Icons.edit_location_alt_rounded, color: _C.orange, size: 20),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Corrigir Localização',
+                    style: TextStyle(color: _C.white, fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.close_rounded, color: _C.grey2),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              '${_casosSemCoord.length} caso${_casosSemCoord.length != 1 ? 's' : ''} sem localização',
+              style: const TextStyle(color: _C.grey3, fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Corpo principal — ocupa espaço restante
+          Expanded(
+            child: _loadingCasos
+              ? const Center(child: CircularProgressIndicator(color: _C.accent))
+              : _casosSemCoord.isEmpty
+                ? Center(
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Container(
+                        width: 60, height: 60,
+                        decoration: const BoxDecoration(color: _C.greenSoft, shape: BoxShape.circle),
+                        child: const Icon(Icons.check_circle_rounded, color: _C.green, size: 30),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Todos os casos têm localização!',
+                        style: TextStyle(color: _C.white, fontWeight: FontWeight.w600),
+                      ),
+                    ]),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── FIX 3: Lista HORIZONTAL de chips em vez de coluna lateral ──
+                      Padding(
+                        padding: const EdgeInsets.only(left: 20, bottom: 6),
+                        child: Text(
+                          'Selecionar caso',
+                          style: const TextStyle(color: _C.grey2, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      SizedBox(
+                        height: 72,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _casosSemCoord.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (_, i) {
+                            final c = _casosSemCoord[i];
+                            final isSelected = _selectedCaso?['id'] == c['id'];
+                            return GestureDetector(
+                              onTap: () => _selectCaso(c),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? _C.accentSoft : _C.card,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected ? _C.accent : _C.border,
+                                    width: isSelected ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      c['nome'] ?? 'Sem nome',
+                                      style: TextStyle(
+                                        color: isSelected ? _C.accent : _C.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Row(children: [
+                                      Icon(Icons.location_on_rounded, size: 11,
+                                        color: isSelected ? _C.accent : _C.grey3),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        c['municipio'] ?? c['provincia'] ?? '—',
+                                        style: TextStyle(
+                                          color: isSelected ? _C.accent.withValues(alpha: 0.8) : _C.grey3,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ]),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Banner de estado do caso seleccionado
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _C.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _selectedCaso != null
+                                ? _C.accent.withValues(alpha: 0.4)
+                                : _C.border,
+                            ),
+                          ),
+                          child: Row(children: [
+                            Icon(
+                              _selectedCaso != null
+                                ? Icons.edit_location_alt_rounded
+                                : Icons.touch_app_rounded,
+                              color: _selectedCaso != null ? _C.accent : _C.grey3,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _selectedCaso == null
+                                ? const Text(
+                                    'Selecione um caso acima para começar',
+                                    style: TextStyle(color: _C.grey3, fontSize: 12),
+                                  )
+                                : _selectedLatLng != null
+                                  ? Text(
+                                      '${_selectedCaso!['nome']}  ·  📍 ${_selectedLatLng!.latitude.toStringAsFixed(4)}, ${_selectedLatLng!.longitude.toStringAsFixed(4)}',
+                                      style: const TextStyle(color: _C.accent, fontSize: 12, fontWeight: FontWeight.w500),
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  : Text(
+                                      '${_selectedCaso!['nome']}  ·  Toque no mapa para definir',
+                                      style: const TextStyle(color: _C.grey2, fontSize: 12),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                            ),
+                          ]),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Mapa — ocupa todo o espaço restante da coluna
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _C.border),
+                          ),
+                          child: GoogleMap(
+                            initialCameraPosition: const CameraPosition(
+                              target: LatLng(-11.2027, 17.8739),
+                              zoom: 5,
+                            ),
+                            onMapCreated: (ctrl) => _editMapCtrl = ctrl,
+                            onTap: _onMapTap,
+                            markers: _editMarkers,
+                            myLocationButtonEnabled: false,
+                            zoomControlsEnabled: true,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+          ),
+
+          // ── FIX 2: Botão "Guardar" com SafeArea — sem overflow ──
+          if (_selectedCaso != null && _selectedLatLng != null)
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _salvar,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _C.green,
+                    foregroundColor: _C.white,
+                    minimumSize: const Size(double.infinity, 52),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: _saving
+                    ? const SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: _C.white),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.save_rounded, size: 18),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Guardar localização de "${_selectedCaso!['nome'] ?? '...'}"',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// CONFIRM DIALOG
 class _ConfirmDialog extends StatelessWidget {
   final String title, message, confirmLabel;
   final Color confirmColor;
@@ -1320,6 +2246,114 @@ class _ConfirmDialog extends StatelessWidget {
   }
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────────
-Widget _loading() => const Center(child: CircularProgressIndicator(color: _C.accent));
+// COMPONENTES REUTILIZÁVEIS
+class _DetailRow extends StatelessWidget {
+  final String label, value;
+  const _DetailRow(this.label, this.value);
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 60, child: Text('$label:', style: const TextStyle(color: _C.grey3, fontSize: 12, fontWeight: FontWeight.w600))),
+          Expanded(child: Text(value, style: const TextStyle(color: _C.grey1, fontSize: 12))),
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String text;
+  final Color textColor, borderColor;
+  const _Chip(this.text, this.textColor, this.borderColor);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: borderColor.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w500)),
+    );
+  }
+}
+
+class _RoundIconBtn extends StatelessWidget {
+  final IconData icon;
+  final Color color, bg;
+  final VoidCallback? onTap;
+  final bool loading;
+  const _RoundIconBtn({required this.icon, required this.color, required this.bg, this.onTap, this.loading = false});
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3))),
+        child: loading
+            ? Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: color)))
+            : Icon(icon, color: color, size: 18),
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color, bg, border;
+  final bool loading;
+  final VoidCallback onTap;
+  const _ActionBtn({required this.label, required this.icon, required this.color,
+    required this.bg, required this.border, required this.loading, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: loading ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        decoration: BoxDecoration(
+          color: bg, borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border.withValues(alpha: 0.4)),
+        ),
+        child: loading
+            ? Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: color)))
+            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+              ]),
+      ),
+    );
+  }
+}
+
+class _IconBtn extends StatelessWidget {
+  final IconData icon;
+  final Color color, bg;
+  final VoidCallback onTap;
+  const _IconBtn({required this.icon, required this.color, required this.bg, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _C.border)),
+        child: Icon(icon, color: color, size: 20),
+      ),
+    );
+  }
+}
+
+// HELPERS
+Widget _loadingWidget() => const Center(child: CircularProgressIndicator(color: _C.accent));
 Widget _empty(String msg) => Center(child: Text(msg, style: const TextStyle(color: _C.grey3, fontSize: 16)));
