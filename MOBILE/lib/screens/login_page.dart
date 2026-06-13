@@ -1,7 +1,6 @@
 // screens/login_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_page.dart';
 import 'register_page.dart';
@@ -19,13 +18,27 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   // ── Login com Email ───────────────────────────────────
-  Future<void> _loginWithEmail(BuildContext context) async {
+  Future<void> _loginWithEmail() async {
+    final email = _emailController.text.trim();
+    final senha = _passwordController.text.trim();
+
+    if (email.isEmpty || senha.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Por favor, preencha todos os campos.')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
     try {
       final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email:    _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        email:    email,
+        password: senha,
       );
 
       final userDoc = await FirebaseFirestore.instance
@@ -53,72 +66,106 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (e) {
       String errorMessage;
       switch (e.code) {
-        case 'user-not-found':  errorMessage = 'Conta não encontrada.'; break;
-        case 'wrong-password':  errorMessage = 'Senha incorreta.'; break;
-        case 'invalid-email':   errorMessage = 'Email inválido.'; break;
-        case 'user-disabled':   errorMessage = 'Conta desativada.'; break;
-        default:                errorMessage = 'Erro ao fazer login.';
+        case 'invalid-credential':
+        case 'user-not-found':
+        case 'wrong-password':
+          errorMessage = 'Email ou senha incorrectos.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Formato de email inválido.';
+          break;
+        case 'user-disabled':
+          errorMessage = 'Conta desativada.';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Demasiadas tentativas. Aguarde um momento.';
+          break;
+        default:
+          errorMessage = 'Erro ao fazer login.';
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro inesperado.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro inesperado.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ── Login com Google ──────────────────────────────────
-  Future<void> _loginWithGoogle(BuildContext context) async {
-    try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return;
+  // ── Recuperar Senha ───────────────────────────────────
+  Future<void> _recuperarSenha() async {
+    final email = _emailController.text.trim();
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken:     googleAuth.idToken,
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Digite o seu email no campo acima para recuperar a senha.')),
       );
+      return;
+    }
 
-      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      final user = userCredential.user;
-      if (user == null) return;
+    if (!email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, digite um email válido.')),
+      );
+      return;
+    }
 
-      // Criar documento do user no Firestore se não existir
-      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final userDoc = await userRef.get();
-
-      if (!userDoc.exists) {
-        await userRef.set({
-          'nome':      user.displayName ?? 'Utilizador',
-          'email':     user.email ?? '',
-          'role':      'user',
-          'criadoEm':  FieldValue.serverTimestamp(),
-          'stats':     {'apoios': 0, 'comentarios': 0, 'partilhas': 0},
-        });
-      }
-
-      final role = userDoc.exists
-          ? (userDoc.data() as Map<String, dynamic>)['role'] ?? 'user'
-          : 'user';
-
-      // Guardar token FCM após login
-      await NotificationService.instance.salvarTokenAposLogin();
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
 
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => role == 'admin'
-              ? const AdminPage()
-              : const HomePage(mode: UserMode.authenticated),
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          icon: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF0077B6), size: 48),
+          title: const Text('Email enviado!'),
+          content: Text(
+            'Um link de recuperação foi enviado para:\n$email\n\nVerifique a sua caixa de entrada e a pasta Spam.',
+            style: const TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
-    } catch (e) {
-      debugPrint('Erro Google Sign-In: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: ${e.toString()}')),
-      );
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'Não encontramos nenhuma conta com este email.';
+          break;
+        case 'invalid-email':
+          message = 'Por favor, digite um formato de email válido.';
+          break;
+        case 'too-many-requests':
+          message = 'Demasiadas tentativas. Aguarde alguns minutos.';
+          break;
+        default:
+          message = 'Erro ao enviar email de recuperação.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro inesperado. Tente novamente.')),
+        );
+      }
     }
   }
 
@@ -156,34 +203,78 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 12),
                         _buildTextField('Senha:', 'sua senha',
                           controller: _passwordController, obscureText: true),
-                        const SizedBox(height: 20),
+
+                        const SizedBox(height: 8),
+
+                        // ── Link "Esqueci-me da senha" ─────
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: _recuperarSenha,
+                            icon: const Icon(Icons.key_rounded, size: 18, color: Color(0xFF0077B6)),
+                            label: const Text(
+                              'Esqueci-me da senha',
+                              style: TextStyle(
+                                color: Color(0xFF0077B6),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity, height: 52,
                           child: ElevatedButton(
-                            onPressed: () => _loginWithEmail(context),
+                            onPressed: _isLoading ? null : _loginWithEmail,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF90E0EF),
                               foregroundColor: Colors.black87,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
-                            child: const Text('Entrar'),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black87),
+                                  )
+                                : const Text('Entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                           ),
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const RegisterPage())),
-                          child: const Text('Não tem conta? Cadastre-se aqui'),
+                        const SizedBox(height: 12),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const RegisterPage())),
+                            child: const Text('Não tem conta? Cadastre-se aqui'),
+                          ),
                         ),
-                        const SizedBox(height: 15),
-                        Row(
-                          children: [
-                            Expanded(child: _socialButton('Google', Icons.g_mobiledata, Colors.red,
-                              () => _loginWithGoogle(context))),
-                            const SizedBox(width: 12),
-                            Expanded(child: _socialButton('Convidado', Icons.person_outline, Colors.blueGrey,
-                              () => Navigator.pushReplacement(context,
-                                MaterialPageRoute(builder: (_) => const HomePage(mode: UserMode.guest))))),
-                          ],
+                        const SizedBox(height: 20),
+
+                        // ── Apenas botão Convidado (SEM Google) ──
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading ? null : () => Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (_) => const HomePage(mode: UserMode.guest)),
+                            ),
+                            icon: const Icon(Icons.person_outline_rounded, size: 20),
+                            label: const Text(
+                              'Entrar como Convidado',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF0077B6),
+                              side: const BorderSide(color: Color(0xFF0077B6), width: 1.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -238,18 +329,29 @@ class _LoginPageState extends State<LoginPage> {
             hintText: hint,
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF0077B6), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ],
     );
   }
 
-  Widget _socialButton(String label, IconData icon, Color color, VoidCallback onPressed) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, color: color),
-      label: Text(label),
-    );
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }

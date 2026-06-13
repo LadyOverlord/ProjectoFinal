@@ -1,6 +1,4 @@
 // services/notification_service.dart
-// Envia notificacoes reais via FCM HTTP v1 API com autenticacao JWT
-
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -10,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../config.dart';
 
 @pragma('vm:entry-point')
@@ -64,7 +64,6 @@ class NotificationService {
     );
 
     await _local.initialize(initSettings);
-
     _fcm.onTokenRefresh.listen(_guardarTokenFirestore);
 
     FirebaseMessaging.onMessage.listen((msg) {
@@ -78,9 +77,10 @@ class NotificationService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
-  // ── Guardar token após login ──────────────────────────
+  // ── Guardar token + localização após login ────────────
   Future<void> salvarTokenAposLogin() async {
     await _salvarToken();
+    await _salvarLocalizacao();
   }
 
   Future<void> _salvarToken() async {
@@ -102,35 +102,79 @@ class NotificationService {
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'fcmToken': token,
-      }, SetOptions(merge: true)); // ← merge:true cria ou actualiza
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Erro ao guardar token: $e');
     }
   }
 
+  // ── Guardar localização GPS actual ────────────────────
+  Future<void> _salvarLocalizacao() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  // ── Gerar token de acesso OAuth2 via JWT ─────────────
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      String municipioActual = '';
+      String provinciaActual = '';
+
+      try {
+        final placemarks = await placemarkFromCoordinates(
+          position.latitude, position.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final place = placemarks.first;
+          municipioActual = place.subAdministrativeArea ?? place.locality ?? '';
+          provinciaActual = place.administrativeArea ?? '';
+        }
+      } catch (_) {}
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'localizacaoActual': {
+          'lat':       position.latitude,
+          'lng':       position.longitude,
+          'municipio': municipioActual.toLowerCase(),
+          'provincia': provinciaActual.toLowerCase(),
+          'timestamp': Timestamp.now(),
+        },
+      }, SetOptions(merge: true));
+
+      debugPrint('Localizacao guardada: $municipioActual, $provinciaActual');
+    } catch (e) {
+      debugPrint('Erro ao obter localizacao: $e');
+    }
+  }
+
+  // ── Gerar token OAuth2 via JWT ────────────────────────
   Future<String?> _getAccessToken() async {
     try {
-      final now = DateTime.now();
+      final now    = DateTime.now();
       final expiry = now.add(const Duration(hours: 1));
 
-      final jwt = JWT(
-        {
-          'iss': fcmClientEmail,
-          'scope': 'https://www.googleapis.com/auth/firebase.messaging',
-          'aud': 'https://oauth2.googleapis.com/token',
-          'iat': now.millisecondsSinceEpoch ~/ 1000,
-          'exp': expiry.millisecondsSinceEpoch ~/ 1000,
-        },
-      );
+      final jwt = JWT({
+        'iss':   fcmClientEmail,
+        'scope': 'https://www.googleapis.com/auth/firebase.messaging',
+        'aud':   'https://oauth2.googleapis.com/token',
+        'iat':   now.millisecondsSinceEpoch ~/ 1000,
+        'exp':   expiry.millisecondsSinceEpoch ~/ 1000,
+      });
 
       final token = jwt.sign(
         RSAPrivateKey(fcmPrivateKey),
         algorithm: JWTAlgorithm.RS256,
       );
 
-      // Trocar JWT por access token OAuth2
       final response = await http.post(
         Uri.parse('https://oauth2.googleapis.com/token'),
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -141,19 +185,18 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['access_token'] as String?;
+        return jsonDecode(response.body)['access_token'] as String?;
       } else {
-        debugPrint('Erro ao obter access token: ${response.body}');
+        debugPrint('Erro access token: ${response.body}');
         return null;
       }
     } catch (e) {
-      debugPrint('Erro ao gerar JWT: $e');
+      debugPrint('Erro JWT: $e');
       return null;
     }
   }
 
-  // ── Enviar notificacao FCM para um token especifico ───
+  // ── Enviar FCM para um token ──────────────────────────
   Future<bool> _enviarFCM({
     required String token,
     required String title,
@@ -167,27 +210,23 @@ class NotificationService {
       final payload = {
         'message': {
           'token': token,
-          'notification': {
-            'title': title,
-            'body':  body,
-          },
+          'notification': {'title': title, 'body': body},
           'android': {
             'priority': 'high',
             'notification': {
-              'channel_id':  _channelId,
-              'priority':    'max',
-              'visibility':  'public',
+              'channel_id':              _channelId,
+              'visibility':              'public',
               'default_vibrate_timings': false,
-              'vibrate_timings': ['0s', '0.5s', '0.2s', '0.5s'],
-              'color': '#FF6B00',
-              'sound': 'default',
+              'vibrate_timings':         ['0s', '0.5s', '0.2s', '0.5s'],
+              'color':                   '#FF6B00',
+              'sound':                   'default',
             },
           },
           'apns': {
             'payload': {
               'aps': {
-                'sound':             'default',
-                'badge':             1,
+                'sound':              'default',
+                'badge':              1,
                 'interruption-level': 'critical',
               },
             },
@@ -206,7 +245,7 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        debugPrint('Notificacao enviada com sucesso para: $token');
+        debugPrint('Notificacao enviada: $token');
         return true;
       } else {
         debugPrint('Erro FCM: ${response.statusCode} — ${response.body}');
@@ -218,14 +257,14 @@ class NotificationService {
     }
   }
 
-  // ── Mostrar notificacao local estilo Amber Alert ──────
+  // ── Mostrar notificacao local Amber Alert ─────────────
   Future<void> showAmberAlert({
     required String title,
     required String body,
     Map<String, dynamic>? payload,
     Uint8List? imagemBytes,
   }) async {
-    final BigPictureStyleInformation? bigPicture = imagemBytes != null
+    final bigPicture = imagemBytes != null
         ? BigPictureStyleInformation(
             ByteArrayAndroidBitmap(imagemBytes),
             largeIcon:              ByteArrayAndroidBitmap(imagemBytes),
@@ -280,7 +319,79 @@ class NotificationService {
     );
   }
 
-  // ── Enviar alerta a utilizadores de Luanda ────────────
+  // ── Enviar email via EmailJS (igual à versão web) ────────
+  Future<void> _enviarEmailAlerta({
+    required String nome,
+    required String provincia,
+    required String municipio,
+    required String ultimoLocal,
+    required String idade,
+    required String sexo,
+    required String roupas,
+    required String informacoes,
+    required String casoId,
+  }) async {
+    try {
+      debugPrint('📧 [EMAIL] Iniciando envio via EmailJS...');
+
+      // 1. Recolher todos os emails
+      final usersSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .get(const GetOptions(source: Source.server));
+
+      final emails = <String>[];
+      for (final doc in usersSnap.docs) {
+        final email = doc.data()['email'] as String?;
+        if (email != null && email.trim().isNotEmpty) {
+          emails.add(email.trim());
+        }
+      }
+
+      debugPrint('📧 [EMAIL] Emails encontrados: ${emails.length}');
+
+      if (emails.isEmpty) {
+        debugPrint('📧 [EMAIL] ❌ Nenhum email encontrado.');
+        return;
+      }
+
+      // 2. Enviar via EmailJS — mesmos IDs que a versão web
+      final templateParams = {
+        'bcc_emails':        emails.join(','),
+        'nome_desaparecido': nome,
+        'idade':             idade,
+        'local':             '$ultimoLocal${municipio.isNotEmpty ? ' - $municipio' : ''}',
+        'data':              DateTime.now().toIso8601String().substring(0, 10),
+        'roupas':            roupas.isNotEmpty ? roupas : 'Não informado',
+        'info':              informacoes.isNotEmpty ? informacoes : 'Sem informações adicionais.',
+      };
+
+      final response = await http.post(
+        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'origin':       'http://localhost',
+        },
+        body: jsonEncode({
+          'service_id':      'service_8fq9usa',
+          'template_id':     'template_366wv9e',
+          'user_id':         'R5Femg5uCIC-Lh0RW',
+          'template_params': templateParams,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('📧 [EMAIL] ✅ Enviado via EmailJS para ${emails.length} destinatários.');
+      } else {
+        debugPrint('📧 [EMAIL] ❌ Erro EmailJS: ${response.statusCode} — ${response.body}');
+      }
+
+    } catch (e, stack) {
+      debugPrint('📧 [EMAIL] ❌ ERRO: $e');
+      debugPrint('📧 [EMAIL] ❌ STACK: $stack');
+    }
+  }
+
+  // ── Enviar alerta por município ───────────────────────
   Future<void> enviarAlertaDesaparecido({
     required String nome,
     required String provincia,
@@ -291,76 +402,125 @@ class NotificationService {
     required String roupas,
     required String informacoes,
     required String casoId,
+    required String autorUserId,
     String? imagemBase64,
   }) async {
     try {
-      // Buscar tokens FCM dos utilizadores
+      final municipioAlvo = municipio.toLowerCase().trim();
+      final provinciaAlvo = provincia.toLowerCase().trim();
+
+      debugPrint('Enviando alerta — municipio: $municipioAlvo, autor: $autorUserId');
+
       final usersSnap = await FirebaseFirestore.instance
           .collection('users')
           .where('fcmToken', isNotEqualTo: null)
           .get();
 
-      final tokens = <String>[];
+      final tokensSet = <String>{};
+
       for (final doc in usersSnap.docs) {
         final data  = doc.data();
         final token = data['fcmToken'] as String?;
         if (token == null || token.isEmpty) continue;
 
-        final userProv = (data['provincia'] as String? ?? '').toLowerCase();
-        // Notificar utilizadores de Luanda ou sem provincia definida
-        if (userProv.isEmpty || userProv == 'luanda' || provincia.toLowerCase() == 'luanda') {
-          tokens.add(token);
+        final uid = doc.id;
+
+        if (uid == autorUserId) {
+          tokensSet.add(token);
+          debugPrint('Relator $uid adicionado (sempre notificado)');
+          continue;
         }
+
+        bool deveNotificar = false;
+        final locActual = data['localizacaoActual'] as Map<String, dynamic>?;
+
+        if (locActual != null) {
+          final userMunicipio = (locActual['municipio'] as String? ?? '').toLowerCase().trim();
+          final userProvincia = (locActual['provincia'] as String? ?? '').toLowerCase().trim();
+
+          if (municipioAlvo.isNotEmpty && userMunicipio.isNotEmpty) {
+            deveNotificar = userMunicipio.contains(municipioAlvo) ||
+                            municipioAlvo.contains(userMunicipio);
+          } else if (provinciaAlvo.isNotEmpty && userProvincia.isNotEmpty) {
+            deveNotificar = userProvincia.contains(provinciaAlvo) ||
+                            provinciaAlvo.contains(userProvincia);
+          }
+        } else {
+          final userMunicipio = (data['municipio'] as String? ?? '').toLowerCase().trim();
+          final userProvincia = (data['provincia'] as String? ?? '').toLowerCase().trim();
+
+          if (municipioAlvo.isNotEmpty && userMunicipio.isNotEmpty) {
+            deveNotificar = userMunicipio.contains(municipioAlvo) ||
+                            municipioAlvo.contains(userMunicipio);
+          } else if (provinciaAlvo.isNotEmpty && userProvincia.isNotEmpty) {
+            deveNotificar = userProvincia.contains(provinciaAlvo) ||
+                            provinciaAlvo.contains(userProvincia);
+          } else {
+            deveNotificar = true;
+          }
+        }
+
+        if (deveNotificar) tokensSet.add(token);
       }
 
-      debugPrint('Tokens encontrados: ${tokens.length}');
-
-      if (tokens.isEmpty) {
-        debugPrint('Nenhum token FCM encontrado.');
-        return;
-      }
+      final tokens = tokensSet.toList();
+      debugPrint('Total tokens para notificar: ${tokens.length}');
 
       final title = 'ALERTA — $nome desapareceu!';
-      final body = [
+      final body  = [
         '📍 $ultimoLocal',
-        if (idade.isNotEmpty) '$idade anos',
-        if (sexo.isNotEmpty) sexo,
-        if (roupas.isNotEmpty) 'Vestia: $roupas',
+        if (municipio.isNotEmpty) '🏙️ $municipio, $provincia',
+        if (idade.isNotEmpty)     '$idade anos',
+        if (sexo.isNotEmpty)      sexo,
+        if (roupas.isNotEmpty)    'Vestia: $roupas',
         if (informacoes.isNotEmpty) informacoes,
       ].join(' · ');
 
-      final data = {
-        'casoId': casoId,
-        'tipo':   'alerta_desaparecido',
-        'nome':   nome,
+      final dataPayload = {
+        'casoId':    casoId,
+        'tipo':      'alerta_desaparecido',
+        'nome':      nome,
+        'municipio': municipio,
       };
 
-      // Enviar para cada token via FCM HTTP v1
+      // ── Enviar push notifications FCM ──
       int enviados = 0;
       for (final token in tokens) {
         final ok = await _enviarFCM(
           token: token,
           title: title,
           body:  body,
-          data:  data,
+          data:  dataPayload,
         );
         if (ok) enviados++;
       }
 
-      // Guardar registo no Firestore
+      // ── Enviar email via EmailJS ──
+      await _enviarEmailAlerta(
+        nome:        nome,
+        provincia:   provincia,
+        municipio:   municipio,
+        ultimoLocal: ultimoLocal,
+        idade:       idade,
+        sexo:        sexo,
+        roupas:      roupas,
+        informacoes: informacoes,
+        casoId:      casoId,
+      );
+
+      // ── Guardar histórico ──
       await FirebaseFirestore.instance.collection('alertas').add({
         'casoId':         casoId,
         'nome':           nome,
         'provincia':      provincia,
         'municipio':      municipio,
         'ultimoLocal':    ultimoLocal,
-        'idade':          idade,
-        'sexo':           sexo,
+        'autorUserId':    autorUserId,
         'criadoEm':       Timestamp.now(),
         'tokensEnviados': enviados,
       });
 
-      // Mostrar tambem notificacao local no admin
+      // ── Notificacao local no dispositivo do admin ──
       Uint8List? imgBytes;
       if (imagemBase64 != null && imagemBase64.contains(',')) {
         try { imgBytes = base64Decode(imagemBase64.split(',').last); } catch (_) {}
@@ -374,8 +534,9 @@ class NotificationService {
       );
 
       debugPrint('Alerta enviado para $enviados/${tokens.length} dispositivos.');
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint('Erro ao enviar alerta: $e');
+      debugPrint('Stack: $stack');
     }
   }
 }
