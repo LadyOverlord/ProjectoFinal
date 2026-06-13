@@ -1467,20 +1467,8 @@ function setupMobileUI() {
   const mobileAd = document.getElementById("mobile-ad");
   const mobileAdContent = document.getElementById("mobile-ad-content");
   const anuncios = document.getElementById("anuncios-container");
-  // copiar conteúdo de anúncios para a janela móvel (se disponível)
-  // Para evitar duplicar IDs e sobrepor controles, copiar apenas o primeiro slide
-  if (anuncios && mobileAdContent) {
-    const firstSlide =
-      anuncios.querySelector(".carousel-slide") ||
-      anuncios.querySelector(".carousel-wrapper .carousel-slide");
-    if (firstSlide) {
-      // somente o conteúdo do slide (sem controles nem IDs globais)
-      mobileAdContent.innerHTML = firstSlide.innerHTML;
-    } else {
-      // fallback simples
-      mobileAdContent.innerHTML = anuncios.innerHTML;
-    }
-  }
+  // O carousel.js já detecta se está em mobile e renderiza directamente
+  // no #mobile-ad-content — não é necessário copiar HTML aqui.
 
   const toggle = document.getElementById("mobile-ad-toggle"); // antigo (compat)
   const ad = document.getElementById("mobile-ad");

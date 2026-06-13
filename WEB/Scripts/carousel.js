@@ -22,9 +22,21 @@ let container = null;
    INIT — exportada e chamada no principal.js
    ========================================================================= */
 export async function iniciarCarrossel() {
-  container =
-    document.getElementById("anuncios-container") ||
-    document.querySelector(".anuncios");
+  const isMobile = window.matchMedia("(max-width: 900px)").matches;
+
+  if (isMobile) {
+    // Em mobile usar o painel flutuante (#mobile-ad-content)
+    // O #anuncios-container está dentro de .final_section que está oculta
+    container =
+      document.getElementById("mobile-ad-content") ||
+      document.getElementById("anuncios-container") ||
+      document.querySelector(".anuncios");
+  } else {
+    container =
+      document.getElementById("anuncios-container") ||
+      document.querySelector(".anuncios");
+  }
+
   if (!container) return;
 
   // Skeleton enquanto carrega

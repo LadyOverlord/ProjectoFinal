@@ -138,12 +138,27 @@
            2. UTILIZADORES
            ══════════════════════════════════════════════ -->
       <div id="users" class="panel">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+        <div
+          style="
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+          "
+        >
           <div>
             <h2>Gestão de Utilizadores</h2>
-            <p class="admin-card-desc">Total: <strong id="users-total">—</strong> utilizadores registados</p>
+            <p class="admin-card-desc">
+              Total: <strong id="users-total">—</strong> utilizadores registados
+            </p>
           </div>
-          <button class="btn-novo-anuncio" id="btn-exportar-users" title="Exportar CSV">
+          <button
+            class="btn-novo-anuncio"
+            id="btn-exportar-users"
+            title="Exportar CSV"
+          >
             <i class="fa-solid fa-file-csv"></i> Exportar CSV
           </button>
         </div>
@@ -151,14 +166,25 @@
         <!-- Barra de filtros -->
         <div class="admin-card users-filters-card">
           <div class="users-filters">
-
             <!-- Pesquisa por texto -->
             <div class="filter-field filter-field-wide">
-              <label><i class="fa-solid fa-magnifying-glass"></i> Pesquisar</label>
+              <label
+                ><i class="fa-solid fa-magnifying-glass"></i> Pesquisar</label
+              >
               <div class="filter-input-wrap">
-                <input type="text" id="uf-search" class="admin-input"
-                       placeholder="Nome, email ou telefone..." autocomplete="off">
-                <button id="uf-search-clear" class="filter-clear-btn" title="Limpar" style="display:none;">
+                <input
+                  type="text"
+                  id="uf-search"
+                  class="admin-input"
+                  placeholder="Nome, email ou telefone..."
+                  autocomplete="off"
+                />
+                <button
+                  id="uf-search-clear"
+                  class="filter-clear-btn"
+                  title="Limpar"
+                  style="display: none"
+                >
                   <i class="fa-solid fa-xmark"></i>
                 </button>
               </div>
@@ -201,19 +227,26 @@
 
             <!-- Filtro por data de cadastro (de) -->
             <div class="filter-field">
-              <label><i class="fa-solid fa-calendar-day"></i> Cadastro de</label>
-              <input type="date" id="uf-data-de" class="admin-input">
+              <label
+                ><i class="fa-solid fa-calendar-day"></i> Cadastro de</label
+              >
+              <input type="date" id="uf-data-de" class="admin-input" />
             </div>
 
             <!-- Filtro por data de cadastro (até) -->
             <div class="filter-field">
-              <label><i class="fa-solid fa-calendar-day"></i> Cadastro até</label>
-              <input type="date" id="uf-data-ate" class="admin-input">
+              <label
+                ><i class="fa-solid fa-calendar-day"></i> Cadastro até</label
+              >
+              <input type="date" id="uf-data-ate" class="admin-input" />
             </div>
 
             <!-- Ordenação -->
             <div class="filter-field">
-              <label><i class="fa-solid fa-arrow-up-wide-short"></i> Ordenar por</label>
+              <label
+                ><i class="fa-solid fa-arrow-up-wide-short"></i> Ordenar
+                por</label
+              >
               <select id="uf-ordem" class="admin-select">
                 <option value="recente">Mais recente</option>
                 <option value="antigo">Mais antigo</option>
@@ -224,10 +257,18 @@
 
             <!-- Botão aplicar / limpar -->
             <div class="filter-field filter-field-actions">
-              <button class="btn-admin-sm" id="uf-aplicar" style="margin-top:20px;">
+              <button
+                class="btn-admin-sm"
+                id="uf-aplicar"
+                style="margin-top: 20px"
+              >
                 <i class="fa-solid fa-filter"></i> Filtrar
               </button>
-              <button class="btn-cancelar-form" id="uf-limpar" style="margin-top:20px;">
+              <button
+                class="btn-cancelar-form"
+                id="uf-limpar"
+                style="margin-top: 20px"
+              >
                 <i class="fa-solid fa-xmark"></i> Limpar
               </button>
             </div>
@@ -235,10 +276,17 @@
         </div>
 
         <!-- Contador de resultados -->
-        <p id="users-filtro-count" class="admin-card-desc" style="margin:8px 0 4px;"></p>
+        <p
+          id="users-filtro-count"
+          class="admin-card-desc"
+          style="margin: 8px 0 4px"
+        ></p>
 
         <!-- Tabela -->
-        <div class="admin-card" style="margin-top:8px;overflow-x:auto;height: 60vh;">
+        <div
+          class="admin-card"
+          style="margin-top: 8px; overflow-x: auto; height: 60vh"
+        >
           <table class="admin-table">
             <thead>
               <tr>
@@ -607,13 +655,81 @@
         </div>
       </div>
     </main>
+    <!-- MODAL: DETALHES DO CASO (APROVAÇÕES) -->
+    <div
+      id="modal-caso-detalhes"
+      class="modal-overlay hidden"
+      style="
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 12000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        class="admin-card"
+        style="width: 90%; max-width: 900px; max-height: 90vh; overflow: auto"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+          "
+        >
+          <h3><i class="fa-solid fa-file-lines"></i> Detalhes do Caso</h3>
+          <button
+            id="modal-caso-fechar"
+            style="
+              background: none;
+              border: none;
+              font-size: 20px;
+              cursor: pointer;
+            "
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div
+          id="modal-caso-content"
+          style="font-size: 14px; line-height: 1.5; color: #222"
+        ></div>
+        <div
+          style="
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+          "
+        >
+          <button
+            id="modal-caso-copiar"
+            class="admin-btn"
+            style="background: #0c7ab5; color: #fff"
+          >
+            Copiar detalhes
+          </button>
+          <button
+            id="modal-caso-fechar-2"
+            class="admin-btn"
+            style="background: #ccc; color: #333"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
     <!-- Script do EmailJS -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script>
-        (function() {
-            // ATENÇÃO: COLOCA A TUA PUBLIC KEY AQUI
-            emailjs.init("R5Femg5uCIC-Lh0RW"); 
-        })();
+      (function () {
+        // ATENÇÃO: COLOCA A TUA PUBLIC KEY AQUI
+        emailjs.init("R5Femg5uCIC-Lh0RW");
+      })();
     </script>
 
     <script src="Scripts/alerts.js"></script>

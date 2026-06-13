@@ -572,37 +572,41 @@ async function carregarAprovacoes() {
     }
     // Recolher casos e buscar perfis dos relatores em paralelo
     const casos = [];
-    snap.forEach(d => casos.push({ id: d.id, ...d.data() }));
+    snap.forEach((d) => casos.push({ id: d.id, ...d.data() }));
 
     const userSnaps = await Promise.all(
-      casos.map(c =>
+      casos.map((c) =>
         c.userId
           ? getDoc(doc(db, "users", c.userId)).catch(() => null)
-          : Promise.resolve(null)
-      )
+          : Promise.resolve(null),
+      ),
     );
 
     casos.forEach((data, i) => {
-      const id   = data.id;
+      const id = data.id;
       const dias = calcularDias(data.data_desaparecimento);
       const tempo = dias === 0 ? "hoje" : `há ${dias} dias`;
 
       // Dados do utilizador que relatou
-      const uSnap       = userSnaps[i];
-      const relator     = uSnap?.exists() ? uSnap.data() : null;
-      const rNome       = relator?.nome  || "Utilizador desconhecido";
-      const rEmail      = relator?.email || "—";
-      const rFoto       = relator?.photoBase64 || "";
-      const rProv       = relator?.provincia ? ` · ${relator.provincia}` : "";
-      const rUID        = data.userId || "";
-      let   rMembro     = "—";
+      const uSnap = userSnaps[i];
+      const relator = uSnap?.exists() ? uSnap.data() : null;
+      const rNome = relator?.nome || "Utilizador desconhecido";
+      const rEmail = relator?.email || "—";
+      const rFoto = relator?.photoBase64 || "";
+      const rProv = relator?.provincia ? ` · ${relator.provincia}` : "";
+      const rUID = data.userId || "";
+      let rMembro = "—";
       if (relator?.criadoEm) {
-        const dt = relator.criadoEm.toDate ? relator.criadoEm.toDate() : new Date(relator.criadoEm);
-        if (!isNaN(dt)) rMembro = `${String(dt.getDate()).padStart(2,"0")}/${String(dt.getMonth()+1).padStart(2,"0")}/${dt.getFullYear()}`;
+        const dt = relator.criadoEm.toDate
+          ? relator.criadoEm.toDate()
+          : new Date(relator.criadoEm);
+        if (!isNaN(dt))
+          rMembro = `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()}`;
       }
-      const rVerif = relator?.emailVerificado === false
-        ? `<span class="relator-badge warn">⚠ Email não verificado</span>`
-        : `<span class="relator-badge ok">✓ Verificado</span>`;
+      const rVerif =
+        relator?.emailVerificado === false
+          ? `<span class="relator-badge warn">⚠ Email não verificado</span>`
+          : `<span class="relator-badge ok">✓ Verificado</span>`;
 
       const card = document.createElement("div");
       card.className = "card-aprovar";
@@ -625,15 +629,16 @@ async function carregarAprovacoes() {
         <p class="card-desc">
           Desapareceu em <strong>${data.provincia || "local desconhecido"}</strong>
           ${data.municipio ? " — " + data.municipio : ""} <em>${tempo}</em>.
-          ${data.ultimo_local
-            ? `<br><i class="fa-solid fa-location-dot" style="color:#e07a5f;"></i> ${data.ultimo_local}`
-            : ""}
+          ${
+            data.ultimo_local
+              ? `<br><i class="fa-solid fa-location-dot" style="color:#e07a5f;"></i> ${data.ultimo_local}`
+              : ""
+          }
         </p>
 
         <!-- Acções -->
         <div class="admin-actions" style="margin-bottom:0;">
-          <button class="btn-docs"
-            onclick="window.showAlert('BI: ${(data.bi||'N/A')}\nRoupas: ${(data.roupas||'N/A')}\nRelato: ${(data.informacoes_adicionais||'Sem detalhes')}')">
+          <button class="btn-docs">
             <i class="fa-solid fa-file-lines"></i> Ver Detalhes
           </button>
           <button class="btn-approve-pub" data-id="${id}">
@@ -647,9 +652,11 @@ async function carregarAprovacoes() {
             <i class="fa-solid fa-user-pen"></i> Relatado por
           </span>
           <div class="relator-body">
-            ${rFoto
-              ? `<img src="${rFoto}" class="relator-avatar" onerror="this.style.display='none'" alt="">`
-              : `<div class="relator-avatar-ph"><i class="fa-solid fa-user"></i></div>`}
+            ${
+              rFoto
+                ? `<img src="${rFoto}" class="relator-avatar" onerror="this.style.display='none'" alt="">`
+                : `<div class="relator-avatar-ph"><i class="fa-solid fa-user"></i></div>`
+            }
             <div class="relator-info">
               <div class="relator-nome">${rNome} ${rVerif}</div>
               <div class="relator-meta">
@@ -657,14 +664,24 @@ async function carregarAprovacoes() {
                 <span><i class="fa-solid fa-calendar"></i> Membro desde ${rMembro}${rProv}</span>
               </div>
             </div>
-            ${rUID
-              ? `<a href="profile.html?uid=${rUID}" target="_blank" class="relator-link" title="Ver perfil">
+            ${
+              rUID
+                ? `<a href="profile.html?uid=${rUID}" target="_blank" class="relator-link" title="Ver perfil">
                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
                  </a>`
-              : ""}
+                : ""
+            }
           </div>
         </div>`;
       container.appendChild(card);
+
+      // Attach listener to 'Ver Detalhes' button in a safe way (no inline onclick)
+      const btnDocsEl = card.querySelector(".btn-docs");
+      if (btnDocsEl) {
+        btnDocsEl.addEventListener("click", () => {
+          openCasoDetalhesModal(data, relator);
+        });
+      }
     });
 
     // Aprovar
@@ -1202,10 +1219,10 @@ async function notificarAprovacaoCaso(casoData) {
     // 1. Buscar todos os emails de todos os utilizadores registados
     const usersSnap = await getDocs(collection(db, "users"));
     const listaEmails = [];
-    
+
     usersSnap.forEach((userDoc) => {
-        const email = userDoc.data().email;
-        if (email) listaEmails.push(email); 
+      const email = userDoc.data().email;
+      if (email) listaEmails.push(email);
     });
 
     // 2. Junta todos os e-mails separados por vírgula para o BCC (Cópia Oculta)
@@ -1213,23 +1230,30 @@ async function notificarAprovacaoCaso(casoData) {
 
     // 3. Disparar Alerta Geral via EmailJS
     if (emailsFormatados.length > 0) {
-        const templateParams = {
-            bcc_emails: emailsFormatados,
-            nome_desaparecido: casoData.nome || "Desconhecido",
-            idade: casoData.idade || "?",
-            local: (casoData.ultimo_local || "") + (casoData.municipio ? " - " + casoData.municipio : ""),
-            data: casoData.data_desaparecimento || "Data desconhecida",
-            roupas: casoData.roupas || "Não informado",
-            info: casoData.informacoes_adicionais || "Sem informações adicionais."
-        };
+      const templateParams = {
+        bcc_emails: emailsFormatados,
+        nome_desaparecido: casoData.nome || "Desconhecido",
+        idade: casoData.idade || "?",
+        local:
+          (casoData.ultimo_local || "") +
+          (casoData.municipio ? " - " + casoData.municipio : ""),
+        data: casoData.data_desaparecimento || "Data desconhecida",
+        roupas: casoData.roupas || "Não informado",
+        info: casoData.informacoes_adicionais || "Sem informações adicionais.",
+      };
 
-        // ATENÇÃO: Substitui pelos teus IDs do EmailJS!
-        emailjs.send("service_8fq9usa", "template_366wv9e", templateParams)
-            .then(function(response) {
-                console.log("[EmailJS] Alerta geral enviado com sucesso!", response.status);
-            }, function(error) {
-                console.error("[EmailJS] Falha ao enviar alerta...", error);
-            });
+      // ATENÇÃO: Substitui pelos teus IDs do EmailJS!
+      emailjs.send("service_8fq9usa", "template_366wv9e", templateParams).then(
+        function (response) {
+          console.log(
+            "[EmailJS] Alerta geral enviado com sucesso!",
+            response.status,
+          );
+        },
+        function (error) {
+          console.error("[EmailJS] Falha ao enviar alerta...", error);
+        },
+      );
     }
   } catch (err) {
     console.warn("[EmailJS] Erro ao disparar alerta de e-mail:", err);
@@ -1411,4 +1435,154 @@ async function salvarLocalizacao() {
     btn.innerHTML = `<i class="fa-solid fa-save"></i> Salvar Localização`;
     btn.disabled = false;
   }
+}
+
+/* =========================================================================
+   MODAL: Detalhes do Caso
+   ========================================================================= */
+function openCasoDetalhesModal(data, relator) {
+  const modal = document.getElementById("modal-caso-detalhes");
+  const content = document.getElementById("modal-caso-content");
+  if (!modal || !content) {
+    // Fallback: mostrar em alert
+    const text = buildCasoDetalhesText(data, relator);
+    showAlert(text);
+    return;
+  }
+
+  // Construir HTML organizado (duas colunas em listas)
+  const rows = [];
+  const keys = Object.keys(data || {}).sort();
+  keys.forEach((k) => {
+    let v = data[k];
+    if (v == null || v === "") v = "—";
+    else if (v && typeof v.toDate === "function") {
+      try {
+        const d = v.toDate();
+        v = isNaN(d) ? String(v) : d.toLocaleDateString("pt-AO");
+      } catch (_) {}
+    } else if (typeof v === "object") {
+      try {
+        v = JSON.stringify(v);
+      } catch (_) {}
+    }
+    rows.push({ k, v });
+  });
+
+  // Campos esperados que queremos destacar (se ausentes aparecem como —)
+  const expected = [
+    "nome",
+    "idade",
+    "sexo",
+    "bi",
+    "provincia",
+    "municipio",
+    "ultimo_local",
+    "data_desaparecimento",
+    "roupas",
+    "informacoes_adicionais",
+    "telefone",
+    "email",
+    "status",
+  ];
+
+  const merged = [];
+  expected.forEach((k) => {
+    const found = rows.find((r) => r.k === k);
+    if (found) merged.push(found);
+    else merged.push({ k, v: "—" });
+  });
+
+  // Add remaining keys not in expected
+  rows.forEach((r) => {
+    if (!expected.includes(r.k)) merged.push(r);
+  });
+
+  // Build HTML
+  let html = `<div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="flex:1;min-width:220px">
+        <h4>Resumo</h4>
+        <div style="background:#f8f8f8;padding:10px;border-radius:6px;">
+          <strong style="display:block;font-size:15px;margin-bottom:6px;">${data.nome || "—"}</strong>
+          <div style="font-size:13px;color:#666;">${data.idade || "—"}${data.sexo ? " · " + data.sexo : ""}</div>
+          <div style="margin-top:8px;font-size:13px;color:#444;">${data.provincia || "—"}${data.municipio ? " — " + data.municipio : ""}</div>
+        </div>
+      </div>
+      <div style="flex:2;min-width:320px">
+        <h4>Campos</h4>
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>
+  `;
+
+  merged.forEach((r) => {
+    html += `<tr style="border-bottom:1px solid #eee"><td style="padding:6px 8px;width:36%"><strong>${r.k}</strong></td><td style="padding:6px 8px;color:#333">${escapeHtml(String(r.v))}</td></tr>`;
+  });
+
+  // Relator
+  html += `</tbody></table></div></div><div style="margin-top:8px;">
+    <h4>Relator</h4>
+    <div style="background:#fafafa;padding:10px;border-radius:6px;">
+      <div><strong>${relator?.nome || "—"}</strong> ${relator?.emailVerificado === false ? '<span style="color:#e67e22">⚠ Email não verificado</span>' : ""}</div>
+      <div style="color:#666;margin-top:6px;">${relator?.email || "—"}</div>
+    </div>
+  </div></div>`;
+
+  content.innerHTML = html;
+  modal.classList.remove("hidden");
+
+  // Wire up modal buttons
+  document.getElementById("modal-caso-fechar").onclick = closeCasoDetalhesModal;
+  document.getElementById("modal-caso-fechar-2").onclick =
+    closeCasoDetalhesModal;
+  document.getElementById("modal-caso-copiar").onclick = () => {
+    const text = buildCasoDetalhesText(data, relator);
+    try {
+      navigator.clipboard.writeText(text);
+      showAlert("Detalhes copiados para a área de transferência.");
+    } catch (e) {
+      showAlert(text);
+    }
+  };
+}
+
+function closeCasoDetalhesModal() {
+  const modal = document.getElementById("modal-caso-detalhes");
+  if (modal) modal.classList.add("hidden");
+}
+
+function buildCasoDetalhesText(data, relator) {
+  const lines = [];
+  Object.keys(data || {})
+    .sort()
+    .forEach((k) => {
+      let v = data[k];
+      if (v == null || v === "") v = "—";
+      else if (v && typeof v.toDate === "function") {
+        try {
+          v = v.toDate().toLocaleDateString("pt-AO");
+        } catch (_) {}
+      } else if (typeof v === "object") {
+        try {
+          v = JSON.stringify(v);
+        } catch (_) {
+          v = String(v);
+        }
+      }
+      lines.push(`${k}: ${v}`);
+    });
+  lines.push("");
+  lines.push("=== Relator ===");
+  lines.push(`nome: ${relator?.nome || "—"}`);
+  lines.push(`email: ${relator?.email || "—"}`);
+  return lines.join("\n");
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
