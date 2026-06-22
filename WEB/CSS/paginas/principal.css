@@ -931,6 +931,51 @@ textarea {
   font-family: var(--font-base);
 }
 
+/* Resposta (indent) */
+.comment-reply {
+  margin-left: 42px;
+}
+.comment-reply .comment-bubble {
+  background: #eef5f8;
+}
+
+.comment-reply-to {
+  font-size: 12px;
+  color: #0c7ab5;
+  margin-bottom: 6px;
+}
+
+.btn-reply {
+  border: none;
+  background: transparent;
+  color: #0c7ab5;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px;
+}
+.btn-reply:hover { color: #094e73; }
+
+/* Barra que mostra que o utilizador está respondendo a um comentário */
+.replying-to {
+  font-size: 13px;
+  padding: 8px 12px;
+  background: #eef7fb;
+  border-left: 3px solid var(--color-quaternary);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.replying-to .cancel-reply {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #666;
+}
+
 /* Mensagem sem comentários */
 .no-comments {
   text-align: center;
@@ -2139,3 +2184,248 @@ input[type="date"].filtro-date:focus {
   color: inherit;
   text-decoration: none;
 }
+/* =====================================================
+   MENU DE OPÇÕES DO CARD (⋮ Ver detalhes / Ver no mapa)
+   ===================================================== */
+.btn-card-menu {
+  background: none;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.btn-card-menu:hover { background: #f0f4f7; color: var(--color-quaternary); }
+
+.card-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: transparent;
+}
+.card-menu-backdrop.hidden { display: none; }
+
+.card-menu-popover {
+  position: absolute;
+  z-index: 401;
+  width: 220px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+  overflow: hidden;
+  border: 1px solid #eee;
+  animation: cardMenuIn 0.15s ease;
+}
+.card-menu-popover.hidden { display: none; }
+@keyframes cardMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  font-family: var(--font-base);
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.card-menu-item:hover { background: #f7f9fb; }
+.card-menu-item i { color: var(--color-quaternary); width: 16px; }
+.card-menu-item:first-child { border-bottom: 1px solid #f2f2f2; }
+
+/* =====================================================
+   MODAL — DETALHES DO CASO
+   ===================================================== */
+.caso-detalhes-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.caso-detalhes-overlay.hidden { display: none; }
+
+.caso-detalhes-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(3px);
+}
+
+.caso-detalhes-modal {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  animation: cdModalIn 0.2s ease;
+}
+@keyframes cdModalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.caso-detalhes-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.caso-detalhes-close:hover { background: rgba(0,0,0,0.75); }
+
+.cd-foto {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+  border-radius: 16px 16px 0 0;
+}
+
+.cd-content { padding: 22px 24px 26px; }
+
+.cd-nome {
+  font-family: var(--font-title);
+  font-size: 21px;
+  color: #111;
+  margin: 0 0 8px;
+}
+
+.cd-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 16px 0;
+  background: #f7f9fb;
+  border-radius: 10px;
+  padding: 14px;
+}
+.cd-item { display: flex; flex-direction: column; gap: 2px; }
+.cd-item span { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
+.cd-item strong { font-size: 14px; color: #222; }
+
+.cd-section { margin-top: 16px; }
+.cd-section h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: #555;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.cd-section h4 i { color: var(--color-quaternary); }
+.cd-section p { font-size: 13.5px; color: #444; line-height: 1.6; margin: 0; }
+
+.cd-relator { border-top: 1px solid #eee; padding-top: 16px; margin-top: 20px; }
+.cd-relator-loading { font-size: 13px; color: #999; display: flex; align-items: center; gap: 8px; }
+
+.cd-relator-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f0f7fc;
+  border: 1px solid #d6ebf7;
+  border-radius: 12px;
+  padding: 10px 14px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.cd-relator-card:hover { background: #e3f2fd; }
+.cd-relator-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.cd-relator-avatar-ph {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: #cfe7f5; color: var(--color-quaternary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+.cd-relator-info { display: flex; flex-direction: column; gap: 2px; }
+.cd-relator-info strong { font-size: 14px; color: #1a1a1a; }
+.cd-relator-info span { font-size: 12px; color: var(--color-quaternary); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+
+@media (max-width: 520px) {
+  .caso-detalhes-overlay { padding: 0; align-items: flex-end; }
+  .caso-detalhes-modal { max-width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; }
+}
+
+/* =====================================================
+   UPLOAD DE FOTO CIRCULAR — formulário de relato
+   ===================================================== */
+.foto-upload-circular {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  margin: 8px auto 18px;
+  background: #eef3f7;
+  border: 2.5px dashed #c5d6e0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+.foto-upload-circular:hover {
+  border-color: var(--color-quaternary);
+  background: #e8f2f9;
+}
+.foto-upload-circular.has-image {
+  border-style: solid;
+  border-color: var(--color-quaternary);
+}
+
+.foto-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+.foto-preview-img.hidden { display: none; }
+
+.foto-upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #8a9aa6;
+  text-align: center;
+  padding: 0 12px;
+}
+.foto-upload-placeholder.hidden { display: none; }
+.foto-upload-placeholder i { font-size: 24px; }
+.foto-upload-placeholder span { font-size: 11px; font-weight: 600; line-height: 1.3; }

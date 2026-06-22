@@ -26,6 +26,7 @@ let mapaDesaparecidos = null; // instância do Google Map principal
 let mapaForm = null; // instância do Google Map no formulário
 let mapaFormMarker = null; // marcador arrastável no formulário
 const comentariosAbertos = {};
+const comentariosReplyingTo = {}; // { [casoId]: { id: commentId, author: authorName } }
 let navAvatarUnsub = null;
 
 // Coordenadas por província (Angola)
@@ -106,8 +107,13 @@ onAuthStateChanged(auth, async (user) => {
 document.addEventListener("DOMContentLoaded", async function () {
   configurarNavegacaoModal();
   configurarLogicaMunicipios();
+  configurarPreviewFoto();
   configurarLogicaDeficiencia();
   configurarFiltros();
+
+  // Modal de detalhes do caso — fechar
+  document.getElementById("casoDetalhesClose")?.addEventListener("click", fecharDetalhesCaso);
+  document.getElementById("casoDetalhesBackdrop")?.addEventListener("click", fecharDetalhesCaso);
 
   try {
     await iniciarCarrossel();
@@ -192,6 +198,7 @@ function iniciarMapaPrincipal(casos) {
         strokeWeight: 2,
       },
     });
+    marker.casoId = caso.id; // referência para abrirCasoNoMapa()
 
     const dias = calcularDias(caso.data_desaparecimento);
     const tempo = dias === 0 ? "hoje" : `há ${dias} dias`;
@@ -424,8 +431,11 @@ function renderizarCasos(lista) {
           <h4>${caso.nome || "Nome Desconhecido"}</h4>
           <span>${caso.idade || "?"} anos • ${caso.municipio || "Angola"}</span>
         </div>
-        <div style="margin-left:auto;text-align:right;">
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
           <span class="status-badge status-${caso.status}">${statusTexto}</span>
+          <button class="btn-card-menu" data-id="${caso.id}" title="Mais opções">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </button>
         </div>
       </div>
        <img src="${caso.imagem || "WEB/imgs/user.jpg"}" class="card-main-image"
@@ -531,6 +541,178 @@ function registarEventosBotoes() {
       }
     }),
   );
+  document
+    .querySelectorAll(".btn-card-menu")
+    .forEach((btn) =>
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        abrirMenuCard(btn.dataset.id, btn);
+      }),
+    );
+}
+
+/* =========================================================================
+   MENU DE OPÇÕES DO CARD — Ver detalhes / Ver no mapa
+   ========================================================================= */
+function abrirMenuCard(casoId, btnEl) {
+  const popover = document.getElementById("cardMenuPopover");
+  const backdrop = document.getElementById("cardMenuBackdrop");
+  const btnDetalhes = document.getElementById("cardMenuDetalhes");
+  const btnMapa = document.getElementById("cardMenuMapa");
+  if (!popover || !backdrop) return;
+
+  // Posicionar o popover por baixo do botão clicado
+  const rect = btnEl.getBoundingClientRect();
+  const popW = 220;
+  let left = rect.right - popW;
+  if (left < 8) left = 8;
+  popover.style.top = `${rect.bottom + window.scrollY + 6}px`;
+  popover.style.left = `${left + window.scrollX}px`;
+
+  popover.classList.remove("hidden");
+  backdrop.classList.remove("hidden");
+
+  const fechar = () => {
+    popover.classList.add("hidden");
+    backdrop.classList.add("hidden");
+  };
+  backdrop.onclick = fechar;
+
+  btnDetalhes.onclick = () => {
+    fechar();
+    abrirDetalhesCaso(casoId);
+  };
+  btnMapa.onclick = () => {
+    fechar();
+    abrirCasoNoMapa(casoId);
+  };
+}
+
+/* =========================================================================
+   MODAL — VER MAIS DETALHES (com perfil de quem relatou)
+   ========================================================================= */
+async function abrirDetalhesCaso(casoId) {
+  const caso = todosOsCasos.find((c) => c.id === casoId);
+  if (!caso) return;
+
+  const overlay = document.getElementById("casoDetalhesOverlay");
+  const body = document.getElementById("casoDetalhesBody");
+  if (!overlay || !body) return;
+
+  const dias = calcularDias(caso.data_desaparecimento);
+  const tempo = dias === 0 ? "Hoje" : `Há ${dias} dias`;
+
+  // Estado de carregamento enquanto busca o perfil de quem relatou
+  body.innerHTML = `
+    <img src="${caso.imagem || "WEB/imgs/user.jpg"}" class="cd-foto" onerror="this.src='WEB/imgs/user.jpg'">
+    <div class="cd-content">
+      <h2 class="cd-nome">${caso.nome || "Nome desconhecido"}</h2>
+      <span class="status-badge status-${caso.status}">${caso.status === "aprovado" ? "Ativo" : caso.status || ""}</span>
+
+      <div class="cd-grid">
+        <div class="cd-item"><span>Idade</span><strong>${caso.idade || "—"}</strong></div>
+        <div class="cd-item"><span>Sexo</span><strong>${caso.sexo || "—"}</strong></div>
+        <div class="cd-item"><span>Altura</span><strong>${caso.altura || "—"}</strong></div>
+        <div class="cd-item"><span>Desaparecido</span><strong>${tempo}</strong></div>
+      </div>
+
+      <div class="cd-section">
+        <h4><i class="fa-solid fa-location-dot"></i> Localização</h4>
+        <p>${caso.ultimo_local || "Não informado"} — ${caso.municipio ? caso.municipio + ", " : ""}${caso.provincia || "Angola"}</p>
+      </div>
+
+      ${caso.roupas ? `
+      <div class="cd-section">
+        <h4><i class="fa-solid fa-shirt"></i> Vestimenta</h4>
+        <p>${caso.roupas}</p>
+      </div>` : ""}
+
+      ${caso.tipo_deficiencia ? `
+      <div class="cd-section">
+        <h4><i class="fa-solid fa-wheelchair"></i> Deficiência</h4>
+        <p>${caso.tipo_deficiencia}</p>
+      </div>` : ""}
+
+      ${caso.informacoes_adicionais ? `
+      <div class="cd-section">
+        <h4><i class="fa-solid fa-circle-info"></i> Informações adicionais</h4>
+        <p>${caso.informacoes_adicionais}</p>
+      </div>` : ""}
+
+      <div class="cd-section cd-relator" id="cd-relator-box">
+        <h4><i class="fa-solid fa-user-pen"></i> Relatado por</h4>
+        <div class="cd-relator-loading">
+          <i class="fa-solid fa-spinner fa-spin"></i> A carregar...
+        </div>
+      </div>
+    </div>`;
+
+  overlay.classList.remove("hidden");
+
+  // Buscar perfil de quem relatou (assíncrono, não bloqueia abertura do modal)
+  const relatorBox = document.getElementById("cd-relator-box");
+  if (!caso.userId) {
+    relatorBox.innerHTML = `<h4><i class="fa-solid fa-user-pen"></i> Relatado por</h4><p style="color:#999;font-size:13px;">Informação não disponível.</p>`;
+    return;
+  }
+  try {
+    const uSnap = await getDoc(doc(db, "users", caso.userId));
+    if (!uSnap.exists()) {
+      relatorBox.innerHTML = `<h4><i class="fa-solid fa-user-pen"></i> Relatado por</h4><p style="color:#999;font-size:13px;">Utilizador não encontrado.</p>`;
+      return;
+    }
+    const u = uSnap.data();
+    relatorBox.innerHTML = `
+      <h4><i class="fa-solid fa-user-pen"></i> Relatado por</h4>
+      <a href="WEB/profile.html?uid=${caso.userId}" class="cd-relator-card" target="_blank">
+        ${u.photoBase64
+          ? `<img src="${u.photoBase64}" class="cd-relator-avatar" alt="">`
+          : `<div class="cd-relator-avatar-ph"><i class="fa-solid fa-user"></i></div>`}
+        <div class="cd-relator-info">
+          <strong>${u.nome || "Utilizador"}</strong>
+          <span>Visitar perfil <i class="fa-solid fa-arrow-right"></i></span>
+        </div>
+      </a>`;
+  } catch (err) {
+    relatorBox.innerHTML = `<h4><i class="fa-solid fa-user-pen"></i> Relatado por</h4><p style="color:#999;font-size:13px;">Erro ao carregar perfil.</p>`;
+  }
+}
+
+function fecharDetalhesCaso() {
+  document.getElementById("casoDetalhesOverlay")?.classList.add("hidden");
+}
+
+/* =========================================================================
+   ABRIR CASO NO MAPA
+   ========================================================================= */
+function abrirCasoNoMapa(casoId) {
+  const sectionMap = document.querySelector(".section_map");
+  const isMobileView = window.innerWidth <= 900;
+
+  const focar = () => {
+    if (typeof google === "undefined" || !window._mapaMarkers) return;
+    const marker = window._mapaMarkers.find((m) => m.casoId === casoId);
+    if (!marker || !mapaDesaparecidos) return;
+    mapaDesaparecidos.panTo(marker.getPosition());
+    mapaDesaparecidos.setZoom(12);
+    google.maps.event.trigger(marker, "click");
+    marker.setAnimation(google.maps.Animation.BOUNCE);
+    setTimeout(() => marker.setAnimation(null), 1400);
+  };
+
+  if (isMobileView && sectionMap) {
+    // Abrir overlay do mapa em mobile
+    sectionMap.classList.add("mobile-active", "show-map");
+    sectionMap.classList.remove("show-filters");
+    setTimeout(() => {
+      iniciarMapaPrincipal(todosOsCasos);
+      setTimeout(focar, 350);
+    }, 100);
+  } else {
+    // Desktop: scroll até o mapa e focar
+    document.getElementById("mapa-desaparecidos")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(focar, 400);
+  }
 }
 
 /* =========================================================================
@@ -635,53 +817,122 @@ async function carregarComentarios(casoId) {
       listEl.innerHTML = `<p class="no-comments">Seja o primeiro a comentar!</p>`;
       return;
     }
-    snap.forEach((d) => {
-      const c = d.data();
-      const cId = d.id;
-      const dt = c.criadoEm?.toDate ? c.criadoEm.toDate() : new Date();
-      const ts = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")} · ${dt.getDate()}/${dt.getMonth() + 1}`;
-      // Mostrar botão de apagar só ao próprio autor
-      const isAuthor = currentUser && c.autorId === currentUser.uid;
+
+    // Construir árvore de comentários (suporta replies via parentId)
+    const items = [];
+    snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+    const map = {};
+    items.forEach((it) => (map[it.id] = { ...it, id: it.id, children: [] }));
+    const roots = [];
+    items.forEach((it) => {
+      const node = map[it.id];
+      if (it.parentId && map[it.parentId]) {
+        map[it.parentId].children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    function pad(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function renderNode(node, depth = 0) {
+      const dt = node.criadoEm?.toDate ? node.criadoEm.toDate() : new Date();
+      const ts = `${pad(dt.getHours())}:${pad(dt.getMinutes())} · ${dt.getDate()}/${dt.getMonth() + 1}`;
+      const isAuthor = currentUser && node.autorId === currentUser.uid;
+      const parentName = node.parentId && map[node.parentId] ? map[node.parentId].autorNome : null;
+
       const el = document.createElement("div");
-      el.className = "comment-item";
-      el.dataset.commentId = cId;
+      el.className = `comment-item${depth > 0 ? " comment-reply" : ""}`;
+      el.dataset.commentId = node.id;
       el.innerHTML = `
-        <a href="WEB/profile.html?uid=${c.autorId}" class="comment-avatar-link" title="Ver perfil">
-          <img src="${c.autorFoto || "WEB/imgs/user.jpg"}" class="comment-avatar" onerror="this.src='WEB/imgs/user.jpg'">
+        <a href="WEB/profile.html?uid=${node.autorId}" class="comment-avatar-link" title="Ver perfil">
+          <img src="${node.autorFoto || "WEB/imgs/user.jpg"}" class="comment-avatar" onerror="this.src='WEB/imgs/user.jpg'">
         </a>
         <div class="comment-bubble">
           <div class="comment-header">
-            <a href="WEB/profile.html?uid=${c.autorId}" class="comment-author-link">
-              <span class="comment-author">${c.autorNome || "Utilizador"}</span>
+            <a href="WEB/profile.html?uid=${node.autorId}" class="comment-author-link">
+              <span class="comment-author">${node.autorNome || "Utilizador"}</span>
             </a>
-            ${
-              isAuthor
-                ? `<button class="btn-delete-comment" data-caso="${casoId}" data-comentario="${cId}" title="Apagar comentário">
-              <i class="fa-solid fa-trash-can"></i>
-            </button>`
-                : ""
-            }
+            <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+              <button class="btn-reply" data-comment="${node.id}" data-author="${encodeURIComponent(node.autorNome || "Utilizador")}" title="Responder">
+                <i class="fa-solid fa-reply"></i>
+              </button>
+              ${isAuthor ? `<button class="btn-delete-comment" data-caso="${casoId}" data-comentario="${node.id}" title="Apagar comentário"><i class="fa-solid fa-trash-can"></i></button>` : ""}
+            </div>
           </div>
-          <p class="comment-text">${escapeHtml(c.texto)}</p>
+          ${node.parentId && parentName ? `<div class="comment-reply-to">Resposta a <a href=\"WEB/profile.html?uid=${map[node.parentId].autorId}\">${escapeHtml(parentName)}</a></div>` : node.parentId && !parentName ? `<div class="comment-reply-to">Resposta a comentário removido</div>` : ""}
+          <p class="comment-text">${escapeHtml(node.texto)}</p>
           <span class="comment-time">${ts}</span>
         </div>`;
+
       listEl.appendChild(el);
+
+      if (node.children && node.children.length) {
+        node.children.forEach((c) => renderNode(c, depth + 1));
+      }
+    }
+
+    roots.forEach((r) => renderNode(r, 0));
+
+    // Eventos: reply
+    listEl.querySelectorAll(".btn-reply").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const commentId = btn.dataset.comment;
+        const author = btn.dataset.author ? decodeURIComponent(btn.dataset.author) : "Utilizador";
+        setReplyTo(casoId, commentId, author);
+      });
     });
 
-    // Eventos de apagar comentário
+    // Eventos de apagar comentário (com cascade)
     listEl.querySelectorAll(".btn-delete-comment").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!confirm("Apagar este comentário?")) return;
-        await apagarComentario(btn.dataset.caso, btn.dataset.comentario);
+        try {
+          const deleted = await apagarComentario(btn.dataset.caso, btn.dataset.comentario);
+        } catch (err) {
+          console.error(err);
+          showAlert("Erro ao apagar comentário.");
+        }
         await carregarComentarios(casoId);
       });
     });
+
+    // Scroll para fim
     listEl.scrollTop = listEl.scrollHeight;
   } catch (err) {
     if (loadingEl) loadingEl.style.display = "none";
     if (listEl)
       listEl.innerHTML = `<p class="no-comments" style="color:#e74c3c;">Erro ao carregar.</p>`;
   }
+}
+
+function setReplyTo(casoId, commentId, author) {
+  comentariosReplyingTo[casoId] = { id: commentId, author };
+  const section = document.getElementById(`comments-${casoId}`);
+  if (!section) return;
+  // Mostrar barra de "respondendo a"
+  let row = section.querySelector(".comment-input-row");
+  if (!row) return;
+  let bar = section.querySelector(".replying-to");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.className = "replying-to";
+    row.parentNode.insertBefore(bar, row);
+  }
+  bar.innerHTML = `Respondendo a <strong>${escapeHtml(author)}</strong> <button class="cancel-reply" title="Cancelar resposta">×</button>`;
+  bar.querySelector(".cancel-reply").addEventListener("click", () => clearReplyTo(casoId));
+  const input = document.getElementById(`comment-input-${casoId}`);
+  if (input) input.focus();
+}
+
+function clearReplyTo(casoId) {
+  delete comentariosReplyingTo[casoId];
+  const section = document.getElementById(`comments-${casoId}`);
+  if (!section) return;
+  const bar = section.querySelector(".replying-to");
+  if (bar) bar.remove();
 }
 
 async function enviarComentario(casoId) {
@@ -703,8 +954,10 @@ async function enviarComentario(casoId) {
   try {
     const uSnap = await getDoc(doc(db, "users", currentUser.uid));
     const userData = uSnap.exists() ? uSnap.data() : {};
+    const parentId = comentariosReplyingTo[casoId]?.id || null;
     await addDoc(collection(db, "casos", casoId, "comentarios"), {
       texto,
+      parentId,
       autorId: currentUser.uid,
       autorNome: userData.nome || "Utilizador",
       autorFoto: userData.photoBase64 || "",
@@ -718,6 +971,7 @@ async function enviarComentario(casoId) {
     const countEl = document.getElementById(`comentarios-count-${casoId}`);
     if (countEl && local) countEl.innerText = local.comentarios;
     inputEl.value = "";
+    clearReplyTo(casoId);
     await carregarComentarios(casoId);
   } catch (err) {
     console.error("Erro ao comentar:", err);
@@ -1093,6 +1347,33 @@ function configurarNavegacaoModal() {
 /* =========================================================================
    8. UTILITÁRIOS
    ========================================================================= */
+/* =========================================================================
+   PRÉ-VISUALIZAÇÃO CIRCULAR DA FOTO (formulário de relato)
+   ========================================================================= */
+function configurarPreviewFoto() {
+  const trigger = document.getElementById("foto-upload-trigger");
+  const input = document.getElementById("input-imagem-relato");
+  const previewImg = document.getElementById("foto-preview-img");
+  const placeholder = document.getElementById("foto-upload-placeholder");
+  if (!trigger || !input) return;
+
+  trigger.addEventListener("click", () => input.click());
+
+  input.addEventListener("change", () => {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImg.src = e.target.result;
+      previewImg.classList.remove("hidden");
+      placeholder.classList.add("hidden");
+      trigger.classList.add("has-image");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function configurarLogicaMunicipios() {
   const municipiosPorProvincia = {
     luanda: [
@@ -1205,19 +1486,46 @@ async function incrementarStatUser(campo) {
 }
 
 // Apagar comentário (só o próprio autor)
+async function apagarComentarioRec(casoId, comentarioId) {
+  // Remove um comentário e todas as suas respostas recursivamente.
+  const ref = doc(db, "casos", casoId, "comentarios", comentarioId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return 0;
+  const data = snap.data();
+  if (data.autorId !== currentUser.uid) {
+    throw new Error("Permissão negada");
+  }
+  // Apagar filhos recursivamente
+  const q = query(
+    collection(db, "casos", casoId, "comentarios"),
+    where("parentId", "==", comentarioId),
+  );
+  const children = await getDocs(q);
+  let total = 0;
+  for (const d of children.docs) {
+    total += await apagarComentarioRec(casoId, d.id);
+  }
+  await deleteDoc(ref);
+  return total + 1;
+}
+
 async function apagarComentario(casoId, comentarioId) {
-  if (!currentUser) return;
+  if (!currentUser) return 0;
   try {
-    await deleteDoc(doc(db, "casos", casoId, "comentarios", comentarioId));
-    await updateDoc(doc(db, "casos", casoId), { comentarios: increment(-1) });
-    // Actualizar contador local
-    const local = todosOsCasos.find((c) => c.id === casoId);
-    if (local) local.comentarios = Math.max(0, (local.comentarios || 1) - 1);
-    const countEl = document.getElementById(`comentarios-count-${casoId}`);
-    if (countEl && local) countEl.innerText = local.comentarios;
+    const deletedCount = await apagarComentarioRec(casoId, comentarioId);
+    if (deletedCount > 0) {
+      await updateDoc(doc(db, "casos", casoId), { comentarios: increment(-deletedCount) });
+      // Actualizar contador local
+      const local = todosOsCasos.find((c) => c.id === casoId);
+      if (local) local.comentarios = Math.max(0, (local.comentarios || deletedCount) - deletedCount);
+      const countEl = document.getElementById(`comentarios-count-${casoId}`);
+      if (countEl && local) countEl.innerText = local.comentarios;
+    }
+    return deletedCount;
   } catch (err) {
     console.error("Erro ao apagar comentário:", err);
     showAlert("Não foi possível apagar o comentário.");
+    return 0;
   }
 }
 

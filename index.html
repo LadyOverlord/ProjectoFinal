@@ -236,7 +236,14 @@
           <!-- 1. PESSOA -->
           <div class="pessoa_div" id="pessoaDiv">
             <label>Imagem da pessoa desaparecida</label>
-            <input type="file" accept="image/*" name="imagem" required/>
+            <div class="foto-upload-circular" id="foto-upload-trigger">
+              <img id="foto-preview-img" class="foto-preview-img hidden" alt="Pré-visualização">
+              <div id="foto-upload-placeholder" class="foto-upload-placeholder">
+                <i class="fa-solid fa-camera"></i>
+                <span>Adicionar foto</span>
+              </div>
+            </div>
+            <input type="file" accept="image/*" name="imagem" id="input-imagem-relato" required style="display:none;"/>
             <label>Nome completo</label>
             <input
               type="text"
@@ -378,6 +385,31 @@
         </div>
       </div>
     </section>
+
+
+    <!-- ====== MODAL: DETALHES DO CASO ====== -->
+    <div class="caso-detalhes-overlay hidden" id="casoDetalhesOverlay">
+      <div class="caso-detalhes-backdrop" id="casoDetalhesBackdrop"></div>
+      <div class="caso-detalhes-modal">
+        <button class="caso-detalhes-close" id="casoDetalhesClose">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div id="casoDetalhesBody">
+          <!-- Preenchido dinamicamente pelo principal.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== MENU DE OPÇÕES DO CARD (Ver detalhes / Ver no mapa) ====== -->
+    <div class="card-menu-popover hidden" id="cardMenuPopover">
+      <button class="card-menu-item" id="cardMenuDetalhes">
+        <i class="fa-solid fa-circle-info"></i> Ver mais detalhes
+      </button>
+      <button class="card-menu-item" id="cardMenuMapa">
+        <i class="fa-solid fa-map-location-dot"></i> Ver no mapa
+      </button>
+    </div>
+    <div class="card-menu-backdrop hidden" id="cardMenuBackdrop"></div>
 
     <!-- CHATBOT -->
     <div class="chatbot_div" id="chatbotDiv">
