@@ -114,7 +114,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/liftapp (1).png"
+  image_path: "assets/images/missingao.png"
 
   android_adaptive_icon: true
   adaptive_icon_background: "#ffffff"

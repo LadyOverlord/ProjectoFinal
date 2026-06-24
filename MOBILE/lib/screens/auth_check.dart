@@ -1,3 +1,4 @@
+// screens/auth_check.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,7 +6,7 @@ import 'login_page.dart';
 import 'home_page.dart';
 import 'admin_page.dart';
 import '../models/user_mode.dart';
-import '../services/notification_service.dart'; // ← adiciona este import
+import '../services/notification_service.dart';
 
 class AuthCheck extends StatelessWidget {
   const AuthCheck({super.key});
@@ -20,8 +21,9 @@ class AuthCheck extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
+
         if (snapshot.hasData) {
-          // ← Guardar token FCM sempre que o utilizador já está logado
+          // Guarda o token FCM e a localização sempre que o utilizador está logado
           NotificationService.instance.salvarTokenAposLogin();
 
           return FutureBuilder<DocumentSnapshot>(
@@ -31,22 +33,28 @@ class AuthCheck extends StatelessWidget {
                 .get(),
             builder: (context, userSnapshot) {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
               }
+
               if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                final userData =
+                    userSnapshot.data!.data() as Map<String, dynamic>;
                 final role = userData['role'] ?? 'user';
+
                 if (role == 'admin') {
                   return const AdminPage();
                 } else {
                   return const HomePage(mode: UserMode.authenticated);
                 }
-              } else {
-                return const HomePage(mode: UserMode.authenticated);
               }
+
+              return const HomePage(mode: UserMode.authenticated);
             },
           );
         }
+
         return const LoginPage();
       },
     );

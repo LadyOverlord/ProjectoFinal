@@ -1,11 +1,11 @@
-// FUNCIONALIDADES INTEGRADAS DA VERSÃO WEB
-// ✅ Dashboard com stats em tempo real + tabela de casos ativos
+// screens/admin_page.dart
+// ✅ Dashboard com stats em tempo real + tabela de casos ativos com FILTRO
 // ✅ Filtros avançados de utilizadores (role, província, data, ordenação)
 // ✅ Painel de aprovações com mini-perfil do relator
 // ✅ Editar localização de casos no mapa (Google Maps)
-// ✅ Mapa de casos admin com legenda e lista de resumo
+// ✅ Mapa de casos admin com legenda e lista de resumo (SEM barra de pesquisa)
 // ✅ Promover/rebaixar utilizadores para admin
-// ✅ Design original mantido (paleta _C intacta)
+// ✅ Botão "Voltar ao App" — navega correctamente para HomePage
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -14,6 +14,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/notification_service.dart';
+import '../models/user_mode.dart';
+import 'home_page.dart'; // ← import da HomePage
 
 // PALETA DE CORES
 class _C {
@@ -41,24 +43,37 @@ class _C {
 
 // COORDENADAS DAS PROVÍNCIAS DE ANGOLA
 const Map<String, LatLng> provCoords = {
-  'luanda':          LatLng(-8.8368,  13.2343),
-  'benguela':        LatLng(-12.5763, 13.4055),
-  'huambo':          LatLng(-12.776,  15.7388),
-  'bié':             LatLng(-12.3764, 17.0557),
-  'cabinda':         LatLng(-5.55,    12.2),
-  'cuando cubango':  LatLng(-16.93,   19.8),
-  'cuanza norte':    LatLng(-9.2,     14.7),
-  'cuanza sul':      LatLng(-10.9,    14.3),
-  'cunene':          LatLng(-16.9,    15.8),
-  'huíla':           LatLng(-14.92,   13.5),
-  'lunda norte':     LatLng(-8.65,    20.4),
-  'lunda sul':       LatLng(-10.0,    21.0),
-  'malanje':         LatLng(-9.54,    16.34),
-  'moxico':          LatLng(-11.86,   19.92),
-  'namibe':          LatLng(-15.1961, 12.1522),
-  'uíge':            LatLng(-7.61,    15.06),
-  'zaire':           LatLng(-6.1,     12.85),
+  'luanda':         LatLng(-8.8368,  13.2343),
+  'benguela':       LatLng(-12.5763, 13.4055),
+  'huambo':         LatLng(-12.776,  15.7388),
+  'bié':            LatLng(-12.3764, 17.0557),
+  'cabinda':        LatLng(-5.55,    12.2),
+  'cuando cubango': LatLng(-16.93,   19.8),
+  'cuanza norte':   LatLng(-9.2,     14.7),
+  'cuanza sul':     LatLng(-10.9,    14.3),
+  'cunene':         LatLng(-16.9,    15.8),
+  'huíla':          LatLng(-14.92,   13.5),
+  'lunda norte':    LatLng(-8.65,    20.4),
+  'lunda sul':      LatLng(-10.0,    21.0),
+  'malanje':        LatLng(-9.54,    16.34),
+  'moxico':         LatLng(-11.86,   19.92),
+  'namibe':         LatLng(-15.1961, 12.1522),
+  'uíge':           LatLng(-7.61,    15.06),
+  'zaire':          LatLng(-6.1,     12.85),
 };
+
+// ─── NAVEGAÇÃO PARA HOME ─────────────────────────────────────────────────────
+// Função utilitária usada tanto no menu lateral como no drawer.
+// Remove todos os ecrãs anteriores do stack e coloca a HomePage.
+void _irParaHome(BuildContext context) {
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(
+      builder: (_) => const HomePage(mode: UserMode.authenticated),
+    ),
+    (route) => false, // remove TUDO do stack — o utilizador não pode voltar ao admin com o botão de volta
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // MAIN WIDGET
 class AdminPage extends StatefulWidget {
@@ -90,6 +105,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
 
   void _go(String s) {
     _fadeCtrl.reset();
+    _searchCtrl.clear();
     setState(() => _section = s);
     _fadeCtrl.forward();
     if (MediaQuery.of(context).size.width <= 700) Navigator.pop(context);
@@ -118,7 +134,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
 
   Widget _buildContent() {
     switch (_section) {
-      case 'dashboard': return _DashboardPanel();
+      case 'dashboard': return _DashboardPanel(searchCtrl: _searchCtrl);
       case 'users':     return _UsersPanel(searchCtrl: _searchCtrl);
       case 'reports':   return _ApprovalsPanel();
       case 'mapa':      return _MapaAdminPanel();
@@ -127,16 +143,16 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX 1: APP BAR — preferredSize aumentado de 110 para 126 para evitar overflow
-// ─────────────────────────────────────────────────────────────────────────────
+// APP BAR
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   final TextEditingController searchCtrl;
   final String section;
   const _AppBar({required this.searchCtrl, required this.section});
 
+  bool get _showSearch => section != 'mapa';
+
   @override
-  Size get preferredSize => const Size.fromHeight(126); // FIX: era 110, agora 126
+  Size get preferredSize => Size.fromHeight(_showSearch ? 126 : 72);
 
   @override
   Widget build(BuildContext context) {
@@ -162,13 +178,30 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
                   const Text('Painel de Controle',
                     style: TextStyle(color: _C.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
                   const Spacer(),
+                  // ── Botão rápido "Ir para App" na AppBar ──────────────────
+                  GestureDetector(
+                    onTap: () => _irParaHome(context),
+                    child: Container(
+                      width: 38, height: 38,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: _C.greenSoft,
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(color: _C.green.withOpacity(0.3)),
+                      ),
+                      child: const Icon(Icons.home_rounded, color: _C.green, size: 18),
+                    ),
+                  ),
+                  // ─────────────────────────────────────────────────────────
                   _NotifBadge(),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   _AdminAvatar(),
                 ],
               ),
-              const SizedBox(height: 10),
-              _SearchBar(ctrl: searchCtrl),
+              if (_showSearch) ...[
+                const SizedBox(height: 10),
+                _SearchBar(ctrl: searchCtrl),
+              ],
             ],
           ),
         ),
@@ -309,6 +342,7 @@ class _MenuContent extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 40),
+        // Logo
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.all(16),
@@ -342,11 +376,21 @@ class _MenuContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 28),
+
+        // Itens de navegação
         _label('NAVEGAÇÃO'),
-        _item('dashboard', Icons.grid_view_rounded,          'Dashboard',    section, onNav),
-        _item('users',     Icons.people_alt_rounded,         'Utilizadores', section, onNav),
-        _item('reports',   Icons.fact_check_rounded,         'Aprovações',   section, onNav),
-        _item('mapa',      Icons.map_rounded,                'Mapa de Casos',section, onNav),
+        _item('dashboard', Icons.grid_view_rounded,  'Dashboard',     section, onNav),
+        _item('users',     Icons.people_alt_rounded, 'Utilizadores',  section, onNav),
+        _item('reports',   Icons.fact_check_rounded, 'Aprovações',    section, onNav),
+        _item('mapa',      Icons.map_rounded,        'Mapa de Casos', section, onNav),
+
+        const SizedBox(height: 10),
+
+        // ── SECÇÃO APLICAÇÃO ─────────────────────────────
+        _label('APLICAÇÃO'),
+        _homeBtn(context),
+        // ─────────────────────────────────────────────────
+
         const Spacer(),
         Divider(color: _C.border, height: 1),
         _LogoutTile(),
@@ -371,7 +415,7 @@ class _MenuContent extends StatelessWidget {
         decoration: BoxDecoration(
           color: isActive ? _C.accentSoft : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: isActive ? Border.all(color: _C.accent.withValues(alpha: 0.3)) : null,
+          border: isActive ? Border.all(color: _C.accent.withOpacity(0.3)) : null,
         ),
         child: Row(
           children: [
@@ -392,6 +436,36 @@ class _MenuContent extends StatelessWidget {
       ),
     );
   }
+
+  // ── BOTÃO VOLTAR AO APP ───────────────────────────────
+  Widget _homeBtn(BuildContext context) {
+    return GestureDetector(
+      // ✅ FIX: usa _irParaHome em vez de Navigator.pop
+      // Navigator.pop só funciona se a AdminPage foi aberta com push.
+      // Se veio do AuthCheck (início da app), pop não faz nada.
+      // pushAndRemoveUntil navega SEMPRE para a HomePage, em qualquer cenário.
+      onTap: () => _irParaHome(context),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: _C.greenSoft,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _C.green.withOpacity(0.2)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.home_rounded, size: 18, color: _C.green),
+            SizedBox(width: 12),
+            Text(
+              'Voltar ao App',
+              style: TextStyle(color: _C.green, fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _LogoutTile extends StatelessWidget {
@@ -405,7 +479,7 @@ class _LogoutTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: _C.redSoft,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _C.red.withValues(alpha: 0.2)),
+          border: Border.all(color: _C.red.withOpacity(0.2)),
         ),
         child: const Row(
           children: [
@@ -419,8 +493,33 @@ class _LogoutTile extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // DASHBOARD
-class _DashboardPanel extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+class _DashboardPanel extends StatefulWidget {
+  final TextEditingController searchCtrl;
+  const _DashboardPanel({required this.searchCtrl});
+  @override
+  State<_DashboardPanel> createState() => _DashboardPanelState();
+}
+
+class _DashboardPanelState extends State<_DashboardPanel> {
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.searchCtrl.addListener(_onSearch);
+  }
+
+  @override
+  void dispose() {
+    widget.searchCtrl.removeListener(_onSearch);
+    super.dispose();
+  }
+
+  void _onSearch() => setState(() => _query = widget.searchCtrl.text.toLowerCase());
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -460,7 +559,7 @@ class _DashboardPanel extends StatelessWidget {
         const SizedBox(height: 32),
         _SectionTitle('Gerir Casos Ativos', subtitle: 'Altere o status de casos aprovados'),
         const SizedBox(height: 16),
-        _ActiveCasesTable(),
+        _ActiveCasesTable(query: _query),
       ],
     );
   }
@@ -537,8 +636,12 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// Tabela de casos ativos
+// ─────────────────────────────────────────────────────────────────────────────
+// TABELA DE CASOS ATIVOS
+// ─────────────────────────────────────────────────────────────────────────────
 class _ActiveCasesTable extends StatefulWidget {
+  final String query;
+  const _ActiveCasesTable({required this.query});
   @override
   State<_ActiveCasesTable> createState() => _ActiveCasesTableState();
 }
@@ -569,29 +672,59 @@ class _ActiveCasesTableState extends State<_ActiveCasesTable> {
       stream: FirebaseFirestore.instance.collection('casos')
           .where('status', whereIn: ['aprovado', 'encontrado', 'desmentido']).snapshots(),
       builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return _loadingWidget();
-        }
-        final docs = snap.data?.docs ?? [];
+        if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
+        final allDocs = snap.data?.docs ?? [];
+
+        final docs = widget.query.isEmpty
+            ? allDocs
+            : allDocs.where((doc) {
+                final d = doc.data() as Map<String, dynamic>;
+                final nome      = (d['nome']         ?? '').toString().toLowerCase();
+                final municipio = (d['municipio']    ?? '').toString().toLowerCase();
+                final provincia = (d['provincia']    ?? '').toString().toLowerCase();
+                final local     = (d['ultimo_local'] ?? '').toString().toLowerCase();
+                return nome.contains(widget.query)
+                    || municipio.contains(widget.query)
+                    || provincia.contains(widget.query)
+                    || local.contains(widget.query);
+              }).toList();
+
+        if (allDocs.isEmpty) return _empty('Nenhum caso ativo.');
+
         if (docs.isEmpty) {
-          return _empty('Nenhum caso ativo.');
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: _empty('Nenhum resultado para "${widget.query}".'),
+          );
         }
+
         return Column(
-          children: docs.map((doc) {
-            final d = doc.data() as Map<String, dynamic>;
-            final current = _pendingStatus[doc.id] ?? d['status'] as String? ?? 'aprovado';
-            final saving  = _saving.contains(doc.id);
-            final changed = _pendingStatus.containsKey(doc.id);
-            return _CaseRow(
-              name: d['nome'] ?? 'Desconhecido',
-              location: d['municipio'] ?? d['provincia'] ?? '—',
-              currentStatus: current,
-              saving: saving,
-              changed: changed,
-              onStatusChanged: (v) => setState(() => _pendingStatus[doc.id] = v),
-              onSave: () => _save(doc.id),
-            );
-          }).toList(),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.query.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  '${docs.length} caso${docs.length != 1 ? 's' : ''} encontrado${docs.length != 1 ? 's' : ''}',
+                  style: const TextStyle(color: _C.grey2, fontSize: 12),
+                ),
+              ),
+            ...docs.map((doc) {
+              final d = doc.data() as Map<String, dynamic>;
+              final current = _pendingStatus[doc.id] ?? d['status'] as String? ?? 'aprovado';
+              final saving  = _saving.contains(doc.id);
+              final changed = _pendingStatus.containsKey(doc.id);
+              return _CaseRow(
+                name: d['nome'] ?? 'Desconhecido',
+                location: d['municipio'] ?? d['provincia'] ?? '—',
+                currentStatus: current,
+                saving: saving,
+                changed: changed,
+                onStatusChanged: (v) => setState(() => _pendingStatus[doc.id] = v),
+                onSave: () => _save(doc.id),
+              );
+            }),
+          ],
         );
       },
     );
@@ -627,7 +760,7 @@ class _CaseRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _C.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: changed ? _C.accent.withValues(alpha: 0.4) : _C.border),
+        border: Border.all(color: changed ? _C.accent.withOpacity(0.4) : _C.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,9 +784,9 @@ class _CaseRow extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _statusColor.withValues(alpha: 0.15),
+                  color: _statusColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _statusColor.withValues(alpha: 0.4)),
+                  border: Border.all(color: _statusColor.withOpacity(0.4)),
                 ),
                 child: Text(currentStatus.toUpperCase(),
                   style: TextStyle(color: _statusColor, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
@@ -710,7 +843,9 @@ class _CaseRow extends StatelessWidget {
   }
 }
 
-// USERS PANEL (COM FILTROS AVANÇADOS)
+// ─────────────────────────────────────────────────────────────────────────────
+// USERS PANEL
+// ─────────────────────────────────────────────────────────────────────────────
 class _UsersPanel extends StatefulWidget {
   final TextEditingController searchCtrl;
   const _UsersPanel({required this.searchCtrl});
@@ -719,15 +854,15 @@ class _UsersPanel extends StatefulWidget {
 }
 
 class _UsersPanelState extends State<_UsersPanel> {
-  String _query        = '';
-  String _roleFilter   = '';
-  String _provFilter   = '';
-  String _ordem        = 'recente';
+  String _query      = '';
+  String _roleFilter = '';
+  String _provFilter = '';
+  String _ordem      = 'recente';
   DateTime? _dataDe;
   DateTime? _dataAte;
-  bool _showFilters    = false;
+  bool _showFilters  = false;
   List<Map<String, dynamic>> _allUsers = [];
-  bool _loading        = true;
+  bool _loading      = true;
 
   static const _provincias = [
     'Luanda','Benguela','Huambo','Bié','Cabinda','Cuando Cubango',
@@ -794,19 +929,15 @@ class _UsersPanelState extends State<_UsersPanel> {
   }
 
   void _clearFilters() {
-    setState(() {
-      _roleFilter = ''; _provFilter = ''; _ordem = 'recente';
-      _dataDe = null; _dataAte = null;
-    });
+    setState(() { _roleFilter = ''; _provFilter = ''; _ordem = 'recente'; _dataDe = null; _dataAte = null; });
     widget.searchCtrl.clear();
   }
 
   Future<void> _promover(String id, String roleAtual) async {
     final novoRole = roleAtual == 'admin' ? 'user' : 'admin';
-    final msg = novoRole == 'admin' ? 'Tornar este utilizador Admin?' : 'Remover privilégios de Admin?';
     final ok = await showDialog<bool>(context: context, builder: (_) => _ConfirmDialog(
       title: novoRole == 'admin' ? 'Promover a Admin' : 'Rebaixar para User',
-      message: msg,
+      message: novoRole == 'admin' ? 'Tornar este utilizador Admin?' : 'Remover privilégios de Admin?',
       confirmLabel: novoRole == 'admin' ? 'Promover' : 'Rebaixar',
       confirmColor: novoRole == 'admin' ? _C.accent : _C.orange,
     ));
@@ -816,8 +947,7 @@ class _UsersPanelState extends State<_UsersPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Role actualizado para: $novoRole'),
-          backgroundColor: _C.green,
-          behavior: SnackBarBehavior.floating,
+          backgroundColor: _C.green, behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
@@ -828,16 +958,14 @@ class _UsersPanelState extends State<_UsersPanel> {
     final ok = await showDialog<bool>(context: context, builder: (_) => _ConfirmDialog(
       title: 'Remover Utilizador',
       message: 'Esta ação não pode ser desfeita. Deseja continuar?',
-      confirmLabel: 'Remover',
-      confirmColor: _C.red,
+      confirmLabel: 'Remover', confirmColor: _C.red,
     ));
     if (ok == true) {
       await FirebaseFirestore.instance.collection('users').doc(id).delete();
       _fetchUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Utilizador removido'), backgroundColor: _C.red,
-          behavior: SnackBarBehavior.floating,
+          content: Text('Utilizador removido'), backgroundColor: _C.red, behavior: SnackBarBehavior.floating,
         ));
       }
     }
@@ -845,26 +973,14 @@ class _UsersPanelState extends State<_UsersPanel> {
 
   Future<void> _pickDate(bool isDe) async {
     final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      context: context, initialDate: DateTime.now(),
+      firstDate: DateTime(2020), lastDate: DateTime.now(),
       builder: (context, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: _C.accent, surface: _C.card),
-        ),
+        data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: _C.accent, surface: _C.card)),
         child: child!,
       ),
     );
-    if (picked != null) {
-      setState(() {
-        if (isDe) {
-          _dataDe = picked;
-        } else {
-          _dataAte = picked;
-        }
-      });
-    }
+    if (picked != null) setState(() { if (isDe) { _dataDe = picked; } else { _dataAte = picked; } });
   }
 
   @override
@@ -878,8 +994,7 @@ class _UsersPanelState extends State<_UsersPanel> {
         children: [
           Row(
             children: [
-              Expanded(child: _SectionTitle('Utilizadores',
-                subtitle: '${_allUsers.length} registados no total')),
+              Expanded(child: _SectionTitle('Utilizadores', subtitle: '${_allUsers.length} registados no total')),
               _IconBtn(
                 icon: _showFilters ? Icons.filter_list_off_rounded : Icons.filter_list_rounded,
                 color: _showFilters ? _C.accent : _C.grey2,
@@ -891,17 +1006,12 @@ class _UsersPanelState extends State<_UsersPanel> {
           if (_showFilters) ...[
             const SizedBox(height: 16),
             _FiltersPanel(
-              roleFilter: _roleFilter,
-              provFilter: _provFilter,
-              ordem: _ordem,
-              dataDe: _dataDe,
-              dataAte: _dataAte,
-              provincias: _provincias,
+              roleFilter: _roleFilter, provFilter: _provFilter, ordem: _ordem,
+              dataDe: _dataDe, dataAte: _dataAte, provincias: _provincias,
               onRoleChanged: (v) => setState(() => _roleFilter = v),
               onProvChanged: (v) => setState(() => _provFilter = v),
               onOrdemChanged: (v) => setState(() => _ordem = v),
-              onPickDe: () => _pickDate(true),
-              onPickAte: () => _pickDate(false),
+              onPickDe: () => _pickDate(true), onPickAte: () => _pickDate(false),
               onClear: _clearFilters,
             ),
           ],
@@ -921,10 +1031,13 @@ class _UsersPanelState extends State<_UsersPanel> {
                   itemBuilder: (_, i) {
                     final u = filtered[i];
                     return _UserCard(
-                      userData: u,
-                      docId: u['id'],
+                      userData: u, docId: u['id'],
                       onDelete: () => _delete(u['id']),
                       onPromote: () => _promover(u['id'], u['role'] ?? 'user'),
+                      onViewProfile: () => showDialog(
+                        context: context,
+                        builder: (_) => _UserProfileDialog(userData: u),
+                      ),
                     );
                   },
                 ),
@@ -935,7 +1048,6 @@ class _UsersPanelState extends State<_UsersPanel> {
   }
 }
 
-// Painel de filtros
 class _FiltersPanel extends StatelessWidget {
   final String roleFilter, provFilter, ordem;
   final DateTime? dataDe, dataAte;
@@ -956,41 +1068,23 @@ class _FiltersPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _C.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.border),
-      ),
+      decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: _C.border)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Filtros', style: TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 14)),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: _FilterDropdown(
-              label: 'Função',
-              value: roleFilter,
-              items: const {'': 'Todos', 'user': 'Utilizador', 'admin': 'Admin'},
-              onChanged: onRoleChanged,
-            )),
+            Expanded(child: _FilterDropdown(label: 'Função', value: roleFilter,
+              items: const {'': 'Todos', 'user': 'Utilizador', 'admin': 'Admin'}, onChanged: onRoleChanged)),
             const SizedBox(width: 10),
-            Expanded(child: _FilterDropdown(
-              label: 'Ordenar',
-              value: ordem,
+            Expanded(child: _FilterDropdown(label: 'Ordenar', value: ordem,
               items: const {'recente': 'Mais recente', 'antigo': 'Mais antigo', 'nome': 'Nome A→Z', 'nome-desc': 'Nome Z→A'},
-              onChanged: onOrdemChanged,
-            )),
+              onChanged: onOrdemChanged)),
           ]),
           const SizedBox(height: 10),
-          _FilterDropdown(
-            label: 'Província',
-            value: provFilter,
-            items: {
-              '': 'Todas',
-              for (final p in provincias) p: p,
-            },
-            onChanged: onProvChanged,
-          ),
+          _FilterDropdown(label: 'Província', value: provFilter,
+            items: {'': 'Todas', for (final p in provincias) p: p}, onChanged: onProvChanged),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _DateBtn(label: 'Cadastro de', value: _fmt(dataDe), onTap: onPickDe)),
@@ -1001,21 +1095,13 @@ class _FiltersPanel extends StatelessWidget {
           GestureDetector(
             onTap: onClear,
             child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: _C.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _C.border),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.clear_all_rounded, color: _C.grey2, size: 16),
-                  SizedBox(width: 6),
-                  Text('Limpar Filtros', style: TextStyle(color: _C.grey2, fontSize: 13, fontWeight: FontWeight.w500)),
-                ],
-              ),
+              width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: _C.border)),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.clear_all_rounded, color: _C.grey2, size: 16),
+                SizedBox(width: 6),
+                Text('Limpar Filtros', style: TextStyle(color: _C.grey2, fontSize: 13, fontWeight: FontWeight.w500)),
+              ]),
             ),
           ),
         ],
@@ -1038,20 +1124,14 @@ class _FilterDropdown extends StatelessWidget {
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: _C.surface, borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _C.border),
-          ),
+          decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: _C.border)),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: value,
-              isExpanded: true,
-              dropdownColor: _C.cardHover,
+              value: value, isExpanded: true, dropdownColor: _C.cardHover,
               style: const TextStyle(color: _C.grey1, fontSize: 13),
               onChanged: (v) { if (v != null) onChanged(v); },
               items: items.entries.map((e) =>
-                DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))
-              ).toList(),
+                DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))).toList(),
             ),
           ),
         ),
@@ -1075,10 +1155,7 @@ class _DateBtn extends StatelessWidget {
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-            decoration: BoxDecoration(
-              color: _C.surface, borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.border),
-            ),
+            decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: _C.border)),
             child: Row(children: [
               const Icon(Icons.calendar_today_rounded, color: _C.grey3, size: 13),
               const SizedBox(width: 6),
@@ -1091,21 +1168,20 @@ class _DateBtn extends StatelessWidget {
   }
 }
 
-// User Card
 class _UserCard extends StatelessWidget {
   final Map<String, dynamic> userData;
   final String docId;
-  final VoidCallback onDelete, onPromote;
-  const _UserCard({required this.userData, required this.docId, required this.onDelete, required this.onPromote});
+  final VoidCallback onDelete, onPromote, onViewProfile;
+  const _UserCard({
+    required this.userData, required this.docId,
+    required this.onDelete, required this.onPromote, required this.onViewProfile,
+  });
 
   String _formatDate(dynamic raw) {
     if (raw == null) return 'Desconhecido';
     DateTime dt;
-    if (raw is Timestamp) {
-      dt = raw.toDate();
-    } else {
-      dt = DateTime.tryParse(raw.toString()) ?? DateTime.now();
-    }
+    if (raw is Timestamp) { dt = raw.toDate(); }
+    else { dt = DateTime.tryParse(raw.toString()) ?? DateTime.now(); }
     return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
   }
 
@@ -1123,48 +1199,30 @@ class _UserCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _C.card, borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _C.border),
-      ),
+      decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: _C.border)),
       child: Row(
         children: [
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isAdmin
-                    ? [const Color(0xFF4F7EFF), const Color(0xFF9B5DE5)]
-                    : [_C.grey4, _C.grey3],
-              ),
+              gradient: LinearGradient(colors: isAdmin ? [const Color(0xFF4F7EFF), const Color(0xFF9B5DE5)] : [_C.grey4, _C.grey3]),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Center(child: Text(letter,
-              style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 18))),
+            child: Center(child: Text(letter, style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 18))),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(child: Text(nome,
-                      style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 14),
-                      overflow: TextOverflow.ellipsis)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isAdmin ? _C.accentSoft : _C.border,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(role.toUpperCase(),
-                        style: TextStyle(
-                          color: isAdmin ? _C.accent : _C.grey2,
-                          fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                    ),
-                  ],
-                ),
+                Row(children: [
+                  Expanded(child: Text(nome, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: isAdmin ? _C.accentSoft : _C.border, borderRadius: BorderRadius.circular(6)),
+                    child: Text(role.toUpperCase(), style: TextStyle(color: isAdmin ? _C.accent : _C.grey2, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                  ),
+                ]),
                 const SizedBox(height: 3),
                 Text(email, style: const TextStyle(color: _C.grey3, fontSize: 12), overflow: TextOverflow.ellipsis),
                 if (prov != null) ...[
@@ -1174,68 +1232,279 @@ class _UserCard extends StatelessWidget {
                     const SizedBox(width: 3),
                     Text(prov, style: const TextStyle(color: _C.grey3, fontSize: 11)),
                     const SizedBox(width: 8),
-                    Icon(temGPS ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
-                      size: 11, color: temGPS ? _C.green : _C.grey3),
+                    Icon(temGPS ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded, size: 11, color: temGPS ? _C.green : _C.grey3),
                     const SizedBox(width: 3),
-                    Text(temGPS ? 'GPS' : 'Sem GPS',
-                      style: TextStyle(color: temGPS ? _C.green : _C.grey3, fontSize: 11)),
+                    Text(temGPS ? 'GPS' : 'Sem GPS', style: TextStyle(color: temGPS ? _C.green : _C.grey3, fontSize: 11)),
                   ]),
                 ],
                 const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Icon(
-                      isActive ? Icons.circle : Icons.radio_button_unchecked,
-                      size: 8, color: isActive ? _C.green : _C.grey3,
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(child: Text(
-                      isActive ? 'Ativo · $date' : 'Novo · $date',
-                      style: TextStyle(color: isActive ? _C.green : _C.grey3, fontSize: 11),
-                      overflow: TextOverflow.ellipsis,
-                    )),
-                  ],
-                ),
+                Row(children: [
+                  Icon(isActive ? Icons.circle : Icons.radio_button_unchecked, size: 8, color: isActive ? _C.green : _C.grey3),
+                  const SizedBox(width: 5),
+                  Expanded(child: Text(isActive ? 'Ativo · $date' : 'Novo · $date',
+                    style: TextStyle(color: isActive ? _C.green : _C.grey3, fontSize: 11), overflow: TextOverflow.ellipsis)),
+                ]),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Column(
-            children: [
-              GestureDetector(
-                onTap: onPromote,
-                child: Container(
-                  width: 34, height: 34,
-                  margin: const EdgeInsets.only(bottom: 6),
-                  decoration: BoxDecoration(
-                    color: isAdmin ? _C.orangeSoft : _C.accentSoft,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: (isAdmin ? _C.orange : _C.accent).withValues(alpha: 0.2)),
-                  ),
-                  child: Icon(
-                    isAdmin ? Icons.person_remove_rounded : Icons.admin_panel_settings_rounded,
-                    color: isAdmin ? _C.orange : _C.accent, size: 16,
-                  ),
-                ),
+          Column(children: [
+            // ── NOVO: botão "Ver perfil" — equivalente ao link
+            // profile.html?uid=... que já existe no admin web.
+            GestureDetector(
+              onTap: onViewProfile,
+              child: Container(
+                width: 34, height: 34, margin: const EdgeInsets.only(bottom: 6),
+                decoration: BoxDecoration(
+                  color: _C.purpleSoft, borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _C.purple.withOpacity(0.2))),
+                child: const Icon(Icons.visibility_rounded, color: _C.purple, size: 16),
               ),
-              GestureDetector(
-                onTap: onDelete,
-                child: Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(color: _C.redSoft, borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _C.red.withValues(alpha: 0.2))),
-                  child: const Icon(Icons.delete_outline_rounded, color: _C.red, size: 16),
-                ),
+            ),
+            GestureDetector(
+              onTap: onPromote,
+              child: Container(
+                width: 34, height: 34, margin: const EdgeInsets.only(bottom: 6),
+                decoration: BoxDecoration(
+                  color: isAdmin ? _C.orangeSoft : _C.accentSoft, borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: (isAdmin ? _C.orange : _C.accent).withOpacity(0.2))),
+                child: Icon(isAdmin ? Icons.person_remove_rounded : Icons.admin_panel_settings_rounded, color: isAdmin ? _C.orange : _C.accent, size: 16),
               ),
-            ],
-          ),
+            ),
+            GestureDetector(
+              onTap: onDelete,
+              child: Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(color: _C.redSoft, borderRadius: BorderRadius.circular(10), border: Border.all(color: _C.red.withOpacity(0.2))),
+                child: const Icon(Icons.delete_outline_rounded, color: _C.red, size: 16),
+              ),
+            ),
+          ]),
         ],
       ),
     );
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VER PERFIL DO UTILIZADOR (mobile) — equivalente ao profile.html?uid=...
+// que já existe no admin web. Mostra os dados completos do utilizador
+// num modal, sem depender de uma tela externa de perfil.
+// ─────────────────────────────────────────────────────────────────────────────
+class _UserProfileDialog extends StatelessWidget {
+  final Map<String, dynamic> userData;
+  const _UserProfileDialog({required this.userData});
+
+  String _formatDate(dynamic raw) {
+    if (raw == null) return '—';
+    DateTime? dt;
+    if (raw is Timestamp) dt = raw.toDate();
+    else dt = DateTime.tryParse(raw.toString());
+    if (dt == null) return '—';
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} às ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  Uint8List? _decodeFoto(String? b64) {
+    if (b64 == null || !b64.contains(',')) return null;
+    try { return base64Decode(b64.split(',').last); } catch (_) { return null; }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nome     = userData['nome'] as String? ?? userData['email'] as String? ?? 'Sem nome';
+    final email    = userData['email'] as String? ?? '—';
+    final role     = (userData['role'] ?? 'user') as String;
+    final isAdmin  = role == 'admin';
+    final telefone = userData['telefone'] as String?;
+    final provincia = userData['provincia'] as String?;
+    final municipio  = userData['municipio'] as String?;
+    final criadoEm   = _formatDate(userData['criadoEm']);
+    final ultimoLogin = _formatDate(userData['ultimoLogin']);
+    final verificado  = userData['emailVerificado'] != false;
+    final temGPS      = userData['lat'] != null && userData['lng'] != null;
+    final foto        = _decodeFoto(userData['photoBase64'] as String?);
+    final stats        = userData['stats'] as Map<String, dynamic>? ?? {};
+    final apoios        = stats['apoios']?.toString()      ?? '0';
+    final comentarios    = stats['comentarios']?.toString() ?? '0';
+    final partilhas      = stats['partilhas']?.toString()   ?? '0';
+    final letter = email.isNotEmpty ? email[0].toUpperCase() : '?';
+
+    return Dialog(
+      backgroundColor: _C.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _C.border)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 640),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Cabeçalho ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 12, 0),
+              child: Row(children: [
+                const Icon(Icons.badge_rounded, color: _C.accent, size: 18),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('Perfil do Utilizador',
+                  style: TextStyle(color: _C.white, fontSize: 16, fontWeight: FontWeight.w700))),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: _C.grey2),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ]),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Divider(color: _C.border, height: 1),
+            ),
+
+            // ── Conteúdo com scroll ──
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar + nome + role
+                    Row(children: [
+                      Container(
+                        width: 56, height: 56,
+                        decoration: BoxDecoration(
+                          gradient: foto == null
+                              ? LinearGradient(colors: isAdmin
+                                  ? [const Color(0xFF4F7EFF), const Color(0xFF9B5DE5)]
+                                  : [_C.grey4, _C.grey3])
+                              : null,
+                          shape: BoxShape.circle,
+                          image: foto != null ? DecorationImage(image: MemoryImage(foto), fit: BoxFit.cover) : null,
+                        ),
+                        child: foto == null
+                            ? Center(child: Text(letter, style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 22)))
+                            : null,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(nome, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w700, fontSize: 17)),
+                            const SizedBox(height: 4),
+                            Row(children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(color: isAdmin ? _C.accentSoft : _C.border, borderRadius: BorderRadius.circular(6)),
+                                child: Text(role.toUpperCase(), style: TextStyle(color: isAdmin ? _C.accent : _C.grey2, fontSize: 10, fontWeight: FontWeight.w700)),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(color: verificado ? _C.greenSoft : _C.orangeSoft, borderRadius: BorderRadius.circular(6)),
+                                child: Text(verificado ? '✓ Verificado' : '⚠ Não verificado',
+                                  style: TextStyle(color: verificado ? _C.green : _C.orange, fontSize: 9, fontWeight: FontWeight.w600)),
+                              ),
+                            ]),
+                          ],
+                        ),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    // Stats rápidas
+                    Row(children: [
+                      Expanded(child: _profileStat('Apoios', apoios, Icons.favorite_rounded, _C.red)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _profileStat('Comentários', comentarios, Icons.mode_comment_rounded, _C.accent)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _profileStat('Partilhas', partilhas, Icons.send_rounded, _C.purple)),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    // Dados de contacto
+                    _profileSection('Contacto'),
+                    _profileField(Icons.email_rounded, 'Email', email),
+                    if (telefone != null && telefone.isNotEmpty)
+                      _profileField(Icons.phone_rounded, 'Telefone', telefone),
+
+                    const SizedBox(height: 16),
+
+                    // Localização
+                    _profileSection('Localização'),
+                    if (provincia != null)
+                      _profileField(Icons.map_rounded, 'Província / Município',
+                        [provincia, municipio].where((s) => s != null && s.isNotEmpty).join(', ')),
+                    _profileField(
+                      temGPS ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
+                      'GPS',
+                      temGPS ? 'Localização activa' : 'Sem localização partilhada',
+                      destaque: temGPS,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Conta
+                    _profileSection('Conta'),
+                    _profileField(Icons.calendar_today_rounded, 'Registado em', criadoEm),
+                    _profileField(Icons.login_rounded, 'Último acesso', ultimoLogin),
+                    _profileField(Icons.fingerprint_rounded, 'ID do utilizador', userData['id']?.toString() ?? '—'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _profileStat(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.border)),
+      child: Column(children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(height: 6),
+        Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(color: _C.grey3, fontSize: 10), textAlign: TextAlign.center),
+      ]),
+    );
+  }
+
+  Widget _profileSection(String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(texto, style: const TextStyle(color: _C.accent, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+    );
+  }
+
+  Widget _profileField(IconData icon, String label, String valor, {bool destaque = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: destaque ? _C.green : _C.grey3),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(color: _C.grey3, fontSize: 11)),
+                const SizedBox(height: 2),
+                Text(valor, style: TextStyle(color: destaque ? _C.green : _C.grey1, fontSize: 13, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 // APPROVALS PANEL
+// ─────────────────────────────────────────────────────────────────────────────
 class _ApprovalsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -1245,34 +1514,22 @@ class _ApprovalsPanel extends StatelessWidget {
         if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
         final docs = snap.data?.docs ?? [];
         if (docs.isEmpty) {
-          return Center(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
-                width: 80, height: 80,
-                decoration: const BoxDecoration(color: _C.greenSoft, shape: BoxShape.circle),
-                child: const Icon(Icons.check_circle_rounded, color: _C.green, size: 40),
-              ),
-              const SizedBox(height: 16),
-              const Text('Tudo em dia!', style: TextStyle(color: _C.white, fontSize: 20, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              const Text('Nenhuma aprovação pendente.', style: TextStyle(color: _C.grey3)),
-            ]),
-          );
+          return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(width: 80, height: 80, decoration: const BoxDecoration(color: _C.greenSoft, shape: BoxShape.circle),
+              child: const Icon(Icons.check_circle_rounded, color: _C.green, size: 40)),
+            const SizedBox(height: 16),
+            const Text('Tudo em dia!', style: TextStyle(color: _C.white, fontSize: 20, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            const Text('Nenhuma aprovação pendente.', style: TextStyle(color: _C.grey3)),
+          ]));
         }
         return ListView.builder(
           padding: const EdgeInsets.all(20),
           itemCount: docs.length + 1,
           itemBuilder: (_, i) {
-            if (i == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: _SectionTitle('Aprovações Pendentes', subtitle: '${docs.length} caso(s) aguardando revisão'),
-              );
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _ApprovalCard(doc: docs[i - 1]),
-            );
+            if (i == 0) return Padding(padding: const EdgeInsets.only(bottom: 20),
+              child: _SectionTitle('Aprovações Pendentes', subtitle: '${docs.length} caso(s) aguardando revisão'));
+            return Padding(padding: const EdgeInsets.only(bottom: 14), child: _ApprovalCard(doc: docs[i - 1]));
           },
         );
       },
@@ -1288,18 +1545,12 @@ class _ApprovalCard extends StatefulWidget {
 }
 
 class _ApprovalCardState extends State<_ApprovalCard> {
-  bool _expanded  = false;
-  bool _approving = false;
-  bool _rejecting = false;
-
+  bool _expanded = false, _approving = false, _rejecting = false;
   Map<String, dynamic>? _relatorData;
   bool _loadingRelator = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadRelator();
-  }
+  void initState() { super.initState(); _loadRelator(); }
 
   Future<void> _loadRelator() async {
     final userId = d['userId'] as String?;
@@ -1307,12 +1558,8 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     setState(() => _loadingRelator = true);
     try {
       final snap = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      if (snap.exists && mounted) {
-        setState(() { _relatorData = snap.data(); _loadingRelator = false; });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loadingRelator = false);
-    }
+      if (snap.exists && mounted) setState(() { _relatorData = snap.data(); _loadingRelator = false; });
+    } catch (_) { if (mounted) setState(() => _loadingRelator = false); }
   }
 
   Map<String, dynamic> get d => widget.doc.data() as Map<String, dynamic>;
@@ -1341,70 +1588,41 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     setState(() => _approving = true);
     try {
       final data = Map<String, dynamic>.from(d);
-      data['status']     = 'aprovado';
+      data['status'] = 'aprovado';
       data['aprovadoEm'] = Timestamp.now();
-
       await FirebaseFirestore.instance.collection('casos').add(data);
       await FirebaseFirestore.instance.collection('casos_pendentes').doc(widget.doc.id).delete();
-
       await NotificationService.instance.enviarAlertaDesaparecido(
-        nome:         d['nome']                   as String? ?? '',
-        provincia:    d['provincia']              as String? ?? '',
-        municipio:    d['municipio']              as String? ?? '',
-        ultimoLocal:  d['ultimo_local']           as String? ?? '',
-        idade:        d['idade']?.toString()      ?? '',
-        sexo:         d['sexo']                   as String? ?? '',
-        roupas:       d['roupas']                 as String? ?? '',
-        informacoes:  d['informacoes_adicionais'] as String? ?? '',
-        casoId:       widget.doc.id,
-        autorUserId:  d['userId']                 as String? ?? '',
-        imagemBase64: d['imagem']                 as String?,
+        nome: d['nome'] as String? ?? '', provincia: d['provincia'] as String? ?? '',
+        municipio: d['municipio'] as String? ?? '', ultimoLocal: d['ultimo_local'] as String? ?? '',
+        idade: d['idade']?.toString() ?? '', sexo: d['sexo'] as String? ?? '',
+        roupas: d['roupas'] as String? ?? '', informacoes: d['informacoes_adicionais'] as String? ?? '',
+        casoId: widget.doc.id, autorUserId: d['userId'] as String? ?? '',
+        imagemBase64: d['imagem'] as String?,
       );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Caso aprovado e alerta enviado!'),
-          backgroundColor: _C.green,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Caso aprovado e alerta enviado!'), backgroundColor: _C.green, behavior: SnackBarBehavior.floating));
     } catch (e) {
       setState(() => _approving = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro: $e'), backgroundColor: _C.red,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Erro: $e'), backgroundColor: _C.red, behavior: SnackBarBehavior.floating));
     }
   }
 
   Future<void> _rejeitar() async {
     final ok = await showDialog<bool>(context: context, builder: (_) => _ConfirmDialog(
-      title: 'Rejeitar Caso',
-      message: 'O caso será removido e não aparecerá no mapa.',
-      confirmLabel: 'Rejeitar',
-      confirmColor: _C.red,
-    ));
+      title: 'Rejeitar Caso', message: 'O caso será removido e não aparecerá no mapa.',
+      confirmLabel: 'Rejeitar', confirmColor: _C.red));
     if (ok != true || !mounted) return;
     setState(() => _rejecting = true);
     try {
       await FirebaseFirestore.instance.collection('casos_pendentes').doc(widget.doc.id).delete();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Caso rejeitado e removido.'),
-          backgroundColor: _C.red,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Caso rejeitado e removido.'), backgroundColor: _C.red, behavior: SnackBarBehavior.floating));
     } catch (e) {
       setState(() => _rejecting = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro: $e'), backgroundColor: _C.red,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Erro: $e'), backgroundColor: _C.red, behavior: SnackBarBehavior.floating));
     }
   }
 
@@ -1412,137 +1630,94 @@ class _ApprovalCardState extends State<_ApprovalCard> {
   Widget build(BuildContext context) {
     final dias = _daysAgo();
     final prov = d['provincia'] ?? d['municipio'] ?? 'Local desconhecido';
-
     return Container(
-      decoration: BoxDecoration(
-        color: _C.card, borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _C.border),
-      ),
+      decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: _C.border)),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 52, height: 52,
-                      decoration: BoxDecoration(color: _C.accentSoft, borderRadius: BorderRadius.circular(14)),
-                      child: const Icon(Icons.person_rounded, color: _C.accent, size: 28),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(d['nome'] ?? 'Nome Desconhecido',
-                            style: const TextStyle(color: _C.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
-                          const SizedBox(height: 4),
-                          Row(children: [
-                            _Chip('${d['idade'] ?? '?'} anos', _C.grey3, _C.border),
-                            const SizedBox(width: 6),
-                            _Chip(d['sexo'] ?? '—', _C.grey3, _C.border),
-                          ]),
-                        ],
-                      ),
-                    ),
-                    _RoundIconBtn(icon: Icons.close_rounded, color: _C.red, bg: _C.redSoft,
-                      onTap: _rejecting ? null : _rejeitar, loading: _rejecting),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  const Icon(Icons.location_on_rounded, size: 14, color: _C.grey3),
-                  const SizedBox(width: 4),
-                  Text('$prov${dias.isNotEmpty ? " · $dias" : ""}',
-                    style: const TextStyle(color: _C.grey3, fontSize: 13)),
-                ]),
-
-                const SizedBox(height: 14),
-                if (_loadingRelator)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _C.border)),
-                    child: const Row(children: [
-                      SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: _C.grey3)),
-                      SizedBox(width: 8),
-                      Text('Carregando perfil do relator...', style: TextStyle(color: _C.grey3, fontSize: 12)),
-                    ]),
-                  )
-                else if (_relatorData != null || d['userId'] != null)
-                  _RelatorCard(relatorData: _relatorData, userId: d['userId'] as String?),
-
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: () => setState(() => _expanded = !_expanded),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _C.border)),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.info_outline_rounded, size: 16, color: _C.grey2),
-                        const SizedBox(width: 8),
-                        const Text('Ver detalhes completos', style: TextStyle(color: _C.grey2, fontSize: 13)),
-                        const Spacer(),
-                        Icon(_expanded ? Icons.expand_less : Icons.expand_more, color: _C.grey3, size: 18),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_expanded) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _C.border)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _DetailRow('Roupas', d['roupas'] ?? 'N/A'),
-                        _DetailRow('Data',   _formatDate(d['data_desaparecimento'])),
-                        _DetailRow('Local',  d['ultimo_local'] ?? 'N/A'),
-                        _DetailRow('BI',     d['bi'] ?? 'N/A'),
-                        Divider(color: _C.border, height: 16),
-                        Text(d['informacoes_adicionais'] ?? 'Sem informações adicionais.',
-                          style: const TextStyle(color: _C.grey2, fontSize: 13, height: 1.5)),
-                      ],
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(child: _ActionBtn(
-                      label: 'Rejeitar', icon: Icons.close_rounded,
-                      color: _C.red, bg: _C.redSoft, border: _C.red.withValues(alpha: 0.3),
-                      loading: _rejecting, onTap: _rejeitar,
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(flex: 2, child: _ActionBtn(
-                      label: 'Aprovar + Alertar', icon: Icons.notifications_active_rounded,
-                      color: _C.white, bg: _C.accent, border: _C.accent,
-                      loading: _approving, onTap: _aprovar,
-                    )),
-                  ],
-                ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(width: 52, height: 52,
+              decoration: BoxDecoration(color: _C.accentSoft, borderRadius: BorderRadius.circular(14)),
+              child: const Icon(Icons.person_rounded, color: _C.accent, size: 28)),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(d['nome'] ?? 'Nome Desconhecido',
+                style: const TextStyle(color: _C.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+              const SizedBox(height: 4),
+              Row(children: [
+                _Chip('${d['idade'] ?? '?'} anos', _C.grey3, _C.border),
+                const SizedBox(width: 6),
+                _Chip(d['sexo'] ?? '—', _C.grey3, _C.border),
+              ]),
+            ])),
+            _RoundIconBtn(icon: Icons.close_rounded, color: _C.red, bg: _C.redSoft,
+              onTap: _rejecting ? null : _rejeitar, loading: _rejecting),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            const Icon(Icons.location_on_rounded, size: 14, color: _C.grey3),
+            const SizedBox(width: 4),
+            Text('$prov${dias.isNotEmpty ? " · $dias" : ""}', style: const TextStyle(color: _C.grey3, fontSize: 13)),
+          ]),
+          const SizedBox(height: 14),
+          if (_loadingRelator)
+            Container(padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.border)),
+              child: const Row(children: [
+                SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: _C.grey3)),
+                SizedBox(width: 8),
+                Text('Carregando perfil do relator...', style: TextStyle(color: _C.grey3, fontSize: 12)),
+              ]))
+          else if (_relatorData != null || d['userId'] != null)
+            _RelatorCard(relatorData: _relatorData, userId: d['userId'] as String?),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: _C.border)),
+              child: Row(children: [
+                const Icon(Icons.info_outline_rounded, size: 16, color: _C.grey2),
+                const SizedBox(width: 8),
+                const Text('Ver detalhes completos', style: TextStyle(color: _C.grey2, fontSize: 13)),
+                const Spacer(),
+                Icon(_expanded ? Icons.expand_less : Icons.expand_more, color: _C.grey3, size: 18),
+              ]),
             ),
           ),
-        ],
+          if (_expanded) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: _C.border)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _DetailRow('Roupas', d['roupas'] ?? 'N/A'),
+                _DetailRow('Data',   _formatDate(d['data_desaparecimento'])),
+                _DetailRow('Local',  d['ultimo_local'] ?? 'N/A'),
+                _DetailRow('BI',     d['bi'] ?? 'N/A'),
+                Divider(color: _C.border, height: 16),
+                Text(d['informacoes_adicionais'] ?? 'Sem informações adicionais.',
+                  style: const TextStyle(color: _C.grey2, fontSize: 13, height: 1.5)),
+              ]),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: _ActionBtn(label: 'Rejeitar', icon: Icons.close_rounded,
+              color: _C.red, bg: _C.redSoft, border: _C.red.withOpacity(0.3),
+              loading: _rejecting, onTap: _rejeitar)),
+            const SizedBox(width: 10),
+            Expanded(flex: 2, child: _ActionBtn(label: 'Aprovar + Alertar', icon: Icons.notifications_active_rounded,
+              color: _C.white, bg: _C.accent, border: _C.accent,
+              loading: _approving, onTap: _aprovar)),
+          ]),
+        ]),
       ),
     );
   }
 }
 
-// Mini perfil do relator
 class _RelatorCard extends StatelessWidget {
   final Map<String, dynamic>? relatorData;
   final String? userId;
@@ -1559,89 +1734,61 @@ class _RelatorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rNome   = relatorData?['nome']  as String? ?? 'Utilizador desconhecido';
-    final rEmail  = relatorData?['email'] as String? ?? '—';
-    final rProv   = relatorData?['provincia'] as String?;
+    final rNome  = relatorData?['nome']      as String? ?? 'Utilizador desconhecido';
+    final rEmail = relatorData?['email']     as String? ?? '—';
+    final rProv  = relatorData?['provincia'] as String?;
     final rMembro = _membroDesde(relatorData?['criadoEm']);
-    final rVerif  = relatorData?['emailVerificado'];
-    final verificado = rVerif != false;
-    final letter  = rEmail.isNotEmpty ? rEmail[0].toUpperCase() : '?';
+    final verificado = (relatorData?['emailVerificado']) != false;
+    final letter = rEmail.isNotEmpty ? rEmail[0].toUpperCase() : '?';
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _C.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            const Icon(Icons.person_pin_circle_rounded, size: 13, color: _C.grey3),
-            const SizedBox(width: 5),
-            const Text('Relatado por', style: TextStyle(color: _C.grey3, fontSize: 11, fontWeight: FontWeight.w500)),
-          ]),
-          const SizedBox(height: 10),
-          Row(
-            children: [
+      decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [
+          Icon(Icons.person_pin_circle_rounded, size: 13, color: _C.grey3),
+          SizedBox(width: 5),
+          Text('Relatado por', style: TextStyle(color: _C.grey3, fontSize: 11, fontWeight: FontWeight.w500)),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Container(width: 38, height: 38,
+            decoration: BoxDecoration(color: _C.accentSoft, borderRadius: BorderRadius.circular(10)),
+            child: Center(child: Text(letter, style: const TextStyle(color: _C.accent, fontWeight: FontWeight.bold, fontSize: 16)))),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text(rNome, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 13), overflow: TextOverflow.ellipsis)),
+              const SizedBox(width: 6),
               Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                  color: _C.accentSoft, borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(child: Text(letter,
-                  style: const TextStyle(color: _C.accent, fontWeight: FontWeight.bold, fontSize: 16))),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: verificado ? _C.greenSoft : _C.orangeSoft, borderRadius: BorderRadius.circular(5)),
+                child: Text(verificado ? '✓ Verificado' : '⚠ Não verificado',
+                  style: TextStyle(color: verificado ? _C.green : _C.orange, fontSize: 9, fontWeight: FontWeight.w600)),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Expanded(child: Text(rNome,
-                        style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 13),
-                        overflow: TextOverflow.ellipsis)),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: verificado ? _C.greenSoft : _C.orangeSoft,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          verificado ? '✓ Verificado' : '⚠ Não verificado',
-                          style: TextStyle(
-                            color: verificado ? _C.green : _C.orange,
-                            fontSize: 9, fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 3),
-                    Text(rEmail, style: const TextStyle(color: _C.grey3, fontSize: 11), overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Row(children: [
-                      const Icon(Icons.calendar_today_rounded, size: 10, color: _C.grey3),
-                      const SizedBox(width: 3),
-                      Text('Membro desde $rMembro', style: const TextStyle(color: _C.grey3, fontSize: 10)),
-                      if (rProv != null) ...[
-                        const Text(' · ', style: TextStyle(color: _C.grey3, fontSize: 10)),
-                        Text(rProv, style: const TextStyle(color: _C.grey3, fontSize: 10)),
-                      ],
-                    ]),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ]),
+            const SizedBox(height: 3),
+            Text(rEmail, style: const TextStyle(color: _C.grey3, fontSize: 11), overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 2),
+            Row(children: [
+              const Icon(Icons.calendar_today_rounded, size: 10, color: _C.grey3),
+              const SizedBox(width: 3),
+              Text('Membro desde $rMembro', style: const TextStyle(color: _C.grey3, fontSize: 10)),
+              if (rProv != null) ...[
+                const Text(' · ', style: TextStyle(color: _C.grey3, fontSize: 10)),
+                Text(rProv, style: const TextStyle(color: _C.grey3, fontSize: 10)),
+              ],
+            ]),
+          ])),
+        ]),
+      ]),
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // MAPA DE CASOS ADMIN
+// ─────────────────────────────────────────────────────────────────────────────
 class _MapaAdminPanel extends StatefulWidget {
   @override
   State<_MapaAdminPanel> createState() => _MapaAdminPanelState();
@@ -1652,211 +1799,135 @@ class _MapaAdminPanelState extends State<_MapaAdminPanel> {
   List<Map<String, dynamic>> _casos = [];
   bool _loading = true;
   int _ativos = 0, _encontrados = 0, _desmentidos = 0;
-
   static const _center = LatLng(-11.2027, 17.8739);
 
   @override
-  void initState() {
-    super.initState();
-    _loadCasos();
-  }
+  void initState() { super.initState(); _loadCasos(); }
 
   Future<void> _loadCasos() async {
     setState(() => _loading = true);
     try {
       final snap = await FirebaseFirestore.instance.collection('casos')
           .where('status', whereIn: ['aprovado', 'encontrado', 'desmentido']).get();
-
       _casos = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
       _buildMarkers();
-    } catch (e) {
-      debugPrint('Erro mapa: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    } catch (e) { debugPrint('Erro mapa: $e'); }
+    finally { if (mounted) setState(() => _loading = false); }
   }
 
   void _buildMarkers() {
-    _markers.clear();
-    _ativos = 0; _encontrados = 0; _desmentidos = 0;
-
+    _markers.clear(); _ativos = 0; _encontrados = 0; _desmentidos = 0;
     for (final caso in _casos) {
       double? lat = double.tryParse(caso['lat']?.toString() ?? '');
       double? lng = double.tryParse(caso['lng']?.toString() ?? '');
-
       if (lat == null || lng == null) {
-        final provKey = (caso['provincia'] ?? '').toString().toLowerCase();
-        final coords = provCoords[provKey];
+        final coords = provCoords[(caso['provincia'] ?? '').toString().toLowerCase()];
         if (coords == null) continue;
         lat = coords.latitude  + (DateTime.now().microsecond % 10 - 5) * 0.06;
         lng = coords.longitude + (DateTime.now().microsecond % 10 - 5) * 0.06;
       }
-
       final status = caso['status'] as String? ?? 'aprovado';
       BitmapDescriptor icon;
       switch (status) {
-        case 'encontrado':
-          icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-          _encontrados++;
-          break;
-        case 'desmentido':
-          icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
-          _desmentidos++;
-          break;
-        default:
-          icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
-          _ativos++;
-          break;
+        case 'encontrado': icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen); _encontrados++; break;
+        case 'desmentido': icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure); _desmentidos++; break;
+        default:           icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);  _ativos++; break;
       }
-
       _markers.add(Marker(
         markerId: MarkerId(caso['id']),
         position: LatLng(lat, lng),
         icon: icon,
-        infoWindow: InfoWindow(
-          title: caso['nome'] ?? 'Desconhecido',
-          snippet: '${caso['municipio'] ?? caso['provincia'] ?? 'Angola'} · $status',
-        ),
+        infoWindow: InfoWindow(title: caso['nome'] ?? 'Desconhecido',
+          snippet: '${caso['municipio'] ?? caso['provincia'] ?? 'Angola'} · $status'),
       ));
     }
     if (mounted) setState(() {});
   }
 
   void _openEditarLocalizacao() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _EditarLocalizacaoSheet(onSaved: _loadCasos),
-    );
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (_) => _EditarLocalizacaoSheet(onSaved: _loadCasos));
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: _SectionTitle('Mapa de Casos',
-                subtitle: 'Localização geográfica de todos os casos aprovados')),
-              GestureDetector(
-                onTap: _openEditarLocalizacao,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _C.orangeSoft,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _C.orange.withValues(alpha: 0.3)),
-                  ),
-                  child: const Row(children: [
-                    Icon(Icons.edit_location_rounded, color: _C.orange, size: 15),
-                    SizedBox(width: 6),
-                    Text('Corrigir', style: TextStyle(color: _C.orange, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ]),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Legenda
-          Row(
-            children: [
-              _LegendaDot(color: _C.accent, label: 'Activo'),
-              const SizedBox(width: 16),
-              _LegendaDot(color: _C.green,  label: 'Encontrado'),
-              const SizedBox(width: 16),
-              _LegendaDot(color: Colors.blueGrey, label: 'Desmentido'),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Mapa
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: _loading
-                ? Container(
-                    color: _C.card,
-                    child: const Center(child: CircularProgressIndicator(color: _C.accent)),
-                  )
-                : GoogleMap(
-                    initialCameraPosition: const CameraPosition(target: _center, zoom: 5),
-                    markers: _markers,
-                    mapType: MapType.normal,
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: true,
-                  ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: _SectionTitle('Mapa de Casos', subtitle: 'Localização geográfica de todos os casos aprovados')),
+          GestureDetector(
+            onTap: _openEditarLocalizacao,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: _C.orangeSoft, borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _C.orange.withOpacity(0.3))),
+              child: const Row(children: [
+                Icon(Icons.edit_location_rounded, color: _C.orange, size: 15),
+                SizedBox(width: 6),
+                Text('Corrigir', style: TextStyle(color: _C.orange, fontSize: 12, fontWeight: FontWeight.w600)),
+              ]),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Cards de resumo
-          Row(
-            children: [
-              Expanded(child: _MapStatCard(label: 'Total', count: _casos.length, color: _C.grey2, colorSoft: _C.border)),
-              const SizedBox(width: 10),
-              Expanded(child: _MapStatCard(label: 'Activos', count: _ativos, color: _C.accent, colorSoft: _C.accentSoft)),
-              const SizedBox(width: 10),
-              Expanded(child: _MapStatCard(label: 'Encontrados', count: _encontrados, color: _C.green, colorSoft: _C.greenSoft)),
-            ],
-          ),
-        ],
-      ),
+        ]),
+        const SizedBox(height: 16),
+        Row(children: [
+          _LegendaDot(color: _C.accent, label: 'Activo'),
+          const SizedBox(width: 16),
+          _LegendaDot(color: _C.green,  label: 'Encontrado'),
+          const SizedBox(width: 16),
+          _LegendaDot(color: Colors.blueGrey, label: 'Desmentido'),
+        ]),
+        const SizedBox(height: 16),
+        Expanded(flex: 3, child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: _loading
+            ? Container(color: _C.card, child: const Center(child: CircularProgressIndicator(color: _C.accent)))
+            : GoogleMap(initialCameraPosition: const CameraPosition(target: _center, zoom: 5),
+                markers: _markers, mapType: MapType.normal,
+                myLocationButtonEnabled: false, zoomControlsEnabled: true),
+        )),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: _MapStatCard(label: 'Total',       count: _casos.length, color: _C.grey2,  colorSoft: _C.border)),
+          const SizedBox(width: 10),
+          Expanded(child: _MapStatCard(label: 'Activos',     count: _ativos,       color: _C.accent, colorSoft: _C.accentSoft)),
+          const SizedBox(width: 10),
+          Expanded(child: _MapStatCard(label: 'Encontrados', count: _encontrados,  color: _C.green,  colorSoft: _C.greenSoft)),
+        ]),
+      ]),
     );
   }
 }
 
 class _LegendaDot extends StatelessWidget {
-  final Color color;
-  final String label;
+  final Color color; final String label;
   const _LegendaDot({required this.color, required this.label});
   @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-      const SizedBox(width: 5),
-      Text(label, style: const TextStyle(color: _C.grey2, fontSize: 12)),
-    ]);
-  }
+  Widget build(BuildContext context) => Row(children: [
+    Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+    const SizedBox(width: 5),
+    Text(label, style: const TextStyle(color: _C.grey2, fontSize: 12)),
+  ]);
 }
 
 class _MapStatCard extends StatelessWidget {
-  final String label;
-  final int count;
-  final Color color, colorSoft;
+  final String label; final int count; final Color color, colorSoft;
   const _MapStatCard({required this.label, required this.count, required this.color, required this.colorSoft});
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _C.card, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _C.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(width: 30, height: 30,
-            decoration: BoxDecoration(color: colorSoft, borderRadius: BorderRadius.circular(8)),
-            child: Center(child: Icon(Icons.location_on_rounded, color: color, size: 16)),
-          ),
-          const SizedBox(height: 8),
-          Text('$count', style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w800)),
-          Text(label, style: const TextStyle(color: _C.grey2, fontSize: 11)),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.border)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(width: 30, height: 30, decoration: BoxDecoration(color: colorSoft, borderRadius: BorderRadius.circular(8)),
+        child: Center(child: Icon(Icons.location_on_rounded, color: color, size: 16))),
+      const SizedBox(height: 8),
+      Text('$count', style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w800)),
+      Text(label, style: const TextStyle(color: _C.grey2, fontSize: 11)),
+    ]),
+  );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX 2 & 3: EDITAR LOCALIZAÇÃO — layout vertical (Column) + SafeArea no botão
-// ─────────────────────────────────────────────────────────────────────────────
 class _EditarLocalizacaoSheet extends StatefulWidget {
   final VoidCallback onSaved;
   const _EditarLocalizacaoSheet({required this.onSaved});
@@ -1865,66 +1936,121 @@ class _EditarLocalizacaoSheet extends StatefulWidget {
 }
 
 class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
-  List<Map<String, dynamic>> _casosSemCoord = [];
+  // ── ALTERADO: lista TODOS os casos (não só os sem coordenadas) ──────────
+  // Agora o admin pode corrigir/mover a localização de QUALQUER caso,
+  // não apenas dos que ainda não têm lat/lng definidos.
+  List<Map<String, dynamic>> _todosCasos = [];
   Map<String, dynamic>? _selectedCaso;
   LatLng? _selectedLatLng;
-  bool _loadingCasos = true;
-  bool _saving       = false;
+  bool _loadingCasos = true, _saving = false;
   GoogleMapController? _editMapCtrl;
   final Set<Marker> _editMarkers = {};
 
-  @override
-  void initState() {
-    super.initState();
-    _loadCasosSemCoord();
+  // Quantos casos já têm coordenadas vs quantos ainda não têm
+  int get _comCoord  => _todosCasos.where(_temCoordValidas).length;
+  int get _semCoord  => _todosCasos.length - _comCoord;
+
+  bool _temCoordValidas(Map<String, dynamic> c) {
+    final lat = c['lat'];
+    final lng = c['lng'];
+    if (lat == null || lng == null) return false;
+    if (lat.toString().isEmpty || lng.toString().isEmpty) return false;
+    return double.tryParse(lat.toString()) != null && double.tryParse(lng.toString()) != null;
   }
 
-  Future<void> _loadCasosSemCoord() async {
-    setState(() => _loadingCasos = true);
+  // ── NOVO: guarda a mensagem de erro para mostrar na UI em vez de
+  // engolir silenciosamente — assim conseguimos ver POR QUE a lista
+  // de casos aparece vazia (ex: índice do Firestore em falta, regras
+  // de segurança a bloquear, sem ligação à internet, etc.)
+  String? _erroCarregamento;
+
+  @override
+  void initState() { super.initState(); _loadTodosCasos(); }
+
+  Future<void> _loadTodosCasos() async {
+    setState(() { _loadingCasos = true; _erroCarregamento = null; });
     try {
       final snap = await FirebaseFirestore.instance.collection('casos')
           .where('status', whereIn: ['aprovado', 'encontrado', 'desmentido']).get();
-      _casosSemCoord = snap.docs
-          .map((d) => {'id': d.id, ...d.data()})
-          .where((c) => (c['lat'] == null || c['lng'] == null ||
-                         c['lat'].toString().isEmpty || c['lng'].toString().isEmpty))
-          .toList();
+      _todosCasos = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+
+      // ── NOVO: diagnóstico — se a query com filtro voltou vazia,
+      // verifica se a coleção 'casos' tem documentos sem esse filtro.
+      // Isto distingue "coleção vazia" de "nenhum status combina".
+      if (_todosCasos.isEmpty) {
+        final snapTodos = await FirebaseFirestore.instance.collection('casos').limit(50).get();
+        if (snapTodos.docs.isEmpty) {
+          _erroCarregamento = 'A coleção "casos" está vazia — ainda não há casos criados.';
+        } else {
+          final statusEncontrados = snapTodos.docs
+              .map((d) => (d.data()['status'] ?? '«sem status»').toString())
+              .toSet()
+              .join(', ');
+          _erroCarregamento =
+              'Há ${snapTodos.docs.length} caso(s) na base de dados, mas nenhum com '
+              'status aprovado/encontrado/desmentido. Status encontrados: $statusEncontrados';
+        }
+      } else {
+        // Casos sem localização aparecem primeiro na lista (mais urgentes)
+        _todosCasos.sort((a, b) {
+          final aTem = _temCoordValidas(a) ? 1 : 0;
+          final bTem = _temCoordValidas(b) ? 1 : 0;
+          return aTem.compareTo(bTem);
+        });
+      }
     } catch (e) {
       debugPrint('Erro editar loc: $e');
-    } finally {
-      if (mounted) setState(() => _loadingCasos = false);
+      _erroCarregamento = e.toString();
     }
+    finally { if (mounted) setState(() => _loadingCasos = false); }
   }
 
   void _selectCaso(Map<String, dynamic> caso) {
+    // ── NOVO: se o caso já tem coordenadas, pré-carrega o marcador
+    // no mapa nessa posição, em vez de começar vazio — assim o admin
+    // vê de imediato onde o caso está marcado actualmente e pode
+    // simplesmente tocar num novo ponto para corrigir.
+    LatLng? posAtual;
+    if (_temCoordValidas(caso)) {
+      final lat = double.tryParse(caso['lat'].toString());
+      final lng = double.tryParse(caso['lng'].toString());
+      if (lat != null && lng != null) posAtual = LatLng(lat, lng);
+    }
+
     setState(() {
-      _selectedCaso = caso;
-      _selectedLatLng = null;
+      _selectedCaso   = caso;
+      _selectedLatLng = posAtual;
       _editMarkers.clear();
+      if (posAtual != null) {
+        _editMarkers.add(Marker(
+          markerId: const MarkerId('sel'),
+          position: posAtual,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          infoWindow: InfoWindow(title: caso['nome'] ?? '',
+            snippet: 'Localização actual · toque para mover'),
+        ));
+      }
     });
+
+    if (posAtual != null) {
+      _editMapCtrl?.animateCamera(CameraUpdate.newLatLngZoom(posAtual, 13));
+    }
   }
 
   void _onMapTap(LatLng latlng) {
     if (_selectedCaso == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Selecione um caso primeiro.'),
-        backgroundColor: _C.orange, behavior: SnackBarBehavior.floating,
-      ));
+        content: Text('Selecione um caso primeiro.'), backgroundColor: _C.orange, behavior: SnackBarBehavior.floating));
       return;
     }
     setState(() {
       _selectedLatLng = latlng;
-      _editMarkers
-        ..clear()
-        ..add(Marker(
-          markerId: const MarkerId('sel'),
-          position: latlng,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-          infoWindow: InfoWindow(
-            title: _selectedCaso!['nome'] ?? '',
-            snippet: '${latlng.latitude.toStringAsFixed(4)}, ${latlng.longitude.toStringAsFixed(4)}',
-          ),
-        ));
+      _editMarkers..clear()..add(Marker(
+        markerId: const MarkerId('sel'), position: latlng,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        infoWindow: InfoWindow(title: _selectedCaso!['nome'] ?? '',
+          snippet: '${latlng.latitude.toStringAsFixed(4)}, ${latlng.longitude.toStringAsFixed(4)}'),
+      ));
     });
     _editMapCtrl?.animateCamera(CameraUpdate.newLatLng(latlng));
   }
@@ -1934,426 +2060,305 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
     setState(() => _saving = true);
     try {
       await FirebaseFirestore.instance.collection('casos').doc(_selectedCaso!['id']).update({
-        'lat': _selectedLatLng!.latitude.toString(),
-        'lng': _selectedLatLng!.longitude.toString(),
+        'lat': _selectedLatLng!.latitude.toString(), 'lng': _selectedLatLng!.longitude.toString(),
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Localização de "${_selectedCaso!['nome']}" guardada!'),
           backgroundColor: _C.green, behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
         widget.onSaved();
         setState(() { _selectedCaso = null; _selectedLatLng = null; _editMarkers.clear(); });
-        _loadCasosSemCoord();
+        _loadTodosCasos();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro: $e'), backgroundColor: _C.red, behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Erro: $e'), backgroundColor: _C.red, behavior: SnackBarBehavior.floating));
+    } finally { if (mounted) setState(() => _saving = false); }
   }
 
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.of(context).size.height;
-
     return Container(
       height: h * 0.92,
-      decoration: const BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      // FIX: Column principal sem overflow — deixa o botão gerir o próprio espaço
-      child: Column(
-        children: [
-          // Handle
-          Container(
-            margin: const EdgeInsets.only(top: 14, bottom: 10),
-            width: 40, height: 4,
-            decoration: BoxDecoration(color: _C.grey4, borderRadius: BorderRadius.circular(2)),
-          ),
-
-          // Cabeçalho
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                const Icon(Icons.edit_location_alt_rounded, color: _C.orange, size: 20),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'Corrigir Localização',
-                    style: TextStyle(color: _C.white, fontSize: 16, fontWeight: FontWeight.w700),
+      decoration: const BoxDecoration(color: _C.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(children: [
+        Container(margin: const EdgeInsets.only(top: 14, bottom: 10), width: 40, height: 4,
+          decoration: BoxDecoration(color: _C.grey4, borderRadius: BorderRadius.circular(2))),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(children: [
+          const Icon(Icons.edit_location_alt_rounded, color: _C.orange, size: 20),
+          const SizedBox(width: 10),
+          const Expanded(child: Text('Editar Localização dos Casos', style: TextStyle(color: _C.white, fontSize: 16, fontWeight: FontWeight.w700))),
+          GestureDetector(onTap: () => Navigator.pop(context), child: const Icon(Icons.close_rounded, color: _C.grey2)),
+        ])),
+        const SizedBox(height: 4),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(
+          _loadingCasos
+              ? 'A carregar casos...'
+              : '${_todosCasos.length} caso${_todosCasos.length != 1 ? 's' : ''} no total · $_comCoord com GPS · $_semCoord sem GPS',
+          style: const TextStyle(color: _C.grey3, fontSize: 12))),
+        const SizedBox(height: 14),
+        Expanded(child: _loadingCasos
+          ? const Center(child: CircularProgressIndicator(color: _C.accent))
+          // ── NOVO: mostra o erro/diagnóstico real em vez de "nenhum caso" genérico ──
+          : _erroCarregamento != null
+            ? Center(child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(width: 60, height: 60, decoration: const BoxDecoration(color: _C.orangeSoft, shape: BoxShape.circle),
+                    child: const Icon(Icons.info_outline_rounded, color: _C.orange, size: 30)),
+                  const SizedBox(height: 12),
+                  const Text('Não foi possível listar os casos', style: TextStyle(color: _C.white, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text(_erroCarregamento!, textAlign: TextAlign.center,
+                    style: const TextStyle(color: _C.grey3, fontSize: 11)),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _loadTodosCasos,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Tentar novamente'),
+                    style: ElevatedButton.styleFrom(backgroundColor: _C.accent, foregroundColor: _C.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close_rounded, color: _C.grey2),
-                ),
-              ],
-            ),
-          ),
+                ]),
+              ))
+          : _todosCasos.isEmpty
+            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Container(width: 60, height: 60, decoration: const BoxDecoration(color: _C.greenSoft, shape: BoxShape.circle),
+                  child: const Icon(Icons.check_circle_rounded, color: _C.green, size: 30)),
+                const SizedBox(height: 12),
+                const Text('Nenhum caso activo encontrado.', style: TextStyle(color: _C.white, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                const Text('Casos precisam de status: aprovado, encontrado ou desmentido.',
+                  style: TextStyle(color: _C.grey3, fontSize: 11)),
+              ]))
+            // ── CORRIGIDO: LayoutBuilder + altura mínima garantida para o
+            // mapa evita o "bottom overflowed" em telas mobile pequenas.
+            // A lista horizontal de casos e o status box têm altura fixa
+            // conhecida; o que resta vai todo para o mapa, com um mínimo
+            // de 180px para nunca colapsar a 0 ou negativo.
+            : LayoutBuilder(builder: (context, constraints) {
+                const alturaListaCasos = 72.0;
+                const alturaStatusBox  = 54.0; // ~ altura real do AnimatedContainer de status
+                const espacamentos     = 6.0 + 10.0 + 10.0 + 10.0; // label + 3 SizedBox entre blocos
+                final alturaMapa = (constraints.maxHeight
+                    - alturaListaCasos - alturaStatusBox - espacamentos)
+                    .clamp(180.0, double.infinity);
 
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              '${_casosSemCoord.length} caso${_casosSemCoord.length != 1 ? 's' : ''} sem localização',
-              style: const TextStyle(color: _C.grey3, fontSize: 12),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Corpo principal — ocupa espaço restante
-          Expanded(
-            child: _loadingCasos
-              ? const Center(child: CircularProgressIndicator(color: _C.accent))
-              : _casosSemCoord.isEmpty
-                ? Center(
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Container(
-                        width: 60, height: 60,
-                        decoration: const BoxDecoration(color: _C.greenSoft, shape: BoxShape.circle),
-                        child: const Icon(Icons.check_circle_rounded, color: _C.green, size: 30),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Todos os casos têm localização!',
-                        style: TextStyle(color: _C.white, fontWeight: FontWeight.w600),
-                      ),
-                    ]),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ── FIX 3: Lista HORIZONTAL de chips em vez de coluna lateral ──
-                      Padding(
-                        padding: const EdgeInsets.only(left: 20, bottom: 6),
-                        child: Text(
-                          'Selecionar caso',
-                          style: const TextStyle(color: _C.grey2, fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 72,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _casosSemCoord.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (_, i) {
-                            final c = _casosSemCoord[i];
-                            final isSelected = _selectedCaso?['id'] == c['id'];
-                            return GestureDetector(
-                              onTap: () => _selectCaso(c),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? _C.accentSoft : _C.card,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isSelected ? _C.accent : _C.border,
-                                    width: isSelected ? 1.5 : 1,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      c['nome'] ?? 'Sem nome',
-                                      style: TextStyle(
-                                        color: isSelected ? _C.accent : _C.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Row(children: [
-                                      Icon(Icons.location_on_rounded, size: 11,
-                                        color: isSelected ? _C.accent : _C.grey3),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        c['municipio'] ?? c['provincia'] ?? '—',
-                                        style: TextStyle(
-                                          color: isSelected ? _C.accent.withValues(alpha: 0.8) : _C.grey3,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ]),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      // Banner de estado do caso seleccionado
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Padding(padding: EdgeInsets.only(left: 20, bottom: 6),
+                    child: Text('Selecionar caso  ·  toque para editar a localização', style: TextStyle(color: _C.grey2, fontSize: 12, fontWeight: FontWeight.w600))),
+                  SizedBox(height: alturaListaCasos, child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  scrollDirection: Axis.horizontal, itemCount: _todosCasos.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) {
+                    final c = _todosCasos[i];
+                    final isSelected = _selectedCaso?['id'] == c['id'];
+                    final temGPS = _temCoordValidas(c);
+                    return GestureDetector(
+                      onTap: () => _selectCaso(c),
+                      // ── CORRIGIDO: largura fixa (180) — dentro de um
+                      // ListView horizontal, um Row/Flexible sem largura
+                      // definida tenta ocupar largura infinita e causa
+                      // overflow. Com width fixo o texto interno passa
+                      // a ter um limite real para fazer ellipsis.
+                      child: SizedBox(
+                        width: 180,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          width: double.infinity,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: _C.card,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _selectedCaso != null
-                                ? _C.accent.withValues(alpha: 0.4)
-                                : _C.border,
-                            ),
-                          ),
-                          child: Row(children: [
-                            Icon(
-                              _selectedCaso != null
-                                ? Icons.edit_location_alt_rounded
-                                : Icons.touch_app_rounded,
-                              color: _selectedCaso != null ? _C.accent : _C.grey3,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _selectedCaso == null
-                                ? const Text(
-                                    'Selecione um caso acima para começar',
-                                    style: TextStyle(color: _C.grey3, fontSize: 12),
-                                  )
-                                : _selectedLatLng != null
-                                  ? Text(
-                                      '${_selectedCaso!['nome']}  ·  📍 ${_selectedLatLng!.latitude.toStringAsFixed(4)}, ${_selectedLatLng!.longitude.toStringAsFixed(4)}',
-                                      style: const TextStyle(color: _C.accent, fontSize: 12, fontWeight: FontWeight.w500),
-                                      overflow: TextOverflow.ellipsis,
-                                    )
-                                  : Text(
-                                      '${_selectedCaso!['nome']}  ·  Toque no mapa para definir',
-                                      style: const TextStyle(color: _C.grey2, fontSize: 12),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                            ),
+                            color: isSelected ? _C.accentSoft : _C.card, borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isSelected ? _C.accent : _C.border, width: isSelected ? 1.5 : 1)),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Row(children: [
+                              Expanded(child: Text(c['nome'] ?? 'Sem nome',
+                                style: TextStyle(color: isSelected ? _C.accent : _C.white, fontWeight: FontWeight.w600, fontSize: 13),
+                                overflow: TextOverflow.ellipsis)),
+                              const SizedBox(width: 5),
+                              // ── indicador se o caso já tem GPS ou não ──
+                              Icon(temGPS ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
+                                size: 11, color: temGPS ? _C.green : _C.orange),
+                            ]),
+                            const SizedBox(height: 3),
+                            Row(children: [
+                              Icon(Icons.location_on_rounded, size: 11, color: isSelected ? _C.accent : _C.grey3),
+                              const SizedBox(width: 3),
+                              Expanded(child: Text(c['municipio'] ?? c['provincia'] ?? '—',
+                                style: TextStyle(color: isSelected ? _C.accent.withOpacity(0.8) : _C.grey3, fontSize: 11),
+                                overflow: TextOverflow.ellipsis)),
+                            ]),
                           ]),
                         ),
                       ),
-
-                      const SizedBox(height: 10),
-
-                      // Mapa — ocupa todo o espaço restante da coluna
-                      Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 20),
-                          clipBehavior: Clip.antiAlias,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: _C.border),
-                          ),
-                          child: GoogleMap(
-                            initialCameraPosition: const CameraPosition(
-                              target: LatLng(-11.2027, 17.8739),
-                              zoom: 5,
-                            ),
-                            onMapCreated: (ctrl) => _editMapCtrl = ctrl,
-                            onTap: _onMapTap,
-                            markers: _editMarkers,
-                            myLocationButtonEnabled: false,
-                            zoomControlsEnabled: true,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-                    ],
+                    );
+                  },
+                )),
+                const SizedBox(height: 10),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200), width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _selectedCaso != null ? _C.accent.withOpacity(0.4) : _C.border)),
+                  child: Row(children: [
+                    Icon(_selectedCaso != null ? Icons.edit_location_alt_rounded : Icons.touch_app_rounded,
+                      color: _selectedCaso != null ? _C.accent : _C.grey3, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(child: _selectedCaso == null
+                      ? const Text('Selecione um caso acima para começar', style: TextStyle(color: _C.grey3, fontSize: 12))
+                      : _selectedLatLng != null
+                        ? Text('${_selectedCaso!['nome']}  ·  📍 ${_selectedLatLng!.latitude.toStringAsFixed(4)}, ${_selectedLatLng!.longitude.toStringAsFixed(4)}',
+                            style: const TextStyle(color: _C.accent, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)
+                        : Text('${_selectedCaso!['nome']}  ·  Toque no mapa para definir',
+                            style: const TextStyle(color: _C.grey2, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                  ]),
+                )),
+                const SizedBox(height: 10),
+                // ── CORRIGIDO: SizedBox com altura calculada em vez de
+                // Expanded — agora a altura do mapa é determinada pelo
+                // espaço real disponível (constraints.maxHeight do
+                // LayoutBuilder), nunca ultrapassando o espaço do ecrã,
+                // o que elimina o "bottom overflowed by N pixels".
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    height: alturaMapa,
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: _C.border)),
+                      child: GoogleMap(
+                        initialCameraPosition: const CameraPosition(target: LatLng(-11.2027, 17.8739), zoom: 5),
+                        onMapCreated: (ctrl) => _editMapCtrl = ctrl, onTap: _onMapTap,
+                        markers: _editMarkers, myLocationButtonEnabled: false, zoomControlsEnabled: true),
+                    ),
                   ),
-          ),
-
-          // ── FIX 2: Botão "Guardar" com SafeArea — sem overflow ──
-          if (_selectedCaso != null && _selectedLatLng != null)
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: ElevatedButton(
-                  onPressed: _saving ? null : _salvar,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _C.green,
-                    foregroundColor: _C.white,
-                    minimumSize: const Size(double.infinity, 52),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  child: _saving
-                    ? const SizedBox(
-                        width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: _C.white),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.save_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              'Guardar localização de "${_selectedCaso!['nome'] ?? '...'}"',
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
                 ),
-              ),
+                const SizedBox(height: 10),
+              ]);
+              }),
+        ),
+        if (_selectedCaso != null && _selectedLatLng != null)
+          SafeArea(top: false, child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: ElevatedButton(
+              onPressed: _saving ? null : _salvar,
+              style: ElevatedButton.styleFrom(backgroundColor: _C.green, foregroundColor: _C.white,
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
+              child: _saving
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _C.white))
+                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.save_rounded, size: 18),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text('Guardar localização de "${_selectedCaso!['nome'] ?? '...'}"',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                  ]),
             ),
-        ],
-      ),
+          )),
+      ]),
     );
   }
 }
 
-// CONFIRM DIALOG
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPONENTES REUTILIZÁVEIS
+// ─────────────────────────────────────────────────────────────────────────────
 class _ConfirmDialog extends StatelessWidget {
   final String title, message, confirmLabel;
   final Color confirmColor;
   const _ConfirmDialog({required this.title, required this.message, required this.confirmLabel, required this.confirmColor});
-
   @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: _C.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: _C.border)),
-      title: Text(title, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w700)),
-      content: Text(message, style: const TextStyle(color: _C.grey2, fontSize: 14, height: 1.5)),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancelar', style: TextStyle(color: _C.grey2)),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: ElevatedButton.styleFrom(backgroundColor: confirmColor, foregroundColor: _C.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
-          child: Text(confirmLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: _C.card,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _C.border)),
+    title: Text(title, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w700)),
+    content: Text(message, style: const TextStyle(color: _C.grey2, fontSize: 14, height: 1.5)),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar', style: TextStyle(color: _C.grey2))),
+      ElevatedButton(
+        onPressed: () => Navigator.pop(context, true),
+        style: ElevatedButton.styleFrom(backgroundColor: confirmColor, foregroundColor: _C.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
+        child: Text(confirmLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
+      ),
+    ],
+  );
 }
 
-// COMPONENTES REUTILIZÁVEIS
 class _DetailRow extends StatelessWidget {
   final String label, value;
   const _DetailRow(this.label, this.value);
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 60, child: Text('$label:', style: const TextStyle(color: _C.grey3, fontSize: 12, fontWeight: FontWeight.w600))),
-          Expanded(child: Text(value, style: const TextStyle(color: _C.grey1, fontSize: 12))),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(width: 60, child: Text('$label:', style: const TextStyle(color: _C.grey3, fontSize: 12, fontWeight: FontWeight.w600))),
+      Expanded(child: Text(value, style: const TextStyle(color: _C.grey1, fontSize: 12))),
+    ]),
+  );
 }
 
 class _Chip extends StatelessWidget {
-  final String text;
-  final Color textColor, borderColor;
+  final String text; final Color textColor, borderColor;
   const _Chip(this.text, this.textColor, this.borderColor);
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: borderColor.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: borderColor),
-      ),
-      child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w500)),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(color: borderColor.withOpacity(0.3), borderRadius: BorderRadius.circular(6), border: Border.all(color: borderColor)),
+    child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w500)),
+  );
 }
 
 class _RoundIconBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color, bg;
-  final VoidCallback? onTap;
-  final bool loading;
+  final IconData icon; final Color color, bg; final VoidCallback? onTap; final bool loading;
   const _RoundIconBtn({required this.icon, required this.color, required this.bg, this.onTap, this.loading = false});
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.3))),
-        child: loading
-            ? Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: color)))
-            : Icon(icon, color: color, size: 18),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: 36, height: 36,
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: color.withOpacity(0.3))),
+      child: loading
+        ? Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: color)))
+        : Icon(icon, color: color, size: 18),
+    ),
+  );
 }
 
 class _ActionBtn extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color, bg, border;
-  final bool loading;
-  final VoidCallback onTap;
-  const _ActionBtn({required this.label, required this.icon, required this.color,
-    required this.bg, required this.border, required this.loading, required this.onTap});
+  final String label; final IconData icon; final Color color, bg, border; final bool loading; final VoidCallback onTap;
+  const _ActionBtn({required this.label, required this.icon, required this.color, required this.bg, required this.border, required this.loading, required this.onTap});
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: BoxDecoration(
-          color: bg, borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: border.withValues(alpha: 0.4)),
-        ),
-        child: loading
-            ? Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: color)))
-            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(icon, size: 16, color: color),
-                const SizedBox(width: 6),
-                Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
-              ]),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: loading ? null : onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: border.withOpacity(0.4))),
+      child: loading
+        ? Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: color)))
+        : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 16, color: color), const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+          ]),
+    ),
+  );
 }
 
 class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color, bg;
-  final VoidCallback onTap;
+  final IconData icon; final Color color, bg; final VoidCallback onTap;
   const _IconBtn({required this.icon, required this.color, required this.bg, required this.onTap});
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _C.border)),
-        child: Icon(icon, color: color, size: 20),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.border)),
+      child: Icon(icon, color: color, size: 20),
+    ),
+  );
 }
 
-// HELPERS
 Widget _loadingWidget() => const Center(child: CircularProgressIndicator(color: _C.accent));
 Widget _empty(String msg) => Center(child: Text(msg, style: const TextStyle(color: _C.grey3, fontSize: 16)));

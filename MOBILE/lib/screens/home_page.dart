@@ -1,12 +1,8 @@
 // screens/home_page.dart
-// Feed completo com: apoio (stats emblemas), comentários (apagar, avatar real),
-// partilha via share_plus, navegação para mapa e perfil corrigida.
-//
-// Dependências adicionais necessárias no pubspec.yaml:
 //   share_plus: ^7.0.0
 
-import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:convert'; //conversor de dados
+import 'dart:typed_data';//processar os codigos em milisegundos
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,6 +13,7 @@ import 'chatbot_page.dart';
 import 'profile.dart';
 import 'create_caso_dialog.dart';
 import 'map_page.dart';
+import 'admin_page.dart'; // ← adiciona esta linha com os outros imports
 
 // ─── PALETA ─────────────────────────────────────────────
 class _C {
@@ -69,11 +66,29 @@ class _HomePageState extends State<HomePage> {
   int    _navIndex = 0;
 
   bool get isGuest => FirebaseAuth.instance.currentUser == null;
+  bool _isAdmin = false;
+
+  // ── Método novo ──
+  Future<void> _checkAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (snap.exists && mounted) {
+        setState(() =>
+            _isAdmin = (snap.data()?['role'] ?? 'user') == 'admin');
+      }
+    } catch (_) {}
+  }
 
   @override
   void initState() {
     super.initState();
     _searchCtrl.addListener(() => setState(() => _query = _searchCtrl.text.toLowerCase()));
+    _checkAdmin();
   }
 
   @override
@@ -133,33 +148,107 @@ class _HomePageState extends State<HomePage> {
           Row(
             children: [
               Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(gradient: const LinearGradient(colors: [_C.accent, _C.purple]), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.location_searching_rounded, color: _C.white, size: 18),
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [_C.accent, _C.purple],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.location_searching_rounded,
+                  color: _C.white,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
-              const Text('Missing AO', style: TextStyle(color: _C.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+              const Text(
+                'Missing AO',
+                style: TextStyle(
+                  color: _C.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
               const Spacer(),
-              // Notificações (casos pendentes — só para admins ou logados)
+
+              // ── BOTÃO ADMIN ─────────────────────────────
+              if (_isAdmin) ...[
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminPage(),
+                    ),
+                  ),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0x264F7EFF),
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(
+                        color: _C.accent.withOpacity(0.35),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: _C.accent,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ],
+              // ────────────────────────────────────────────
+
               StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('casos_pendentes').snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('casos_pendentes')
+                    .snapshots(),
                 builder: (_, snap) {
-                  final count = (snap.hasData && !isGuest) ? snap.data!.docs.length : 0;
+                  final count =
+                      (snap.hasData && !isGuest)
+                          ? snap.data!.docs.length
+                          : 0;
+
                   return Stack(
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        width: 38, height: 38,
-                        decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(11), border: Border.all(color: _C.border)),
-                        child: const Icon(Icons.notifications_rounded, color: _C.grey2, size: 18),
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: _C.card,
+                          borderRadius: BorderRadius.circular(11),
+                          border: Border.all(color: _C.border),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_rounded,
+                          color: _C.grey2,
+                          size: 18,
+                        ),
                       ),
                       if (count > 0)
                         Positioned(
-                          top: -3, right: -3,
+                          top: -3,
+                          right: -3,
                           child: Container(
                             padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(color: _C.red, shape: BoxShape.circle),
-                            child: Text('$count', style: const TextStyle(color: _C.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                            decoration: const BoxDecoration(
+                              color: _C.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '$count',
+                              style: const TextStyle(
+                                color: _C.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
                     ],
@@ -325,14 +414,21 @@ class _CasoCardState extends State<_CasoCard> {
     return null;
   }
 
-  // Ler counts directamente do stream (dados em tempo real)
-  int get apoiosCount    => d['apoios']     as int? ?? 0;
+  int get apoiosCount      => d['apoios']      as int? ?? 0;
   int get comentariosCount => d['comentarios'] as int? ?? 0;
 
+  // ── CORRIGIDO: trata Timestamp E String ──────────────
   String _daysAgo() {
-    final str = d['data_desaparecimento'] as String?;
-    if (str == null || str.isEmpty) return '';
-    final dt = DateTime.tryParse(str);
+    final raw = d['data_desaparecimento'];
+    if (raw == null) return '';
+
+    DateTime? dt;
+    if (raw is Timestamp) {
+      dt = raw.toDate();
+    } else if (raw is String) {
+      dt = DateTime.tryParse(raw);
+    }
+
     if (dt == null) return '';
     final diff = DateTime.now().difference(dt).inDays;
     return diff == 0 ? 'Hoje' : 'Há $diff dias';
@@ -353,7 +449,6 @@ class _CasoCardState extends State<_CasoCard> {
     } catch (_) {}
   }
 
-  // ── Apoiar (com incremento de stats para emblemas) ──
   Future<void> _toggleApoio() async {
     if (_currentUser == null) { widget.onLoginRequired(); return; }
     if (_isLoading) return;
@@ -379,7 +474,6 @@ class _CasoCardState extends State<_CasoCard> {
         });
         setState(() => _apoiado = true);
 
-        // Incrementar stats.apoios do user (sistema de emblemas — equivalente ao incrementarStatUser do web)
         await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).update({
           'stats.apoios': FieldValue.increment(1),
         });
@@ -393,7 +487,6 @@ class _CasoCardState extends State<_CasoCard> {
     }
   }
 
-  // ── Comentários ──────────────────────────────────────
   void _abrirComentarios() {
     if (_currentUser == null) { widget.onLoginRequired(); return; }
     showModalBottomSheet(
@@ -408,17 +501,29 @@ class _CasoCardState extends State<_CasoCard> {
     );
   }
 
-  // ── Partilhar (share_plus — equivalente ao partilharCaso do web) ──
+  // ── NOVO: abre o modal de detalhes completos do caso ──────────────────
+  void _abrirDetalhes() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DetalhesCasoSheet(
+        doc: widget.doc,
+        imageBytes: _imageBytes,
+        diasAgo: _daysAgo(),
+      ),
+    );
+  }
+
   Future<void> _partilhar() async {
-    final nome     = d['nome']     as String? ?? 'Desconhecido';
+    final nome      = d['nome']     as String? ?? 'Desconhecido';
     final provincia = d['provincia'] as String? ?? 'Angola';
-    final url      = 'https://missingao-88704.web.app/?caso=${widget.doc.id}';
-    final texto    = '$nome desapareceu em $provincia. Partilhe para ajudar! Missing AO.\n$url';
+    final url       = 'https://missingao-88704.web.app/?caso=${widget.doc.id}';
+    final texto     = '$nome desapareceu em $provincia. Partilhe para ajudar! Missing AO.\n$url';
 
     try {
       await Share.share(texto, subject: '🔍 $nome — Missing AO');
 
-      // Incrementar stats.partilhas (sistema de emblemas)
       if (_currentUser != null) {
         await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).update({
           'stats.partilhas': FieldValue.increment(1),
@@ -433,16 +538,22 @@ class _CasoCardState extends State<_CasoCard> {
 
   @override
   Widget build(BuildContext context) {
-    final cfg      = _statusCfg(d['status'] as String?);
-    final nome     = d['nome']        as String? ?? 'Nome não informado';
-    final idade    = d['idade']?.toString() ?? '?';
-    final provincia = d['provincia']  as String? ?? 'Angola';
-    final ultimoLocal = d['ultimo_local'] as String? ?? 'Não informado';
-    final info     = d['informacoes_adicionais'] as String? ?? '';
-    final roupas   = d['roupas']      as String? ?? '';
-    final dias     = _daysAgo();
-    final letter   = nome.isNotEmpty ? nome[0].toUpperCase() : '?';
+    final cfg         = _statusCfg(d['status'] as String?);
+    final nome        = d['nome']           as String? ?? 'Nome não informado';
+    final idade       = d['idade']?.toString() ?? '?';
+    final provincia   = d['provincia']      as String? ?? 'Angola';
+    final ultimoLocal = d['ultimo_local']   as String? ?? 'Não informado';
+    final info        = d['informacoes_adicionais'] as String? ?? '';
+    final roupas      = d['roupas']         as String? ?? '';
+    final dias        = _daysAgo();
+    final letter      = nome.isNotEmpty ? nome[0].toUpperCase() : '?';
 
+    // ── CORRIGIDO: a área tocável para abrir detalhes agora cobre SÓ o
+    // header + imagem + corpo de informação. A faixa de ações (Apoiar,
+    // Comentar, Partilhar) fica COMPLETAMENTE fora do GestureDetector,
+    // como um bloco independente — assim não há mais zona de toque
+    // ambígua perto desses botões, nem risco de o toque "escapar" para
+    // o card e abrir os detalhes por engano.
     return Container(
       decoration: BoxDecoration(
         color: _C.card,
@@ -453,107 +564,136 @@ class _CasoCardState extends State<_CasoCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-            child: Row(
+          // ── Área tocável: abre os detalhes completos ──────────────
+          GestureDetector(
+            onTap: _abrirDetalhes,
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar com inicial
-                Container(
-                  width: 42, height: 42,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(colors: [Color(0xFF3D5AF1), _C.purple]),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(child: Text(letter, style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 16))),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // ── Header ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                  child: Row(
                     children: [
-                      Text(nome, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w700, fontSize: 15)),
-                      Text('$idade anos • $provincia', style: const TextStyle(color: _C.grey3, fontSize: 12)),
+                      Container(
+                        width: 42, height: 42,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(colors: [Color(0xFF3D5AF1), _C.purple]),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(child: Text(letter, style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(nome, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w700, fontSize: 15)),
+                            Text('$idade anos • $provincia', style: const TextStyle(color: _C.grey3, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: cfg.bg,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: cfg.color.withOpacity(0.4)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(cfg.icon, size: 11, color: cfg.color),
+                          const SizedBox(width: 4),
+                          Text(cfg.label, style: TextStyle(color: cfg.color, fontSize: 11, fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: cfg.bg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: cfg.color.withOpacity(0.4)),
+
+                // ── Imagem ──
+                _imageBytes != null
+                    ? Image.memory(_imageBytes!, height: 260, width: double.infinity, fit: BoxFit.cover)
+                    : Container(height: 200, color: _C.surface, child: const Center(child: Icon(Icons.person_rounded, color: _C.grey4, size: 64))),
+
+                // ── Corpo ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_rounded, size: 14, color: _C.red),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(ultimoLocal, style: const TextStyle(color: _C.red, fontWeight: FontWeight.w600, fontSize: 13)),
+                          ),
+                          if (dias.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(color: const Color(0x26F59E0B), borderRadius: BorderRadius.circular(8)),
+                              child: Text(dias, style: const TextStyle(color: _C.orange, fontSize: 10, fontWeight: FontWeight.w600)),
+                            ),
+                        ],
+                      ),
+                      if (info.isNotEmpty || roupas.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          [if (info.isNotEmpty) info, if (roupas.isNotEmpty) 'Vestia: $roupas.'].join(' '),
+                          style: const TextStyle(color: _C.grey2, fontSize: 13, height: 1.5),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+
+                      // ── Dica de toque para abrir os detalhes completos ──
+                      const Padding(
+                        padding: EdgeInsets.only(top: 10),
+                        child: Row(
+                          children: [
+                            Icon(Icons.touch_app_rounded, size: 12, color: _C.accent),
+                            SizedBox(width: 4),
+                            Text(
+                              'Toque para ver detalhes completos',
+                              style: TextStyle(color: _C.accent, fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(cfg.icon, size: 11, color: cfg.color),
-                    const SizedBox(width: 4),
-                    Text(cfg.label, style: TextStyle(color: cfg.color, fontSize: 11, fontWeight: FontWeight.w700)),
-                  ]),
                 ),
               ],
             ),
           ),
 
-          // ── Imagem ──
-          _imageBytes != null
-              ? Image.memory(_imageBytes!, height: 260, width: double.infinity, fit: BoxFit.cover)
-              : Container(height: 200, color: _C.surface, child: const Center(child: Icon(Icons.person_rounded, color: _C.grey4, size: 64))),
+          // ── Separador visual claro entre a zona tocável e as acções ──
+          const Divider(color: _C.border, height: 1),
 
-          // ── Corpo ──
+          // ── Acções — FORA do GestureDetector de detalhes, com
+          // padding próprio para dar mais "respiro" ao toque ──────────
           Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded, size: 14, color: _C.red),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(ultimoLocal, style: const TextStyle(color: _C.red, fontWeight: FontWeight.w600, fontSize: 13)),
-                    ),
-                    if (dias.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: const Color(0x26F59E0B), borderRadius: BorderRadius.circular(8)),
-                        child: Text(dias, style: const TextStyle(color: _C.orange, fontSize: 10, fontWeight: FontWeight.w600)),
-                      ),
-                  ],
+                _ActionBtn(
+                  icon:  _apoiado ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  label: '$apoiosCount Apoiar',
+                  color: _apoiado ? _C.red : _C.grey2,
+                  onTap: _isLoading ? null : _toggleApoio,
                 ),
-                if (info.isNotEmpty || roupas.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    [if (info.isNotEmpty) info, if (roupas.isNotEmpty) 'Vestia: $roupas.'].join(' '),
-                    style: const TextStyle(color: _C.grey2, fontSize: 13, height: 1.5),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-
-                const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(color: _C.border, height: 1)),
-
-                // ── Acções ──
-                Row(
-                  children: [
-                    _ActionBtn(
-                      icon:  _apoiado ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      label: '$apoiosCount Apoiar',
-                      color: _apoiado ? _C.red : _C.grey2,
-                      onTap: _isLoading ? null : _toggleApoio,
-                    ),
-                    _ActionBtn(
-                      icon:  Icons.mode_comment_outlined,
-                      label: '$comentariosCount Comentar',
-                      color: _C.grey2,
-                      onTap: _abrirComentarios,
-                    ),
-                    _ActionBtn(
-                      icon:  Icons.send_rounded,
-                      label: 'Partilhar',
-                      color: _C.grey2,
-                      onTap: _partilhar,
-                    ),
-                  ],
+                _ActionBtn(
+                  icon:  Icons.mode_comment_outlined,
+                  label: '$comentariosCount Comentar',
+                  color: _C.grey2,
+                  onTap: _abrirComentarios,
+                ),
+                _ActionBtn(
+                  icon:  Icons.send_rounded,
+                  label: 'Partilhar',
+                  color: _C.grey2,
+                  onTap: _partilhar,
                 ),
               ],
             ),
@@ -592,9 +732,314 @@ class _ActionBtn extends StatelessWidget {
   }
 }
 
+// ─── MODAL DE DETALHES COMPLETOS DO CASO ────────────────
+// NOVO — mostra TODA a informação sem truncar, imagem completa (sem
+// cortar, usando BoxFit.contain) e botão para abrir o caso directamente
+// no mapa interativo (MapPage focado no casoId).
+class _DetalhesCasoSheet extends StatelessWidget {
+  final QueryDocumentSnapshot doc;
+  final Uint8List? imageBytes;
+  final String diasAgo;
+
+  const _DetalhesCasoSheet({
+    required this.doc,
+    required this.imageBytes,
+    required this.diasAgo,
+  });
+
+  Map<String, dynamic> get d => doc.data() as Map<String, dynamic>;
+
+  @override
+  Widget build(BuildContext context) {
+    final cfg              = _statusCfg(d['status'] as String?);
+    final nome             = d['nome']                  as String? ?? 'Nome não informado';
+    final idade            = d['idade']?.toString()      ?? '?';
+    final sexo             = d['sexo']                   as String? ?? '';
+    final altura           = d['altura']                 as String? ?? '';
+    final bi                = d['bi']                     as String? ?? '';
+    final provincia        = d['provincia']              as String? ?? 'Angola';
+    final municipio        = d['municipio']              as String? ?? '';
+    final ultimoLocal      = d['ultimo_local']           as String? ?? 'Não informado';
+    final horaDesap        = d['hora_desaparecimento']   as String? ?? '';
+    final info             = d['informacoes_adicionais'] as String? ?? '';
+    final roupas           = d['roupas']                 as String? ?? '';
+    final deficiencia      = d['deficiencia']            as String? ?? '';
+    final tipoDeficiencia  = d['tipo_deficiencia']       as String? ?? '';
+    final temCoords        = d['lat'] != null && d['lng'] != null;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: _C.bg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // ── Alça de arrastar ──
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              decoration: BoxDecoration(color: _C.grey4, borderRadius: BorderRadius.circular(2)),
+            ),
+
+            // ── Cabeçalho fixo ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.badge_rounded, color: _C.accent, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Detalhes do Caso',
+                      style: TextStyle(color: _C.white, fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: _C.grey2),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: _C.border, height: 1),
+
+            // ── Conteúdo com scroll — tudo visível, nada truncado ──
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                children: [
+                  // ── Imagem completa, sem cortar ──
+                  if (imageBytes != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        color: _C.surface,
+                        child: Image.memory(
+                          imageBytes!,
+                          fit: BoxFit.contain, // mostra a imagem inteira, sem cortar
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      height: 180,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: _C.surface,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Center(child: Icon(Icons.person_rounded, color: _C.grey4, size: 64)),
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Nome + status ──
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          nome,
+                          style: const TextStyle(color: _C.white, fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: cfg.bg,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: cfg.color.withOpacity(0.4)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(cfg.icon, size: 12, color: cfg.color),
+                          const SizedBox(width: 4),
+                          Text(cfg.label, style: TextStyle(color: cfg.color, fontSize: 12, fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
+                    ],
+                  ),
+                  if (diasAgo.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text('Desapareceu $diasAgo', style: const TextStyle(color: _C.orange, fontSize: 13, fontWeight: FontWeight.w600)),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  // ── Botão: ver no mapa ──
+                  if (temCoords)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context); // fecha o modal
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => MapPage(casoId: doc.id)),
+                          );
+                        },
+                        icon: const Icon(Icons.map_rounded, size: 18),
+                        label: const Text('Ver no mapa interativo', style: TextStyle(fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _C.accent,
+                          foregroundColor: _C.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _C.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _C.border),
+                      ),
+                      child: const Row(children: [
+                        Icon(Icons.location_off_rounded, color: _C.grey3, size: 16),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Este caso não tem localização exacta registada no mapa.',
+                            style: TextStyle(color: _C.grey3, fontSize: 12),
+                          ),
+                        ),
+                      ]),
+                    ),
+
+                  const SizedBox(height: 20),
+
+                  // ── Secção: Informações Pessoais ──
+                  _secaoTitulo('Informações Pessoais'),
+                  _campoDetalhe(Icons.cake_rounded, 'Idade', '$idade anos'),
+                  if (sexo.isNotEmpty) _campoDetalhe(Icons.wc_rounded, 'Sexo', sexo),
+                  if (altura.isNotEmpty) _campoDetalhe(Icons.height_rounded, 'Altura', altura),
+                  if (bi.isNotEmpty) _campoDetalhe(Icons.badge_rounded, 'Nº do BI', bi),
+                  if (deficiencia == 'Sim')
+                    _campoDetalhe(
+                      Icons.accessible_rounded,
+                      'Deficiência',
+                      tipoDeficiencia.isNotEmpty ? tipoDeficiencia : 'Sim',
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Secção: Localização e Data ──
+                  _secaoTitulo('Local e Data do Desaparecimento'),
+                  _campoDetalhe(
+                    Icons.location_on_rounded,
+                    'Último local visto',
+                    ultimoLocal,
+                    destaque: true,
+                  ),
+                  if (municipio.isNotEmpty || provincia.isNotEmpty)
+                    _campoDetalhe(
+                      Icons.map_rounded,
+                      'Município / Província',
+                      [municipio, provincia].where((s) => s.isNotEmpty).join(', '),
+                    ),
+                  if (horaDesap.isNotEmpty)
+                    _campoDetalhe(Icons.access_time_rounded, 'Hora do desaparecimento', horaDesap),
+
+                  const SizedBox(height: 16),
+
+                  // ── Secção: Outras informações ──
+                  if (roupas.isNotEmpty || info.isNotEmpty) ...[
+                    _secaoTitulo('Outras Informações'),
+                    if (roupas.isNotEmpty)
+                      _campoDetalheTexto('Roupas que usava', roupas),
+                    if (info.isNotEmpty)
+                      _campoDetalheTexto('Informações adicionais', info),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _secaoTitulo(String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10, top: 4),
+      child: Text(
+        texto,
+        style: const TextStyle(color: _C.accent, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+      ),
+    );
+  }
+
+  // Campo curto, em linha (label + valor)
+  Widget _campoDetalhe(IconData icon, String label, String valor, {bool destaque = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: destaque ? _C.red : _C.grey3),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(color: _C.grey3, fontSize: 11)),
+                const SizedBox(height: 2),
+                Text(
+                  valor,
+                  style: TextStyle(
+                    color: destaque ? _C.red : _C.grey1,
+                    fontSize: 14,
+                    fontWeight: destaque ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Campo longo, em bloco — para textos que podem ser grandes
+  // (informações adicionais, roupas) — sem maxLines, sem ellipsis
+  Widget _campoDetalheTexto(String label, String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: _C.grey3, fontSize: 11)),
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _C.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _C.border),
+            ),
+            child: Text(
+              texto,
+              style: const TextStyle(color: _C.grey1, fontSize: 13, height: 1.5),
+              // SEM maxLines / overflow — mostra o texto completo
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── MODAL DE COMENTÁRIOS ────────────────────────────────
-// Equivalente ao ComentariosBottomSheet + carregarComentarios do web
-// Melhorias: avatar real do autor, botão apagar (só autor), avatar do utilizador actual no input
 class ComentariosBottomSheet extends StatefulWidget {
   final String casoId;
   final String casoNome;
@@ -609,7 +1054,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
   final _currentUser = FirebaseAuth.instance.currentUser;
   bool _sending = false;
 
-  // Dados do utilizador actual (para o avatar no input e nos comentários)
   Map<String, dynamic>? _myUserData;
 
   @override
@@ -632,7 +1076,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
     } catch (_) {}
   }
 
-  // ── Enviar comentário (equivalente ao enviarComentario do web) ──
   Future<void> _enviarComentario() async {
     final texto = _commentCtrl.text.trim();
     if (texto.isEmpty || _currentUser == null || _sending) return;
@@ -641,7 +1084,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
     try {
       final userData = _myUserData ?? {};
 
-      // Adicionar comentário à subcolecção
       await FirebaseFirestore.instance
           .collection('casos')
           .doc(widget.casoId)
@@ -654,12 +1096,10 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
         'criadoEm':  FieldValue.serverTimestamp(),
       });
 
-      // Incrementar contador no documento pai
       await FirebaseFirestore.instance.collection('casos').doc(widget.casoId).update({
         'comentarios': FieldValue.increment(1),
       });
 
-      // Incrementar stats.comentarios do user (sistema de emblemas)
       await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).update({
         'stats.comentarios': FieldValue.increment(1),
       });
@@ -674,7 +1114,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
     }
   }
 
-  // ── Apagar comentário (só o autor — equivalente ao apagarComentario do web) ──
   Future<void> _apagarComentario(String comentarioId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -709,7 +1148,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
     }
   }
 
-  // ── Avatar do utilizador (base64 ou placeholder) ──
   Widget _buildAvatar(String? fotoB64, String nome, {double radius = 18}) {
     Uint8List? bytes;
     if (fotoB64 != null && fotoB64.contains(',')) {
@@ -742,14 +1180,12 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
         ),
         child: Column(
           children: [
-            // ── Handle ──
             Container(
               width: 36, height: 4,
               margin: const EdgeInsets.only(top: 12, bottom: 0),
               decoration: BoxDecoration(color: _C.grey4, borderRadius: BorderRadius.circular(2)),
             ),
 
-            // ── Cabeçalho ──
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
               child: Row(
@@ -773,7 +1209,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
 
             const Divider(color: _C.border, height: 1),
 
-            // ── Lista de comentários (Stream em tempo real) ──
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -803,29 +1238,27 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                     itemCount: comments.length,
                     itemBuilder: (context, index) {
-                      final doc      = comments[index];
-                      final c        = doc.data() as Map<String, dynamic>;
-                      final cId      = doc.id;
-                      final dt       = (c['criadoEm'] as Timestamp?)?.toDate() ?? DateTime.now();
-                      final ts       = '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')} · ${dt.day}/${dt.month}';
-                      final autorId  = c['autorId']  as String? ?? '';
+                      final doc       = comments[index];
+                      final c         = doc.data() as Map<String, dynamic>;
+                      final cId       = doc.id;
+                      final dt        = (c['criadoEm'] as Timestamp?)?.toDate() ?? DateTime.now();
+                      final ts        = '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')} · ${dt.day}/${dt.month}';
+                      final autorId   = c['autorId']   as String? ?? '';
                       final autorNome = c['autorNome'] as String? ?? 'Utilizador';
                       final autorFoto = c['autorFoto'] as String? ?? '';
-                      final isAuthor = _currentUser != null && _currentUser!.uid == autorId;
+                      final isAuthor  = _currentUser != null && _currentUser!.uid == autorId;
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Avatar do autor
                             _buildAvatar(autorFoto.isNotEmpty ? autorFoto : null, autorNome),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Cabeçalho do comentário: nome + botão apagar
                                   Row(
                                     children: [
                                       Text(autorNome, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 13)),
@@ -838,7 +1271,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
                                     ],
                                   ),
                                   const SizedBox(height: 3),
-                                  // Bolha do comentário
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                     decoration: BoxDecoration(
@@ -866,7 +1298,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
               ),
             ),
 
-            // ── Input de comentário ──
             Padding(
               padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
               child: Container(
@@ -877,7 +1308,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
                 ),
                 child: Row(
                   children: [
-                    // Avatar do utilizador actual
                     _buildAvatar(
                       _myUserData?['photoBase64'] as String?,
                       _myUserData?['nome'] as String? ?? '',
@@ -902,7 +1332,6 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Botão enviar
                     GestureDetector(
                       onTap: _sending ? null : _enviarComentario,
                       child: Container(

@@ -1,6 +1,10 @@
 // screens/map_page.dart
 // Mapa interativo completo — equivalente ao mapa da versão web
 // Marcadores com cores por status, InfoWindow ao tocar, filtros por status/província
+//
+// NOVO: aceita um `casoId` opcional. Quando vem preenchido (ex: vindo do
+// botão "Ver no mapa interativo" no modal de detalhes do card), o mapa
+// centra a câmara nesse caso e abre automaticamente o seu InfoCard.
 
 import 'dart:async';
 import 'dart:convert';
@@ -49,7 +53,10 @@ const _coordsProvincia = {
 };
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  const MapPage({super.key, this.casoId});
+
+  /// Se preenchido, o mapa centra-se neste caso ao abrir e mostra o seu InfoCard.
+  final String? casoId;
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -99,9 +106,35 @@ class _MapPageState extends State<MapPage> {
         _loading = false;
       });
       await _criarMarcadores(lista);
+
+      // ── Se veio um casoId específico (ex: a partir do card), foca nele ──
+      if (widget.casoId != null) {
+        await _focarNoCaso(widget.casoId!);
+      }
     } catch (e) {
       setState(() => _loading = false);
       debugPrint('Erro ao carregar casos para o mapa: $e');
+    }
+  }
+
+  // ── Centra a câmara no caso indicado e abre o seu InfoCard ────────────
+  Future<void> _focarNoCaso(String casoId) async {
+    final caso = _todosOsCasos.firstWhere(
+      (c) => c['id'] == casoId,
+      orElse: () => {},
+    );
+    if (caso.isEmpty) return;
+
+    final pos = _resolverCoordenadas(caso);
+    if (pos == null) return;
+
+    setState(() => _selectedCaso = caso);
+
+    try {
+      final ctrl = await _controller.future;
+      await ctrl.animateCamera(CameraUpdate.newLatLngZoom(pos, 15));
+    } catch (e) {
+      debugPrint('Erro ao focar no caso: $e');
     }
   }
 
@@ -215,10 +248,20 @@ class _MapPageState extends State<MapPage> {
   }
 
   // ── Calcular dias desaparecido ────────────────────────
+  // CORRIGIDO: trata Timestamp (Firestore) E String (fallback) —
+  // antes fazia `as String?` directo e crashava com
+  // "type 'Timestamp' is not a subtype of type 'String?'"
   String _diasAgo(Map<String, dynamic> caso) {
-    final str = caso['data_desaparecimento'] as String?;
-    if (str == null || str.isEmpty) return '';
-    final dt = DateTime.tryParse(str);
+    final raw = caso['data_desaparecimento'];
+    if (raw == null) return '';
+
+    DateTime? dt;
+    if (raw is Timestamp) {
+      dt = raw.toDate();
+    } else if (raw is String) {
+      dt = DateTime.tryParse(raw);
+    }
+
     if (dt == null) return '';
     final diff = DateTime.now().difference(dt).inDays;
     return diff == 0 ? 'Hoje' : 'Há $diff dias';
