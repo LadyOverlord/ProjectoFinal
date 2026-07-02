@@ -459,6 +459,115 @@ class NotificationService {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // NOVO: notificação de estado de conta (suspensão / reactivação)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Chamada pelo TrustService sempre que uma conta transita para suspensa
+  // ou é reactivada. Usa DOIS canais em paralelo, porque servem propósitos
+  // diferentes:
+  //   • Push (FCM) — imediato, mas só chega se a app estiver instalada e o
+  //     dispositivo tiver o token guardado (não existe na versão web).
+  //   • Email (EmailJS) — mais lento a ser visto, mas chega a QUALQUER
+  //     utilizador com email registado, incluindo a versão web da app, que
+  //     por agora só recebe notificações por este canal.
+  //
+  // Falhas num canal não bloqueiam o outro nem a operação de suspender/
+  // reactivar em si — por isso todo o corpo está dentro de um único
+  // try/catch que só regista o erro (debugPrint), nunca o propaga.
+  Future<void> notificarSuspensao({
+    required String uid,
+    required String motivo,
+  }) => _notificarEstadoConta(uid: uid, suspenso: true, motivo: motivo);
+
+  Future<void> notificarReactivacao({
+    required String uid,
+    required int score,
+  }) => _notificarEstadoConta(uid: uid, suspenso: false, score: score);
+
+  Future<void> _notificarEstadoConta({
+    required String uid,
+    required bool suspenso,
+    String? motivo,
+    int? score,
+  }) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!userDoc.exists) return;
+      final data  = userDoc.data()!;
+      final nome  = data['nome']     as String? ?? 'Utilizador';
+      final email = data['email']    as String?;
+      final token = data['fcmToken'] as String?;
+
+      final titulo = suspenso ? '🚫 Conta Suspensa' : '✅ Conta Reactivada';
+      final corpo = suspenso
+          ? 'A sua conta foi suspensa. Motivo: ${motivo ?? "violação das diretrizes"}. Pode falar com o suporte a partir da app para pedir revisão.'
+          : 'A sua conta foi reactivada com $score pontos de Trust Score. Já pode voltar a usar a plataforma normalmente.';
+
+      // Canal 1 — push, só se houver token guardado (app móvel)
+      if (token != null && token.isNotEmpty) {
+        await _enviarFCM(
+          token: token,
+          title: titulo,
+          body:  corpo,
+          data:  {'tipo': 'status_conta', 'estado': suspenso ? 'suspensa' : 'reactivada'},
+        );
+      }
+
+      // Canal 2 — email, chega também à versão web (que ainda não tem push)
+      if (email != null && email.isNotEmpty) {
+        await _enviarEmailEstadoConta(email: email, nome: nome, assunto: titulo, mensagem: corpo);
+      }
+    } catch (e) {
+      debugPrint('Erro ao notificar estado da conta: $e');
+    }
+  }
+
+  // IMPORTANTE: 'template_conta_status' é um ID placeholder — é preciso
+  // criar este template no painel do EmailJS (o mesmo projecto onde já
+  // existe o 'template_366wv9e') antes disto funcionar. Configuração
+  // mínima sugerida para o template:
+  //   • Campo "To Email" do template → {{to_email}}
+  //   • Assunto do template → {{assunto}}
+  //   • Corpo do template → algo como:
+  //       "Olá {{nome}},\n\n{{mensagem}}\n\n— Equipa Missing AO"
+  // Depois de criado, substituir o ID abaixo pelo ID real gerado pelo EmailJS.
+  Future<void> _enviarEmailEstadoConta({
+    required String email,
+    required String nome,
+    required String assunto,
+    required String mensagem,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'origin':       'http://localhost',
+        },
+        body: jsonEncode({
+          'service_id':      'service_8fq9usa',
+          'template_id':     'template_conta_status', // ← substituir pelo ID real
+          'user_id':         'R5Femg5uCIC-Lh0RW',
+          'template_params': {
+            'to_email': email,
+            'nome':     nome,
+            'assunto':  assunto,
+            'mensagem': mensagem,
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('📧 [ESTADO CONTA] ✅ Enviado a $email');
+      } else {
+        debugPrint('📧 [ESTADO CONTA] ❌ Erro: ${response.statusCode} — ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('📧 [ESTADO CONTA] ❌ Erro de ligação: $e');
+    }
+  }
+
   // ── Enviar alerta por município ──────────────────────────────────────────
   Future<void> enviarAlertaDesaparecido({
     required String nome,

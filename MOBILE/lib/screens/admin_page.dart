@@ -1,3 +1,4 @@
+
 // screens/admin_page.dart
 // ✅ Dashboard com stats em tempo real + tabela de casos ativos com FILTRO
 // ✅ Filtros avançados de utilizadores (role, província, data, ordenação)
@@ -14,6 +15,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/notification_service.dart';
+import 'admin_trust_panels.dart';        // ← Trust Score panels
+import '../services/trust_service.dart'; // ← Trust Score service
 import '../models/user_mode.dart';
 import 'home_page.dart'; // ← import da HomePage
 
@@ -137,8 +140,11 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
       case 'dashboard': return _DashboardPanel(searchCtrl: _searchCtrl);
       case 'users':     return _UsersPanel(searchCtrl: _searchCtrl);
       case 'reports':   return _ApprovalsPanel();
-      case 'mapa':      return _MapaAdminPanel();
-      default:          return const SizedBox();
+      case 'mapa':        return _MapaAdminPanel();
+      case 'comentarios': return const AdminComentariosPanel();  // ← Trust Score
+      case 'trust':       return AdminTrustPanel(searchCtrl: _searchCtrl); // ← CORRIGIDO: searchCtrl não estava a ser passado, pesquisa não tinha efeito
+      case 'suporte':     return const AdminSuportePanel();      // ← Trust Score
+      default:            return const SizedBox();
     }
   }
 }
@@ -383,6 +389,9 @@ class _MenuContent extends StatelessWidget {
         _item('users',     Icons.people_alt_rounded, 'Utilizadores',  section, onNav),
         _item('reports',   Icons.fact_check_rounded, 'Aprovações',    section, onNav),
         _item('mapa',      Icons.map_rounded,        'Mapa de Casos', section, onNav),
+        _item('comentarios', Icons.mode_comment_rounded,  'Comentários',   section, onNav),
+        _item('trust',       Icons.shield_rounded,        'Trust Scores',  section, onNav),
+        _item('suporte',     Icons.support_agent_rounded, 'Suporte',       section, onNav),
 
         const SizedBox(height: 10),
 
@@ -653,8 +662,59 @@ class _ActiveCasesTableState extends State<_ActiveCasesTable> {
   Future<void> _save(String id) async {
     final ns = _pendingStatus[id];
     if (ns == null) return;
+
+    // NOVO: "Arquivar/Remover" pode significar coisas muito diferentes —
+    // desde fraude descoberta depois de aprovado, até um duplicado ou um
+    // pedido de remoção legítimo da família, sem culpa do autor. Ao
+    // contrário de "Desmentido" (que já implica falsidade comprovada e
+    // mantém penalização fixa), aqui o admin decide caso a caso, com o
+    // mesmo padrão já usado ao apagar comentários (_ConfirmarApagamento).
+    int? pontosArquivamento;
+    if (ns == 'rejeitado') {
+      pontosArquivamento = await showDialog<int>(
+        context: context,
+        builder: (_) => const _ConfirmarArquivamento(),
+      );
+      if (pontosArquivamento == null || !mounted) return; // admin cancelou
+    }
+
     setState(() => _saving.add(id));
     await FirebaseFirestore.instance.collection('casos').doc(id).update({'status': ns});
+
+    // ── Penalizar o autor se o caso foi desmentido ────────────────
+    if (ns == 'desmentido') {
+      try {
+        final casoSnap = await FirebaseFirestore.instance.collection('casos').doc(id).get();
+        final autorIdDesm = casoSnap.data()?['userId'] as String? ?? '';
+        if (autorIdDesm.isNotEmpty) {
+          await TrustService.instance.penalizar(
+            uid:      autorIdDesm,
+            motivo:   'caso_desmentido',
+            pontos:   TrustService.pCasoDesmentido,
+            adminUid: FirebaseAuth.instance.currentUser?.uid,
+            detalhe:  'Caso removido pelo administrador (desmentido)',
+          );
+        }
+      } catch (e) { debugPrint('Erro penalizar desmentido: \$e'); }
+    } else if (ns == 'rejeitado' && (pontosArquivamento ?? 0) > 0) {
+      // NOVO: aplica a penalização que o admin escolheu no diálogo acima —
+      // 0 é uma opção explícita e válida (caso arquivado sem culpa do autor).
+      try {
+        final casoSnap = await FirebaseFirestore.instance.collection('casos').doc(id).get();
+        final autorIdRej = casoSnap.data()?['userId'] as String? ?? '';
+        if (autorIdRej.isNotEmpty) {
+          await TrustService.instance.penalizar(
+            uid:      autorIdRej,
+            motivo:   'caso_rejeitado',
+            pontos:   pontosArquivamento!,
+            adminUid: FirebaseAuth.instance.currentUser?.uid,
+            detalhe:  'Caso arquivado/removido pelo administrador (já aprovado anteriormente)',
+          );
+        }
+      } catch (e) { debugPrint('Erro penalizar arquivamento: \$e'); }
+    }
+    // ─────────────────────────────────────────────────────────────
+
     setState(() { _saving.remove(id); _pendingStatus.remove(id); });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -720,6 +780,8 @@ class _ActiveCasesTableState extends State<_ActiveCasesTable> {
                 currentStatus: current,
                 saving: saving,
                 changed: changed,
+                caseData: d,
+                docId: doc.id,
                 onStatusChanged: (v) => setState(() => _pendingStatus[doc.id] = v),
                 onSave: () => _save(doc.id),
               );
@@ -736,10 +798,15 @@ class _CaseRow extends StatelessWidget {
   final bool saving, changed;
   final void Function(String) onStatusChanged;
   final VoidCallback onSave;
+  // NOVO: dados completos do caso e o id do documento — necessários para
+  // mostrar detalhes do caso e do autor, que antes não existiam nesta tabela.
+  final Map<String, dynamic> caseData;
+  final String docId;
   const _CaseRow({
     required this.name, required this.location, required this.currentStatus,
     required this.saving, required this.changed,
     required this.onStatusChanged, required this.onSave,
+    required this.caseData, required this.docId,
   });
 
   Color get _statusColor {
@@ -779,6 +846,22 @@ class _CaseRow extends StatelessWidget {
                       Text(location, style: const TextStyle(color: _C.grey3, fontSize: 12)),
                     ]),
                   ],
+                ),
+              ),
+              // NOVO: antes não havia nenhuma forma de ver quem publicou o
+              // caso, nem os detalhes completos, a partir desta tabela.
+              GestureDetector(
+                onTap: () => showDialog(
+                  context: context,
+                  builder: (_) => _CaseDetalhesDialog(caseData: caseData, docId: docId),
+                ),
+                child: Container(
+                  width: 34, height: 34,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: _C.purpleSoft, borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _C.purple.withOpacity(0.3))),
+                  child: const Icon(Icons.visibility_rounded, color: _C.purple, size: 16),
                 ),
               ),
               Container(
@@ -836,6 +919,236 @@ class _CaseRow extends StatelessWidget {
                     : const Text('Salvar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOVO: escolha de penalização ao "Arquivar/Remover" um caso já aprovado.
+// Mesmo padrão do diálogo de apagar comentários — o admin decide caso a
+// caso, com "sem penalização" como opção explícita, em vez de uma regra
+// fixa que estaria sistematicamente errada para metade dos motivos possíveis.
+// ─────────────────────────────────────────────────────────────────────────────
+class _ConfirmarArquivamento extends StatefulWidget {
+  const _ConfirmarArquivamento();
+  @override
+  State<_ConfirmarArquivamento> createState() => _ConfirmarArquivamentoState();
+}
+
+class _ConfirmarArquivamentoState extends State<_ConfirmarArquivamento> {
+  int _pontos = 0; // por defeito: sem penalização
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: _C.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Arquivar / Remover Caso',
+        style: TextStyle(color: _C.white, fontSize: 16, fontWeight: FontWeight.w700)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Este caso já tinha sido aprovado. Porque está a ser arquivado/removido agora?',
+            style: TextStyle(color: _C.grey2, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          const Text('Penalização ao autor:',
+            style: TextStyle(color: _C.grey2, fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          ...[
+            (0,  'Sem penalização — caso legítimo (duplicado, resolvido por outra via, pedido de privacidade)'),
+            (15, '−15 pontos — publicado indevidamente'),
+            (25, '−25 pontos — fraude descoberta após aprovação'),
+          ].map((opt) => RadioListTile<int>(
+            value: opt.$1,
+            groupValue: _pontos,
+            onChanged: (v) => setState(() => _pontos = v!),
+            dense: true,
+            activeColor: _C.accent,
+            title: Text(opt.$2,
+              style: TextStyle(color: opt.$1 == 0 ? _C.grey2 : _C.red, fontSize: 12)),
+          )),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text('Cancelar', style: TextStyle(color: _C.grey2)),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _pontos),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _C.red,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: const Text('Confirmar', style: TextStyle(color: _C.white, fontWeight: FontWeight.w700)),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOVO: detalhes completos do caso + informação do autor, acessíveis
+// directamente a partir da tabela "Gerir Casos Ativos" — antes não havia
+// nenhuma forma de ver quem publicou nem os dados do caso a partir daqui.
+// ─────────────────────────────────────────────────────────────────────────────
+class _CaseDetalhesDialog extends StatefulWidget {
+  final Map<String, dynamic> caseData;
+  final String docId;
+  const _CaseDetalhesDialog({required this.caseData, required this.docId});
+  @override
+  State<_CaseDetalhesDialog> createState() => _CaseDetalhesDialogState();
+}
+
+class _CaseDetalhesDialogState extends State<_CaseDetalhesDialog> {
+  Map<String, dynamic>? _autor;
+  bool _loadingAutor = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarAutor();
+  }
+
+  Future<void> _carregarAutor() async {
+    final userId = widget.caseData['userId'] as String?;
+    if (userId == null || userId.isEmpty) {
+      setState(() => _loadingAutor = false);
+      return;
+    }
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (mounted) {
+        setState(() {
+          _autor = snap.exists ? {'id': snap.id, ...snap.data()!} : null;
+          _loadingAutor = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingAutor = false);
+    }
+  }
+
+  String _fmt(dynamic raw) {
+    if (raw == null) return '—';
+    final dt = raw is Timestamp ? raw.toDate() : DateTime.tryParse(raw.toString());
+    if (dt == null) return '—';
+    return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.caseData;
+    final nome     = d['nome'] as String? ?? 'Sem nome';
+    final idade    = d['idade']?.toString() ?? '?';
+    final sexo     = d['sexo'] as String? ?? '—';
+    final roupas   = d['roupas'] as String? ?? '';
+    final info     = d['informacoes_adicionais'] as String? ?? '';
+    final local    = d['ultimo_local'] as String? ?? '—';
+    final prov     = d['provincia'] as String? ?? '—';
+    final mun      = d['municipio'] as String? ?? '';
+    final dataDesap = _fmt(d['data_desaparecimento']);
+
+    return Dialog(
+      backgroundColor: _C.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _C.border)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 600),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 12, 0),
+              child: Row(children: [
+                const Icon(Icons.info_outline_rounded, color: _C.purple, size: 18),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('Detalhes do Caso',
+                  style: TextStyle(color: _C.white, fontSize: 16, fontWeight: FontWeight.w700))),
+                IconButton(icon: const Icon(Icons.close_rounded, color: _C.grey2), onPressed: () => Navigator.pop(context)),
+              ]),
+            ),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(color: _C.border, height: 1)),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nome, style: const TextStyle(color: _C.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text('$idade anos · $sexo', style: const TextStyle(color: _C.grey3, fontSize: 12)),
+                    const SizedBox(height: 16),
+
+                    _detalheRow(Icons.location_on_rounded, 'Último local', local, destaque: true),
+                    _detalheRow(Icons.map_rounded, 'Local do desaparecimento',
+                      [mun, prov].where((s) => s.isNotEmpty).join(', ')),
+                    _detalheRow(Icons.calendar_today_rounded, 'Data do desaparecimento', dataDesap),
+                    if (roupas.isNotEmpty) _detalheRow(Icons.checkroom_rounded, 'Roupas', roupas),
+                    if (info.isNotEmpty) _detalheRow(Icons.notes_rounded, 'Informações adicionais', info),
+
+                    const SizedBox(height: 20),
+                    const Text('Autor do relato', style: TextStyle(color: _C.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 10),
+                    if (_loadingAutor)
+                      const Center(child: Padding(padding: EdgeInsets.all(12),
+                        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _C.accent))))
+                    else if (_autor == null)
+                      const Text('Não foi possível encontrar o utilizador que publicou este caso.',
+                        style: TextStyle(color: _C.grey3, fontSize: 12))
+                    else ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.border)),
+                        child: Row(children: [
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(_autor!['nome'] as String? ?? _autor!['email'] as String? ?? '—',
+                                style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                              const SizedBox(height: 2),
+                              Text(_autor!['email'] as String? ?? '—', style: const TextStyle(color: _C.grey3, fontSize: 11)),
+                            ]),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              showDialog(context: context, builder: (_) => _UserProfileDialog(userData: _autor!));
+                            },
+                            child: const Text('Ver perfil', style: TextStyle(color: _C.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+                          ),
+                        ]),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detalheRow(IconData icon, String label, String valor, {bool destaque = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: destaque ? _C.red : _C.grey3),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label, style: const TextStyle(color: _C.grey3, fontSize: 11)),
+              const SizedBox(height: 2),
+              Text(valor, style: TextStyle(color: destaque ? _C.red : _C.grey1, fontSize: 13)),
+            ]),
           ),
         ],
       ),
@@ -1185,6 +1498,13 @@ class _UserCard extends StatelessWidget {
     return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
   }
 
+  // NOVO: antes este cartão nunca lia photoBase64 — mostrava sempre um
+  // avatar de letra, mesmo quando o utilizador tinha uma foto real definida.
+  Uint8List? _decodeFoto(String? b64) {
+    if (b64 == null || !b64.contains(',')) return null;
+    try { return base64Decode(b64.split(',').last); } catch (_) { return null; }
+  }
+
   @override
   Widget build(BuildContext context) {
     final email    = userData['email'] ?? '';
@@ -1196,6 +1516,7 @@ class _UserCard extends StatelessWidget {
     final letter   = email.isNotEmpty ? email[0].toUpperCase() : '?';
     final prov     = userData['provincia'] as String?;
     final temGPS   = userData['lat'] != null && userData['lng'] != null;
+    final foto     = _decodeFoto(userData['photoBase64'] as String?);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1205,10 +1526,15 @@ class _UserCard extends StatelessWidget {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: isAdmin ? [const Color(0xFF4F7EFF), const Color(0xFF9B5DE5)] : [_C.grey4, _C.grey3]),
+              gradient: foto == null
+                  ? LinearGradient(colors: isAdmin ? [const Color(0xFF4F7EFF), const Color(0xFF9B5DE5)] : [_C.grey4, _C.grey3])
+                  : null,
               borderRadius: BorderRadius.circular(12),
+              image: foto != null ? DecorationImage(image: MemoryImage(foto), fit: BoxFit.cover) : null,
             ),
-            child: Center(child: Text(letter, style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 18))),
+            child: foto == null
+                ? Center(child: Text(letter, style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 18)))
+                : null,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1617,6 +1943,20 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     setState(() => _rejecting = true);
     try {
       await FirebaseFirestore.instance.collection('casos_pendentes').doc(widget.doc.id).delete();
+
+      // ── Penalizar o autor do caso rejeitado ──────────────────────
+      final autorIdRej = d['userId'] as String? ?? '';
+      if (autorIdRej.isNotEmpty) {
+        await TrustService.instance.penalizar(
+          uid:      autorIdRej,
+          motivo:   'caso_rejeitado',
+          pontos:   TrustService.pCasoRejeitado,
+          adminUid: FirebaseAuth.instance.currentUser?.uid,
+          detalhe:  'Caso removido pelo administrador (rejeitado)',
+        );
+      }
+      // ─────────────────────────────────────────────────────────────
+
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Caso rejeitado e removido.'), backgroundColor: _C.red, behavior: SnackBarBehavior.floating));
     } catch (e) {
@@ -1626,10 +1966,20 @@ class _ApprovalCardState extends State<_ApprovalCard> {
     }
   }
 
+  // NOVO: antes este avatar era sempre um ícone fixo — nunca lia o campo
+  // 'imagem', que é onde a foto da pessoa desaparecida realmente fica
+  // guardada (definida em create_caso_dialog.dart ao submeter o caso).
+  Uint8List? get _fotoBytes {
+    final img = d['imagem'] as String? ?? '';
+    if (!img.startsWith('data:image')) return null;
+    try { return base64Decode(img.split(',').last); } catch (_) { return null; }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dias = _daysAgo();
     final prov = d['provincia'] ?? d['municipio'] ?? 'Local desconhecido';
+    final foto = _fotoBytes;
     return Container(
       decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: _C.border)),
       clipBehavior: Clip.antiAlias,
@@ -1637,9 +1987,15 @@ class _ApprovalCardState extends State<_ApprovalCard> {
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(width: 52, height: 52,
-              decoration: BoxDecoration(color: _C.accentSoft, borderRadius: BorderRadius.circular(14)),
-              child: const Icon(Icons.person_rounded, color: _C.accent, size: 28)),
+            Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                color: _C.accentSoft,
+                borderRadius: BorderRadius.circular(14),
+                image: foto != null ? DecorationImage(image: MemoryImage(foto), fit: BoxFit.cover) : null,
+              ),
+              child: foto == null ? const Icon(Icons.person_rounded, color: _C.accent, size: 28) : null,
+            ),
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(d['nome'] ?? 'Nome Desconhecido',

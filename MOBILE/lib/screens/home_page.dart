@@ -14,6 +14,7 @@ import 'profile.dart';
 import 'create_caso_dialog.dart';
 import 'map_page.dart';
 import 'admin_page.dart'; // ← adiciona esta linha com os outros imports
+import 'suspended_page.dart'; // ← NOVO: para navegar directamente para lá
 
 // ─── PALETA ─────────────────────────────────────────────
 class _C {
@@ -120,9 +121,64 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _handleCreate() {
-    if (isGuest) _redirectToLogin();
-    else showDialog(context: context, builder: (_) => const CreateCasoDialog());
+  // CORRIGIDO: antes só verificava isGuest — um utilizador suspenso
+  // (autenticado, mas com isSuspended=true ou trustScore<=0) passava
+  // directo para o diálogo de criação de caso. Esta verificação lê o
+  // estado actual no Firestore (não um valor em cache) mesmo que o
+  // AuthCheck ainda não tenha reagido por o utilizador estar numa
+  // página empilhada por cima da HomePage.
+  Future<bool> _isUserSuspended() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!snap.exists) return false;
+      final data = snap.data()!;
+      final isSuspended = data['isSuspended'] as bool? ?? false;
+      final trustScore  = data['trustScore']  as int?  ?? 100;
+      return isSuspended || trustScore <= 0;
+    } catch (_) {
+      return false; // falha de rede não deve bloquear; a regra do Firestore continua a proteger a escrita
+    }
+  }
+
+  void _mostrarBloqueadoPorSuspensao() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: _C.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _C.border)),
+        title: const Text('Conta suspensa', style: TextStyle(color: _C.white, fontWeight: FontWeight.w700)),
+        content: const Text(
+          'A sua conta está suspensa e não pode reportar casos neste momento. Pode falar com o suporte para pedir a reactivação.',
+          style: TextStyle(color: _C.grey2, fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: _C.grey2))),
+          // NOVO: antes só dizia "vá ao ecrã de suspensão" sem dar nenhuma
+          // forma de lá chegar — o utilizador ficava sem saber onde isso
+          // ficava. Este botão navega directamente para o SuspendedPage.
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // fecha o diálogo
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SuspendedPage()));
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: _C.accent, foregroundColor: _C.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            child: const Text('Falar com o suporte', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleCreate() async {
+    if (isGuest) { _redirectToLogin(); return; }
+    if (await _isUserSuspended()) {
+      if (mounted) _mostrarBloqueadoPorSuspensao();
+      return;
+    }
+    if (mounted) showDialog(context: context, builder: (_) => const CreateCasoDialog());
   }
 
   @override
@@ -1358,3 +1414,4 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
     );
   }
 }
+

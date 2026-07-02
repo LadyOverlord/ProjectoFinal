@@ -61,6 +61,7 @@ class _CreateCasoDialogState extends State<CreateCasoDialog> {
   TimeOfDay? _selectedTime;            // NOVO
   bool _temDeficiencia = false;
   String? base64Image;
+  bool _salvando = false; // ← NOVO: evita duplo-toque enquanto valida/grava
 
   // ── Mapa ──────────────────────────────────────────────
   GoogleMapController? _mapController;
@@ -328,6 +329,37 @@ class _CreateCasoDialogState extends State<CreateCasoDialog> {
       return;
     }
 
+    if (_salvando) return;
+    setState(() => _salvando = true);
+
+    // ── NOVO: verificação defensiva de suspensão, do lado do cliente ──────
+    // Isto NÃO substitui as Firestore Security Rules — é só uma camada
+    // extra para o caso de este diálogo já estar aberto na memória de um
+    // utilizador que acabou de ser suspenso pelo admin (antes do watcher
+    // global do main.dart conseguir fechar este ecrã). A barreira
+    // definitiva e à prova de bypass tem de estar nas regras do
+    // Firestore: bloquear "create" em casos_pendentes/casos quando
+    // isSuspended == true ou trustScore <= 0.
+    try {
+      final userSnap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userData = userSnap.data();
+      final isSuspended = userData?['isSuspended'] as bool? ?? false;
+      final trustScore  = userData?['trustScore']  as int?  ?? 100;
+      if (isSuspended || trustScore <= 0) {
+        if (mounted) {
+          setState(() => _salvando = false);
+          Navigator.pop(context);
+          _showSnack('A sua conta está suspensa. Não é possível relatar casos.', isError: true);
+        }
+        return;
+      }
+    } catch (_) {
+      // Se a verificação falhar por falta de rede, deixa prosseguir —
+      // as Security Rules do Firestore são a barreira real e vão
+      // recusar a escrita de qualquer forma se o utilizador estiver
+      // suspenso.
+    }
+
     try {
       await FirebaseFirestore.instance.collection('casos_pendentes').add({
         'autorEmail':             user.email,
@@ -364,6 +396,8 @@ class _CreateCasoDialogState extends State<CreateCasoDialog> {
       }
     } catch (e) {
       _showSnack('Erro ao enviar: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _salvando = false);
     }
   }
 
@@ -498,10 +532,16 @@ class _CreateCasoDialogState extends State<CreateCasoDialog> {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton.icon(
-                        onPressed: _currentPage < 2 ? _nextPage : _saveCaso,
-                        icon: Icon(
-                          _currentPage < 2 ? Icons.arrow_forward_rounded : Icons.send_rounded,
-                          size: 16),
+                        onPressed: _salvando
+                            ? null
+                            : (_currentPage < 2 ? _nextPage : _saveCaso),
+                        icon: _salvando
+                            ? const SizedBox(
+                                width: 16, height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : Icon(
+                                _currentPage < 2 ? Icons.arrow_forward_rounded : Icons.send_rounded,
+                                size: 16),
                         label: Text(_currentPage < 2 ? 'Próximo' : 'Enviar para Aprovação'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _currentPage < 2 ? Colors.blueAccent : Colors.green,
