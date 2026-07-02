@@ -66,6 +66,11 @@ onAuthStateChanged(auth, async (user) => {
   atualizarBotoesApoio();
 
   if (user) {
+    // ← ADICIONA AQUI:
+    if (user.emailVerified) {
+      updateDoc(doc(db, "users", user.uid), { emailVerificado: true }).catch(() => {});
+    }
+
     // Subscrever alterações em tempo real ao documento do user
     try {
       navAvatarUnsub = onSnapshot(
@@ -112,8 +117,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   configurarFiltros();
 
   // Modal de detalhes do caso — fechar
-  document.getElementById("casoDetalhesClose")?.addEventListener("click", fecharDetalhesCaso);
-  document.getElementById("casoDetalhesBackdrop")?.addEventListener("click", fecharDetalhesCaso);
+  document
+    .getElementById("casoDetalhesClose")
+    ?.addEventListener("click", fecharDetalhesCaso);
+  document
+    .getElementById("casoDetalhesBackdrop")
+    ?.addEventListener("click", fecharDetalhesCaso);
 
   try {
     await iniciarCarrossel();
@@ -541,14 +550,12 @@ function registarEventosBotoes() {
       }
     }),
   );
-  document
-    .querySelectorAll(".btn-card-menu")
-    .forEach((btn) =>
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        abrirMenuCard(btn.dataset.id, btn);
-      }),
-    );
+  document.querySelectorAll(".btn-card-menu").forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      abrirMenuCard(btn.dataset.id, btn);
+    }),
+  );
 }
 
 /* =========================================================================
@@ -621,23 +628,35 @@ async function abrirDetalhesCaso(casoId) {
         <p>${caso.ultimo_local || "Não informado"} — ${caso.municipio ? caso.municipio + ", " : ""}${caso.provincia || "Angola"}</p>
       </div>
 
-      ${caso.roupas ? `
+      ${
+        caso.roupas
+          ? `
       <div class="cd-section">
         <h4><i class="fa-solid fa-shirt"></i> Vestimenta</h4>
         <p>${caso.roupas}</p>
-      </div>` : ""}
+      </div>`
+          : ""
+      }
 
-      ${caso.tipo_deficiencia ? `
+      ${
+        caso.tipo_deficiencia
+          ? `
       <div class="cd-section">
         <h4><i class="fa-solid fa-wheelchair"></i> Deficiência</h4>
         <p>${caso.tipo_deficiencia}</p>
-      </div>` : ""}
+      </div>`
+          : ""
+      }
 
-      ${caso.informacoes_adicionais ? `
+      ${
+        caso.informacoes_adicionais
+          ? `
       <div class="cd-section">
         <h4><i class="fa-solid fa-circle-info"></i> Informações adicionais</h4>
         <p>${caso.informacoes_adicionais}</p>
-      </div>` : ""}
+      </div>`
+          : ""
+      }
 
       <div class="cd-section cd-relator" id="cd-relator-box">
         <h4><i class="fa-solid fa-user-pen"></i> Relatado por</h4>
@@ -665,9 +684,11 @@ async function abrirDetalhesCaso(casoId) {
     relatorBox.innerHTML = `
       <h4><i class="fa-solid fa-user-pen"></i> Relatado por</h4>
       <a href="WEB/profile.html?uid=${caso.userId}" class="cd-relator-card" target="_blank">
-        ${u.photoBase64
-          ? `<img src="${u.photoBase64}" class="cd-relator-avatar" alt="">`
-          : `<div class="cd-relator-avatar-ph"><i class="fa-solid fa-user"></i></div>`}
+        ${
+          u.photoBase64
+            ? `<img src="${u.photoBase64}" class="cd-relator-avatar" alt="">`
+            : `<div class="cd-relator-avatar-ph"><i class="fa-solid fa-user"></i></div>`
+        }
         <div class="cd-relator-info">
           <strong>${u.nome || "Utilizador"}</strong>
           <span>Visitar perfil <i class="fa-solid fa-arrow-right"></i></span>
@@ -710,7 +731,9 @@ function abrirCasoNoMapa(casoId) {
     }, 100);
   } else {
     // Desktop: scroll até o mapa e focar
-    document.getElementById("mapa-desaparecidos")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    document
+      .getElementById("mapa-desaparecidos")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(focar, 400);
   }
 }
@@ -841,7 +864,10 @@ async function carregarComentarios(casoId) {
       const dt = node.criadoEm?.toDate ? node.criadoEm.toDate() : new Date();
       const ts = `${pad(dt.getHours())}:${pad(dt.getMinutes())} · ${dt.getDate()}/${dt.getMonth() + 1}`;
       const isAuthor = currentUser && node.autorId === currentUser.uid;
-      const parentName = node.parentId && map[node.parentId] ? map[node.parentId].autorNome : null;
+      const parentName =
+        node.parentId && map[node.parentId]
+          ? map[node.parentId].autorNome
+          : null;
 
       const el = document.createElement("div");
       el.className = `comment-item${depth > 0 ? " comment-reply" : ""}`;
@@ -880,7 +906,9 @@ async function carregarComentarios(casoId) {
     listEl.querySelectorAll(".btn-reply").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         const commentId = btn.dataset.comment;
-        const author = btn.dataset.author ? decodeURIComponent(btn.dataset.author) : "Utilizador";
+        const author = btn.dataset.author
+          ? decodeURIComponent(btn.dataset.author)
+          : "Utilizador";
         setReplyTo(casoId, commentId, author);
       });
     });
@@ -890,7 +918,10 @@ async function carregarComentarios(casoId) {
       btn.addEventListener("click", async () => {
         if (!confirm("Apagar este comentário?")) return;
         try {
-          const deleted = await apagarComentario(btn.dataset.caso, btn.dataset.comentario);
+          const deleted = await apagarComentario(
+            btn.dataset.caso,
+            btn.dataset.comentario,
+          );
         } catch (err) {
           console.error(err);
           showAlert("Erro ao apagar comentário.");
@@ -922,7 +953,9 @@ function setReplyTo(casoId, commentId, author) {
     row.parentNode.insertBefore(bar, row);
   }
   bar.innerHTML = `Respondendo a <strong>${escapeHtml(author)}</strong> <button class="cancel-reply" title="Cancelar resposta">×</button>`;
-  bar.querySelector(".cancel-reply").addEventListener("click", () => clearReplyTo(casoId));
+  bar
+    .querySelector(".cancel-reply")
+    .addEventListener("click", () => clearReplyTo(casoId));
   const input = document.getElementById(`comment-input-${casoId}`);
   if (input) input.focus();
 }
@@ -1514,10 +1547,16 @@ async function apagarComentario(casoId, comentarioId) {
   try {
     const deletedCount = await apagarComentarioRec(casoId, comentarioId);
     if (deletedCount > 0) {
-      await updateDoc(doc(db, "casos", casoId), { comentarios: increment(-deletedCount) });
+      await updateDoc(doc(db, "casos", casoId), {
+        comentarios: increment(-deletedCount),
+      });
       // Actualizar contador local
       const local = todosOsCasos.find((c) => c.id === casoId);
-      if (local) local.comentarios = Math.max(0, (local.comentarios || deletedCount) - deletedCount);
+      if (local)
+        local.comentarios = Math.max(
+          0,
+          (local.comentarios || deletedCount) - deletedCount,
+        );
       const countEl = document.getElementById(`comentarios-count-${casoId}`);
       if (countEl && local) countEl.innerText = local.comentarios;
     }
