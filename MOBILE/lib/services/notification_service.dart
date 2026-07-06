@@ -523,15 +523,24 @@ class NotificationService {
     }
   }
 
-  // IMPORTANTE: 'template_conta_status' é um ID placeholder — é preciso
-  // criar este template no painel do EmailJS (o mesmo projecto onde já
-  // existe o 'template_366wv9e') antes disto funcionar. Configuração
-  // mínima sugerida para o template:
-  //   • Campo "To Email" do template → {{to_email}}
-  //   • Assunto do template → {{assunto}}
-  //   • Corpo do template → algo como:
-  //       "Olá {{nome}},\n\n{{mensagem}}\n\n— Equipa Missing AO"
-  // Depois de criado, substituir o ID abaixo pelo ID real gerado pelo EmailJS.
+  // As credenciais abaixo são lidas de config.dart — uma conta EmailJS
+  // própria, separada da conta do colega usada em _enviarEmailAlerta().
+  // É preciso ter em config.dart:
+  //   const String emailJsServiceIdContaStatus  = 'SEU_SERVICE_ID_AQUI';
+  //   const String emailJsPublicKeyContaStatus  = 'SUA_PUBLIC_KEY_AQUI';
+  //   const String emailJsTemplateIdContaStatus = 'SEU_TEMPLATE_ID_AQUI';
+  //
+  // Configuração do template no painel EmailJS (template "Contact Us"
+  // pré-construído, com os nomes de variável de fábrica):
+  //   • Settings → To Email → {{email}}
+  //   • Subject  → {{title}}
+  //   • Content  → algo como "Olá {{name}},<br><br>{{message}}<br><br>— Equipa Missing AO"
+  // CORRIGIDO: os nomes dos parâmetros foram ajustados aos nomes de
+  // variável já existentes no template "Contact Us" pré-construído do
+  // EmailJS (email, name, title, message, time) — não os que eu tinha
+  // sugerido originalmente (to_email, nome, assunto, mensagem). O campo
+  // "To Email" nas Settings do template já está configurado como
+  // {{email}}, por isso é esse o nome que tem de ser usado aqui.
   Future<void> _enviarEmailEstadoConta({
     required String email,
     required String nome,
@@ -546,14 +555,15 @@ class NotificationService {
           'origin':       'http://localhost',
         },
         body: jsonEncode({
-          'service_id':      'service_8fq9usa',
-          'template_id':     'template_conta_status', // ← substituir pelo ID real
-          'user_id':         'R5Femg5uCIC-Lh0RW',
+          'service_id':      emailJsServiceIdContaStatus,
+          'template_id':     emailJsTemplateIdContaStatus,
+          'user_id':         emailJsPublicKeyContaStatus,
           'template_params': {
-            'to_email': email,
-            'nome':     nome,
-            'assunto':  assunto,
-            'mensagem': mensagem,
+            'email':   email,
+            'name':    nome,
+            'title':   assunto,
+            'message': mensagem,
+            'time':    DateTime.now().toIso8601String(),
           },
         }),
       );

@@ -1,8 +1,10 @@
 // screens/register_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart'; // ← NOVO: TapGestureRecognizer
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_page.dart';
+import 'terms_acceptance_page.dart'; // ← NOVO
 import '../models/user_mode.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -24,6 +26,7 @@ class _RegisterPageState extends State<RegisterPage> {
   String? _selectedMunicipio;
 
   bool _isLoading = false;
+  bool _aceitouTermos = false; // ← NOVO
 
   // ── Províncias de Angola ──────────────────────────────
   final List<String> _provinces = [
@@ -123,6 +126,11 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    if (!_aceitouTermos) {
+      _showError('Tem de ler e aceitar os Termos e Condições para se cadastrar.');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -153,6 +161,12 @@ class _RegisterPageState extends State<RegisterPage> {
           'comentarios': 0,
           'partilhas': 0,
         },
+        // NOVO: regista a aceitação dos termos no momento do registo —
+        // não é preciso passar pelo gate do AuthCheck logo a seguir,
+        // já fica com a versão actual desde o início.
+        'termosAceitos':   true,
+        'termosAceitosEm': Timestamp.now(),
+        'termosVersao':    kTermosVersaoActual,
       });
 
       // Enviar email de verificação
@@ -410,47 +424,108 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _confirmPasswordController,
                         icon: Icons.lock_rounded,
                         obscureText: true),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    // ── Botão Cadastrar ──
+                    // NOVO: checkbox de aceitação dos Termos e Condições —
+                    // obrigatório para avançar (validado em _register()).
+                    // O texto "Termos e Condições" é tocável e abre o
+                    // mesmo ecrã usado como gate, mas em modo leitura
+                    // (somenteLeitura: true), sem exigir scroll nem
+                    // escrever nada no Firestore — a conta ainda nem existe.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Checkbox(
+                          value: _aceitouTermos,
+                          onChanged: (v) => setState(() => _aceitouTermos = v ?? false),
+                          activeColor: const Color(0xFF0077B6),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: RichText(
+                              text: TextSpan(
+                                style: const TextStyle(color: Colors.black87, fontSize: 13),
+                                children: [
+                                  const TextSpan(text: 'Li e aceito os '),
+                                  TextSpan(
+                                    text: 'Termos e Condições',
+                                    style: const TextStyle(
+                                      color: Color(0xFF0077B6),
+                                      fontWeight: FontWeight.w700,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    recognizer: TapGestureRecognizer()
+                                      ..onTap = () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => const TermsAcceptancePage(somenteLeitura: true),
+                                            ),
+                                          ),
+                                  ),
+                                  const TextSpan(text: '.'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
                     SizedBox(
-                      width: double.infinity,
-                      height: 52,
+                      width: double.infinity, height: 52,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _register,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF90E0EF),
                           foregroundColor: Colors.black87,
-                          elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         child: _isLoading
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.black87),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black87),
                               )
-                            : const Text("Cadastrar",
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                            : const Text("Cadastrar", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // ── Link para Login ──
+                    const SizedBox(height: 12),
                     Center(
                       child: TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: const Text(
-                          "Já tem conta? Entre aqui",
-                          style: TextStyle(color: Colors.black54, fontSize: 14),
-                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Já tem conta? Entre aqui'),
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // ── Imagem ──
+                    Container(
+                      height: screenHeight * 0.35,
+                      width: double.infinity,
+                      alignment: Alignment.center,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/desaparecidosimg3.jpeg',
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            alignment: Alignment.center,
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, const Color(0xFF0077B6).withOpacity(0.7)],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -461,14 +536,8 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildTextField(
-    String label,
-    String hint, {
-    TextEditingController? controller,
-    bool obscureText = false,
-    IconData? icon,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+  Widget _buildTextField(String label, String hint,
+      {TextEditingController? controller, bool obscureText = false, IconData? icon, TextInputType keyboardType = TextInputType.text}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

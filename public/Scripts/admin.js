@@ -26,8 +26,18 @@ import {
   reporNivel,
   estadoDeScore,
   labelEstado,
-  P_CASO_REJEITADO,
-} from "./trust_service.js"; // ← NOVO
+  historico,
+} from "./trust_service.js";
+// NOVO: envio de push FCM directamente do browser (chave da conta de
+// serviço em fcm_config.js). Ver aviso no topo de fcm_push.js.
+import { enviarAlertaDesaparecidoWeb } from "./fcm_push.js";
+// CORRIGIDO: o import antigo tinha "P_CASO_REJEITADO", que não existe em
+// trust_service.js. Um import ES module para um nome que não é exportado
+// pelo módulo de destino é um erro fatal de carregamento (SyntaxError:
+// "does not provide an export named ...") — o script inteiro falha antes
+// de correr uma única linha, e por isso o <body> (que começa com
+// display:none no CSS) nunca é revelado. Era esta a causa principal do
+// ecrã em branco, juntamente com o bloco de React/JSX que tentaste inserir.
 
 // Estado global
 let todosUsuarios = [];
@@ -46,10 +56,10 @@ onAuthStateChanged(auth, async (user) => {
       document.body.style.display = "flex";
       iniciarAdmin();
     } else {
-      navigateToTarget("index.html"); // CORRIGIDO: era caminho fixo "../index.html"
+      navigateToTarget("index.html");
     }
   } catch {
-    navigateToTarget("index.html"); // CORRIGIDO: era caminho fixo "../index.html"
+    navigateToTarget("index.html");
   }
 });
 
@@ -59,28 +69,22 @@ onAuthStateChanged(auth, async (user) => {
 function iniciarAdmin() {
   configurarNavegacao();
 
-  // CORRIGIDO: era window.location.href = "../index.html" — mesmo
-  // problema de caminho fixo do "Voltar ao App". Agora usa
-  // navigateToTarget(), a mesma função já comprovada no login.
   document
     .getElementById("btn-logout")
     .addEventListener("click", () =>
       signOut(auth).then(() => navigateToTarget("index.html")),
     );
 
-  // NOVO: "Voltar ao App" — equivalente ao _irParaHome() do mobile.
   document
     .getElementById("btn-voltar-app")
     ?.addEventListener("click", () => navigateToTarget("index.html"));
 
-  // Pesquisa global de utilizadores
   document
     .querySelector(".search input")
     ?.addEventListener("keyup", (e) =>
       filtrarUsuarios(e.target.value.toLowerCase()),
     );
 
-  // Configurar listeners do modal de edição de localização
   const btnCorrigir = document.getElementById("btn-corrigir-localizacoes");
   const btnFechar = document.getElementById("btn-fechar-modal");
   const btnCancelar = document.getElementById("btn-cancelar-modal");
@@ -95,18 +99,30 @@ function iniciarAdmin() {
   if (btnSalvar) btnSalvar.addEventListener("click", salvarLocalizacao);
 
   carregarDashboard();
-  configurarFormularioAnuncio(); // ✅ chamado apenas UMA vez
+  configurarFormularioAnuncio();
+
+  // NOVO: liga os controlos dos 3 painéis novos (Comentários, Trust
+  // Scores, Suporte). Feito uma única vez, tal como o resto do ficheiro.
+  configurarPainelTrustEComentarios();
+
+  // NOVO: a barra de pesquisa do topo só filtra Utilizadores — antes
+  // ficava sempre visível em todos os painéis e, ao escrever nela em
+  // qualquer outro sítio (Aprovações, Anúncios, etc.), saltava sempre
+  // para Utilizadores sem aviso. Agora só aparece nesse painel.
+  // Dashboard é o painel activo por defeito ao abrir, por isso escondemos.
+  _atualizarBarraPesquisaTopo("dashboard");
+}
+
+// ── Mostra a barra de pesquisa do topo só no painel Utilizadores ─────────
+function _atualizarBarraPesquisaTopo(id) {
+  const searchWrap = document.querySelector("nav .search");
+  if (searchWrap) searchWrap.style.display = id === "users" ? "flex" : "none";
 }
 
 /* =========================================================================
    NAVEGAÇÃO
    ========================================================================= */
 function configurarNavegacao() {
-  // CORRIGIDO: antes seleccionava TODOS os .menu-link, incluindo o novo
-  // "Voltar ao App" — que não tem data-target, mas mesmo assim entrava
-  // neste addEventListener, que faz sempre e.preventDefault(). O link
-  // parecia clicável mas nunca seguia o href, ficando preso na mesma
-  // página. Agora só apanha os links que realmente trocam de painel.
   const links = document.querySelectorAll(".menu-link[data-target]");
   const panels = document.querySelectorAll(".panel");
   const titulos = {
@@ -115,6 +131,10 @@ function configurarNavegacao() {
     reports: "Aprovações Pendentes",
     config: "Gestão de Anúncios",
     "mapa-admin": "Mapa de Casos",
+    // NOVO
+    comentarios: "Moderação de Comentários",
+    trust: "Trust Scores",
+    suporte: "Pedidos de Suporte",
   };
 
   links.forEach((link) => {
@@ -126,12 +146,17 @@ function configurarNavegacao() {
       const id = link.dataset.target;
       document.getElementById(id)?.classList.add("active");
       document.getElementById("nav-titulo").innerText = titulos[id] || "Admin";
+      _atualizarBarraPesquisaTopo(id);
 
       if (id === "dashboard") carregarDashboard();
       if (id === "users") carregarUsuarios();
       if (id === "reports") carregarAprovacoes();
       if (id === "config") carregarConfig();
       if (id === "mapa-admin") iniciarMapaAdmin();
+      // NOVO
+      if (id === "comentarios") carregarComentariosAdmin();
+      if (id === "trust") carregarTrustScores();
+      if (id === "suporte") carregarSuporte();
     });
   });
 }
@@ -141,7 +166,6 @@ function configurarNavegacao() {
    ========================================================================= */
 async function carregarDashboard() {
   try {
-    // Cada query é independente — se uma falhar não afecta as outras
     let usersCount = "—";
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -193,7 +217,6 @@ async function carregarDashboard() {
     document.getElementById("count-reports").innerText = pendCount;
     document.getElementById("count-aprovados").innerText = aprovCount;
 
-    // Anúncios: query separada para não bloquear o resto
     try {
       const anuncSnap = await getDocs(collection(db, "anuncios"));
       const ativos = [];
@@ -218,7 +241,6 @@ async function carregarDashboard() {
       document.getElementById("count-anuncios").innerText = "—";
     }
 
-    // Tabela casos ativos
     const activeBody = document.getElementById("active-cases-body");
     if (!activeBody) return;
     activeBody.innerHTML = `<tr><td colspan="4" class="tc">Carregando...</td></tr>`;
@@ -294,7 +316,6 @@ async function carregarUsuarios() {
     todosUsuarios = [];
     snap.forEach((d) => todosUsuarios.push({ id: d.id, ...d.data() }));
 
-    // Actualizar total
     const totalEl = document.getElementById("users-total");
     if (totalEl) totalEl.textContent = todosUsuarios.length;
 
@@ -313,7 +334,6 @@ async function carregarUsuarios() {
   }
 }
 
-// ── Configurar eventos dos filtros (chamado uma única vez) ────────────────────
 let _filtrosConfigurados = false;
 function configurarFiltrosUsuarios() {
   if (_filtrosConfigurados) return;
@@ -325,7 +345,6 @@ function configurarFiltrosUsuarios() {
   const ufLimpar = document.getElementById("uf-limpar");
   const ufExportar = document.getElementById("btn-exportar-users");
 
-  // Pesquisa em tempo real
   ufSearch?.addEventListener("input", () => {
     if (ufClear) ufClear.style.display = ufSearch.value ? "flex" : "none";
     aplicarFiltrosUsuarios();
@@ -336,7 +355,6 @@ function configurarFiltrosUsuarios() {
     aplicarFiltrosUsuarios();
   });
 
-  // Demais filtros aplicam ao mudar
   ["uf-role", "uf-provincia", "uf-data-de", "uf-data-ate", "uf-ordem"].forEach(
     (id) => {
       document
@@ -347,8 +365,6 @@ function configurarFiltrosUsuarios() {
 
   ufAplicar?.addEventListener("click", aplicarFiltrosUsuarios);
   ufLimpar?.addEventListener("click", limparFiltrosUsuarios);
-
-  // Exportar CSV
   ufExportar?.addEventListener("click", exportarCSVUsuarios);
 }
 
@@ -363,22 +379,18 @@ function aplicarFiltrosUsuarios() {
   const ordem = document.getElementById("uf-ordem")?.value || "recente";
 
   let lista = todosUsuarios.filter((u) => {
-    // Texto
     if (termo) {
       const campos = [u.nome || "", u.email || "", u.telefone || ""]
         .join(" ")
         .toLowerCase();
       if (!campos.includes(termo)) return false;
     }
-    // Função
     if (role && (u.role || "user") !== role) return false;
-    // Província
     if (provincia && (u.provincia || "").toLowerCase() !== provincia)
       return false;
-    // Datas de cadastro
     if (dataDe || dataAte) {
       const raw = u.criadoEm;
-      if (!raw) return !dataDe; // sem data: só aparece se não há filtro "de"
+      if (!raw) return !dataDe;
       const dt = raw.toDate ? raw.toDate() : new Date(raw);
       if (isNaN(dt)) return false;
       const dStr = dt.toISOString().slice(0, 10);
@@ -388,7 +400,6 @@ function aplicarFiltrosUsuarios() {
     return true;
   });
 
-  // Ordenação
   lista.sort((a, b) => {
     const toMs = (raw) => {
       if (!raw) return 0;
@@ -441,7 +452,6 @@ function renderizarTabelaUsuarios(lista) {
   }
 
   lista.forEach((user) => {
-    // Data de cadastro
     const rawCriado = user.criadoEm;
     let dataCadastro = "—";
     if (rawCriado) {
@@ -450,21 +460,15 @@ function renderizarTabelaUsuarios(lista) {
         dataCadastro = `${dt.getDate().toString().padStart(2, "0")}/${(dt.getMonth() + 1).toString().padStart(2, "0")}/${dt.getFullYear()}`;
     }
 
-    // Localização GPS (se o utilizador partilhou)
     const temGPS = !!(user.lat && user.lng);
     const gpsHtml = temGPS
       ? `<span style="color:#2ecc71;font-size:12px;"><i class="fa-solid fa-location-dot"></i> Activa</span>`
       : `<span style="color:#ccc;font-size:12px;"><i class="fa-solid fa-location-dot"></i> Sem GPS</span>`;
 
-    // Avatar
     const avatarHtml = user.photoBase64
       ? `<img src="${user.photoBase64}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
       : `<span style="width:32px;height:32px;border-radius:50%;background:#e3f2fd;color:#0c7ab5;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;"><i class="fa-solid fa-user"></i></span>`;
 
-    // NOVO: badge de estado do Trust Score, mostrado por baixo do nome —
-    // evita ter de acrescentar uma coluna nova à tabela (o <th> do HTML
-    // fica igual). Usa a classe .trust-badge do admin.css em vez de
-    // cores calculadas inline.
     const score = typeof user.trustScore === "number" ? user.trustScore : 100;
     const estado = estadoDeScore(score);
     const isSusp = user.isSuspended === true || score <= 0;
@@ -501,12 +505,10 @@ function renderizarTabelaUsuarios(lista) {
                class="btn-admin-icon" title="${user.role === "admin" ? "Rebaixar para user" : "Tornar admin"}">
               <i class="fa-solid fa-${user.role === "admin" ? "user-minus" : "user-shield"}" style="font-size:12px;"></i>
             </button>
-            <!-- NOVO: ver histórico completo de actividade -->
             <button onclick="window.abrirHistoricoUsuario('${user.id}','${(user.nome || user.email || "").replace(/'/g, "\\'")}')"
                class="btn-admin-icon" title="Ver histórico completo">
               <i class="fa-solid fa-clock-rotate-left" style="font-size:12px;"></i>
             </button>
-            <!-- NOVO: suspender/reactivar -->
             <button onclick="window.${isSusp ? "reactivarUsuario" : "suspenderUsuario"}('${user.id}','${(user.nome || user.email || "").replace(/'/g, "\\'")}')"
                class="btn-admin-icon ${isSusp ? "btn-success-icon" : "btn-danger-icon"}" title="${isSusp ? "Reactivar conta" : "Suspender conta"}">
               <i class="fa-solid fa-${isSusp ? "lock-open" : "ban"}" style="font-size:12px;"></i>
@@ -521,7 +523,13 @@ function renderizarTabelaUsuarios(lista) {
   });
 }
 
-// ── NOVO: suspender / reactivar utilizador ────────────────────────────────
+// ── suspender / reactivar utilizador ──────────────────────────────────────
+// CORRIGIDO: penalizar/reporNivel em trust_service.js recebem argumentos
+// POSICIONAIS — (uid, pontos, motivo, adminUid, detalhe) e
+// (uid, adminUid, scoreReposto, motivo) — mas o código antigo chamava-os
+// com um único objecto {uid, motivo, ...}. Isso fazia com que "uid" dentro
+// da função recebesse o objecto inteiro em vez da string do id, e a
+// suspensão/reactivação falhava (ou gravava dados errados) sem aviso claro.
 window.suspenderUsuario = async function (uid, nome) {
   const motivo = prompt(
     `Motivo da suspensão de "${nome}" (fica registado no histórico):`,
@@ -535,13 +543,13 @@ window.suspenderUsuario = async function (uid, nome) {
     return;
   }
   try {
-    await penalizar({
+    await penalizar(
       uid,
-      motivo: motivo || "comportamento_abusivo",
       pontos,
-      adminUid: auth.currentUser?.uid,
-      detalhe: "Penalização manual aplicada pelo painel de Utilizadores (web).",
-    });
+      motivo || "comportamento_abusivo",
+      auth.currentUser?.uid,
+      "Penalização manual aplicada pelo painel de Utilizadores (web).",
+    );
     showAlert(`✅ ${nome} penalizado(a) em -${pontos} pontos.`, { onOk: carregarUsuarios });
   } catch (e) {
     showAlert("Erro: " + e.message);
@@ -551,7 +559,7 @@ window.suspenderUsuario = async function (uid, nome) {
 window.reactivarUsuario = async function (uid, nome) {
   if (!confirm(`Reactivar a conta de "${nome}" com 60 pontos de Trust Score?`)) return;
   try {
-    await reporNivel({ uid, adminUid: auth.currentUser?.uid });
+    await reporNivel(uid, auth.currentUser?.uid);
     showAlert(`✅ Conta de ${nome} reactivada com 60 pontos.`, { onOk: carregarUsuarios });
   } catch (e) {
     showAlert("Erro: " + e.message);
@@ -650,7 +658,6 @@ async function carregarAprovacoes() {
       container.innerHTML = `<p class="tc" style="color:#666;margin-top:20px;">Nenhuma aprovação pendente.</p>`;
       return;
     }
-    // Recolher casos e buscar perfis dos relatores em paralelo
     const casos = [];
     snap.forEach((d) => casos.push({ id: d.id, ...d.data() }));
 
@@ -667,7 +674,6 @@ async function carregarAprovacoes() {
       const dias = calcularDias(data.data_desaparecimento);
       const tempo = dias === 0 ? "hoje" : `há ${dias} dias`;
 
-      // Dados do utilizador que relatou
       const uSnap = userSnaps[i];
       const relator = uSnap?.exists() ? uSnap.data() : null;
       const rNome = relator?.nome || "Utilizador desconhecido";
@@ -691,12 +697,10 @@ async function carregarAprovacoes() {
       const card = document.createElement("div");
       card.className = "card-aprovar";
       card.innerHTML = `
-        <!-- Botão rejeitar -->
         <button class="top-menu-btn btn-rejeitar" data-id="${id}" title="Rejeitar caso">
           <i class="fa-solid fa-xmark"></i>
         </button>
 
-        <!-- Foto + info do desaparecido -->
         <div class="card-header-admin">
           <img src="${data.imagem || "imgs/user.jpg"}" class="admin-avatar"
                onerror="this.src='imgs/user.jpg'" alt="Foto do desaparecido">
@@ -715,7 +719,6 @@ async function carregarAprovacoes() {
           }
         </p>
 
-        <!-- Acções -->
         <div class="admin-actions" style="margin-bottom:0;">
           <button class="btn-docs">
             <i class="fa-solid fa-file-lines"></i> Ver Detalhes
@@ -725,7 +728,6 @@ async function carregarAprovacoes() {
           </button>
         </div>
 
-        <!-- Mini perfil do relator -->
         <div class="relator-section">
           <span class="relator-label">
             <i class="fa-solid fa-user-pen"></i> Relatado por
@@ -754,7 +756,6 @@ async function carregarAprovacoes() {
         </div>`;
       container.appendChild(card);
 
-      // Attach listener to 'Ver Detalhes' button in a safe way (no inline onclick)
       const btnDocsEl = card.querySelector(".btn-docs");
       if (btnDocsEl) {
         btnDocsEl.addEventListener("click", () => {
@@ -763,7 +764,6 @@ async function carregarAprovacoes() {
       }
     });
 
-    // Aprovar
     container.querySelectorAll(".btn-approve-pub").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = btn.dataset.id;
@@ -779,8 +779,8 @@ async function carregarAprovacoes() {
               status: "aprovado",
             });
             await deleteDoc(ref);
-            // Notificar o autor do caso por email
-            await notificarAprovacaoCaso({ id, ...casoData });
+            await notificarAprovacaoCaso({ id, ...casoData }); // email (EmailJS)
+            await notificarPushMobile({ id, ...casoData }); // push FCM (Cloud Function)
             showAlert("✅ Publicação aprovada!", { onOk: carregarAprovacoes });
           }
         } catch (err) {
@@ -790,7 +790,6 @@ async function carregarAprovacoes() {
       });
     });
 
-    // Rejeitar
     container.querySelectorAll(".btn-rejeitar").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = btn.closest("button").dataset.id;
@@ -813,20 +812,16 @@ async function carregarAprovacoes() {
    ========================================================================= */
 async function carregarConfig() {
   await Promise.all([carregarListaAnuncios(), popularSelectCasos()]);
-  // formulário já configurado em iniciarAdmin()
 }
 
-// ── Lista de anúncios ─────────────────────────────────────────
 async function carregarListaAnuncios() {
   const listEl = document.getElementById("anuncios-list");
   listEl.innerHTML = `<div class="admin-loader"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>`;
 
   try {
-    // ✅ Busca tudo e ordena em JS (evita necessidade de índice Firestore)
     const snap = await getDocs(collection(db, "anuncios"));
     listEl.innerHTML = "";
 
-    // Ordenar por campo "ordem" em JS
     const anuncios = [];
     snap.forEach((d) => anuncios.push({ id: d.id, ...d.data() }));
     anuncios.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
@@ -880,7 +875,6 @@ async function carregarListaAnuncios() {
       listEl.appendChild(row);
     });
 
-    // Toggle ativo/inativo
     listEl.querySelectorAll(".toggle-ativo").forEach((chk) => {
       chk.addEventListener("change", async () => {
         try {
@@ -897,7 +891,6 @@ async function carregarListaAnuncios() {
       });
     });
 
-    // Editar
     listEl.querySelectorAll(".btn-edit-anuncio").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const snap = await getDoc(doc(db, "anuncios", btn.dataset.id));
@@ -906,7 +899,6 @@ async function carregarListaAnuncios() {
       });
     });
 
-    // Eliminar
     listEl.querySelectorAll(".btn-delete-anuncio").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!confirm("Eliminar este anúncio permanentemente?")) return;
@@ -930,7 +922,6 @@ async function carregarListaAnuncios() {
   }
 }
 
-// ── Popular select de casos aprovados ────────────────────────
 async function popularSelectCasos() {
   const sel = document.getElementById("anuncio-caso-select");
   if (!sel) return;
@@ -953,12 +944,10 @@ async function popularSelectCasos() {
   }
 }
 
-// ── Formulário ────────────────────────────────────────────────
 function configurarFormularioAnuncio() {
-  if (formularioConfigurado) return; // ✅ evita listeners duplicados
+  if (formularioConfigurado) return;
   formularioConfigurado = true;
 
-  // Mostrar/ocultar formulário
   document.getElementById("btn-toggle-form").addEventListener("click", () => {
     const wrapper = document.getElementById("anuncio-form-wrapper");
     wrapper.classList.toggle("hidden");
@@ -973,12 +962,10 @@ function configurarFormularioAnuncio() {
     resetarFormulario();
   });
 
-  // Tipo → mostrar/ocultar campos relevantes
   document
     .getElementById("anuncio-tipo")
     .addEventListener("change", atualizarCamposVisiveis);
 
-  // Quando selecionar caso → preencher título/imagem automaticamente
   document
     .getElementById("anuncio-caso-select")
     .addEventListener("change", function () {
@@ -991,7 +978,6 @@ function configurarFormularioAnuncio() {
       }
     });
 
-  // Toggle label
   document
     .getElementById("anuncio-ativo")
     .addEventListener("change", function () {
@@ -1000,7 +986,6 @@ function configurarFormularioAnuncio() {
         : "Inactivo";
     });
 
-  // Guardar
   document
     .getElementById("btn-salvar-anuncio")
     .addEventListener("click", salvarAnuncio);
@@ -1067,7 +1052,6 @@ async function salvarAnuncio() {
 
   const tipo = document.getElementById("anuncio-tipo").value;
 
-  // Para caso_destaque: pegar imagem do caso selecionado se não digitou URL
   let imagem = document.getElementById("anuncio-imagem").value.trim();
   if (tipo === "caso_destaque" && !imagem) {
     const sel = document.getElementById("anuncio-caso-select");
@@ -1151,14 +1135,10 @@ const COORDS_PROV_ADMIN = {
 let mapaAdminInst = null;
 let mapaAdminMarkers = [];
 
-/* =========================================================================
-   MAPA ADMIN — inicializar e carregar todos os casos aprovados
-   ========================================================================= */
 async function iniciarMapaAdmin() {
   const el = document.getElementById("mapa-admin-container");
   if (!el) return;
 
-  // Carregar casos aprovados, encontrados e desmentidos
   let casos = [];
   try {
     const snap = await getDocs(
@@ -1173,7 +1153,6 @@ async function iniciarMapaAdmin() {
     return;
   }
 
-  // Aguardar Google Maps
   function tentarIniciar() {
     if (typeof google === "undefined") {
       setTimeout(tentarIniciar, 300);
@@ -1194,7 +1173,6 @@ function renderMapaAdmin(el, casos) {
     });
   }
 
-  // Limpar marcadores
   mapaAdminMarkers.forEach((m) => m.setMap(null));
   mapaAdminMarkers = [];
 
@@ -1256,7 +1234,6 @@ function renderMapaAdmin(el, casos) {
     mapaAdminMarkers.push(marker);
   });
 
-  // Lista resumo abaixo do mapa
   const listaEl = document.getElementById("mapa-admin-lista");
   if (listaEl) {
     const total = casos.length;
@@ -1287,15 +1264,10 @@ function renderMapaAdmin(el, casos) {
 }
 
 /* =========================================================================
-   UTILITÁRIOS
-   ========================================================================= */
-
-/* =========================================================================
    NOTIFICAÇÃO POR EMAIL — ALERTA GERAL (EmailJS)
    ========================================================================= */
 async function notificarAprovacaoCaso(casoData) {
   try {
-    // 1. Buscar todos os emails de todos os utilizadores registados
     const usersSnap = await getDocs(collection(db, "users"));
     const listaEmails = [];
 
@@ -1304,10 +1276,14 @@ async function notificarAprovacaoCaso(casoData) {
       if (email) listaEmails.push(email);
     });
 
-    // 2. Junta todos os e-mails separados por vírgula para o BCC (Cópia Oculta)
     const emailsFormatados = listaEmails.join(",");
 
-    // 3. Disparar Alerta Geral via EmailJS
+    // ATENÇÃO — Se estás a ver o email chegar só a UM destinatário: isto
+    // quase sempre é configuração do TEMPLATE no painel do EmailJS, não
+    // deste código. Vai a Email Templates → este template → separador
+    // "Settings" → campo "Bcc" → coloca lá {{bcc_emails}}. Sem isso, o
+    // EmailJS ignora este parâmetro e só entrega ao endereço fixo no
+    // campo "To Email" do template.
     if (emailsFormatados.length > 0) {
       const templateParams = {
         bcc_emails: emailsFormatados,
@@ -1321,7 +1297,6 @@ async function notificarAprovacaoCaso(casoData) {
         info: casoData.informacoes_adicionais || "Sem informações adicionais.",
       };
 
-      // ATENÇÃO: Substitui pelos teus IDs do EmailJS!
       emailjs.send("service_8fq9usa", "template_366wv9e", templateParams).then(
         function (response) {
           console.log(
@@ -1336,6 +1311,27 @@ async function notificarAprovacaoCaso(casoData) {
     }
   } catch (err) {
     console.warn("[EmailJS] Erro ao disparar alerta de e-mail:", err);
+  }
+}
+
+/* =========================================================================
+   NOTIFICAÇÃO PUSH (FCM) — directamente do browser
+   Quando um caso é aprovado no web, isto chega também aos telemóveis
+   com a app instalada. A chave da conta de serviço vive em
+   fcm_config.js e é usada aqui mesmo no cliente — ver os avisos em
+   fcm_push.js sobre o que isso implica.
+   ========================================================================= */
+async function notificarPushMobile(casoData) {
+  try {
+    const resultado = await enviarAlertaDesaparecidoWeb(casoData);
+    console.log("[Push FCM] Notificações enviadas:", resultado);
+  } catch (err) {
+    // Se aparecer aqui um erro de CORS ("Failed to fetch", "blocked by
+    // CORS policy"), é a limitação já esperada: os endpoints da Google
+    // usados para assinar/enviar não costumam aceitar pedidos vindos
+    // directamente de páginas web. Não bloqueia a aprovação do caso
+    // nem o envio do email, que já terminaram antes desta chamada.
+    console.warn("[Push FCM] Erro ao enviar (ver fcm_push.js para contexto):", err);
   }
 }
 
@@ -1435,7 +1431,6 @@ function selecionarCasoParaEditar(caso) {
 
   document.getElementById("btn-salvar-localizacao").disabled = true;
 
-  // Destacar item na lista
   document.querySelectorAll("#lista-casos-sem-coord > div").forEach((el) => {
     el.style.background = el.textContent.includes(caso.nome)
       ? "#e3f2fd"
@@ -1475,7 +1470,6 @@ function inicializarMapaEditar() {
 
     document.getElementById("btn-salvar-localizacao").disabled = false;
 
-    // Limpar marcadores anteriores e adicionar novo
     mapaEditarInst.setCenter(coordenada_selecionada);
   });
 }
@@ -1503,7 +1497,7 @@ async function salvarLocalizacao() {
           casoEmEdicao = null;
           coordenada_selecionada = null;
           carregarCasosSemCoordenadas();
-          iniciarMapaAdmin(); // Atualizar mapa principal
+          iniciarMapaAdmin();
           btn.innerHTML = `<i class="fa-solid fa-save"></i> Salvar Localização`;
           btn.disabled = true;
         },
@@ -1523,13 +1517,11 @@ function openCasoDetalhesModal(data, relator) {
   const modal = document.getElementById("modal-caso-detalhes");
   const content = document.getElementById("modal-caso-content");
   if (!modal || !content) {
-    // Fallback: mostrar em alert
     const text = buildCasoDetalhesText(data, relator);
     showAlert(text);
     return;
   }
 
-  // Construir HTML organizado (duas colunas em listas)
   const rows = [];
   const keys = Object.keys(data || {}).sort();
   keys.forEach((k) => {
@@ -1548,7 +1540,6 @@ function openCasoDetalhesModal(data, relator) {
     rows.push({ k, v });
   });
 
-  // Campos esperados que queremos destacar (se ausentes aparecem como —)
   const expected = [
     "nome",
     "idade",
@@ -1572,12 +1563,10 @@ function openCasoDetalhesModal(data, relator) {
     else merged.push({ k, v: "—" });
   });
 
-  // Add remaining keys not in expected
   rows.forEach((r) => {
     if (!expected.includes(r.k)) merged.push(r);
   });
 
-  // Build HTML
   let html = `<div style="display:flex;flex-direction:column;gap:8px;">
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;">
       <div style="flex:1;min-width:220px">
@@ -1598,7 +1587,6 @@ function openCasoDetalhesModal(data, relator) {
     html += `<tr style="border-bottom:1px solid #eee"><td style="padding:6px 8px;width:36%"><strong>${r.k}</strong></td><td style="padding:6px 8px;color:#333">${escapeHtml(String(r.v))}</td></tr>`;
   });
 
-  // Relator
   html += `</tbody></table></div></div><div style="margin-top:8px;">
     <h4>Relator</h4>
     <div style="background:#fafafa;padding:10px;border-radius:6px;">
@@ -1610,7 +1598,6 @@ function openCasoDetalhesModal(data, relator) {
   content.innerHTML = html;
   modal.classList.remove("hidden");
 
-  // Wire up modal buttons
   document.getElementById("modal-caso-fechar").onclick = closeCasoDetalhesModal;
   document.getElementById("modal-caso-fechar-2").onclick =
     closeCasoDetalhesModal;
@@ -1667,11 +1654,7 @@ function escapeHtml(str) {
 }
 
 /* =========================================================================
-   NOVO — HISTÓRICO COMPLETO DO UTILIZADOR
-   Equivalente ao _HistoricoCompletoDialog do mobile: três separadores
-   (Casos, Comentários, Penalizações), cada um numa query independente,
-   para que a falha de uma não impeça as outras (mesma lição já aprendida
-   no mobile com o erro de índice do Firestore).
+   HISTÓRICO COMPLETO DO UTILIZADOR
    ========================================================================= */
 function formatarDataHist(raw) {
   if (!raw) return "—";
@@ -1726,9 +1709,6 @@ window.abrirHistoricoUsuario = async function (uid, nome) {
     scoreEl.textContent = "";
   }
 
-  // ── 1. Casos — collection "casos", campo userId + createdAt ────────────
-  // ATENÇÃO: campo de data aqui é "createdAt", NÃO "criadoEm" — são
-  // colecções diferentes com convenções diferentes neste projecto.
   const casosEl = document.getElementById("hist-casos");
   casosEl.innerHTML = "A carregar...";
   try {
@@ -1757,7 +1737,6 @@ window.abrirHistoricoUsuario = async function (uid, nome) {
     casosEl.innerHTML = `<p class="hist-erro">Erro ao carregar: ${escapeHtml(err.message)}</p>`;
   }
 
-  // ── 2. Comentários — collectionGroup "comentarios", autorId + criadoEm ─
   const comEl = document.getElementById("hist-comentarios");
   comEl.innerHTML = "A carregar...";
   try {
@@ -1786,23 +1765,15 @@ window.abrirHistoricoUsuario = async function (uid, nome) {
     comEl.innerHTML = `<p class="hist-erro">Erro ao carregar: ${escapeHtml(err.message)}</p>`;
   }
 
-  // ── 3. Penalizações — subcolecção users/{uid}/trust_historico, criadoEm ─
   const penEl = document.getElementById("hist-penalizacoes");
   penEl.innerHTML = "A carregar...";
   try {
-    const snap = await getDocs(
-      query(
-        collection(db, "users", uid, "trust_historico"),
-        orderBy("criadoEm", "desc"),
-        limit(50),
-      ),
-    );
-    if (snap.empty) {
+    const histPen = await historico(uid);
+    if (histPen.length === 0) {
       penEl.innerHTML = `<p class="hist-empty">Nenhuma penalização ou ajuste registado.</p>`;
     } else {
       penEl.innerHTML = "";
-      snap.forEach((d) => {
-        const h = d.data();
+      histPen.forEach((h) => {
         const pontos = typeof h.pontos === "number" ? h.pontos : 0;
         const cor = pontos >= 0 ? "var(--color-success)" : "var(--color-danger)";
         penEl.innerHTML += `
@@ -1816,3 +1787,564 @@ window.abrirHistoricoUsuario = async function (uid, nome) {
     penEl.innerHTML = `<p class="hist-erro">Erro ao carregar: ${escapeHtml(err.message)}</p>`;
   }
 };
+
+/* =========================================================================
+   NOVO — COMENTÁRIOS (moderação global), TRUST SCORES e SUPORTE
+   Tudo em JavaScript puro (DOM + template literals), no MESMO estilo do
+   resto deste ficheiro — NADA de React/JSX, que foi a causa do ecrã em
+   branco na tentativa anterior.
+   ========================================================================= */
+
+// ── Comentários ────────────────────────────────────────────────────────────
+let _todosComentariosAdmin = [];
+
+async function carregarComentariosAdmin() {
+  const listEl = document.getElementById("comentarios-list");
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="admin-loader"><i class="fa-solid fa-spinner fa-spin"></i> Carregando comentários...</div>`;
+  try {
+    const casosSnap = await getDocs(
+      query(
+        collection(db, "casos"),
+        where("status", "in", ["aprovado", "encontrado", "desmentido"]),
+      ),
+    );
+    const lista = [];
+    for (const casoDoc of casosSnap.docs) {
+      const casoData = casoDoc.data();
+      const comsSnap = await getDocs(
+        query(
+          collection(db, "casos", casoDoc.id, "comentarios"),
+          orderBy("criadoEm", "desc"),
+        ),
+      );
+      comsSnap.forEach((c) => {
+        lista.push({
+          id: c.id,
+          casoId: casoDoc.id,
+          casoNome: casoData.nome || "Sem nome",
+          ...c.data(),
+        });
+      });
+    }
+    lista.sort((a, b) => {
+      const ta = a.criadoEm?.toDate ? a.criadoEm.toDate().getTime() : 0;
+      const tb = b.criadoEm?.toDate ? b.criadoEm.toDate().getTime() : 0;
+      return tb - ta;
+    });
+    _todosComentariosAdmin = lista;
+    renderizarComentariosAdmin(lista);
+  } catch (err) {
+    listEl.innerHTML = `<p class="tc" style="color:#e74c3c;padding:20px 0;">Erro: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderizarComentariosAdmin(lista) {
+  const listEl = document.getElementById("comentarios-list");
+  if (!listEl) return;
+
+  if (lista.length === 0) {
+    listEl.innerHTML = `<p class="tc" style="padding:24px 0;color:#999;">Nenhum comentário encontrado.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = "";
+  lista.forEach((c) => {
+    const dt = c.criadoEm?.toDate ? c.criadoEm.toDate() : null;
+    const ts = dt
+      ? `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()} ${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`
+      : "—";
+    const row = document.createElement("div");
+    row.className = "hist-item";
+    row.style.cssText =
+      "display:flex;gap:12px;align-items:flex-start;padding:12px 0;";
+    row.innerHTML = `
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;color:var(--gray-500);margin-bottom:4px;">
+          <strong style="color:var(--gray-700);">${escapeHtml(c.autorNome || "Utilizador")}</strong>
+          · caso: ${escapeHtml(c.casoNome)} · ${ts}
+        </div>
+        <div style="font-size:13px;color:var(--gray-700);">${escapeHtml(c.texto || "—")}</div>
+      </div>
+      <button class="btn-danger-sm btn-apagar-comentario"
+        data-caso="${c.casoId}" data-com="${c.id}"
+        data-autor="${c.autorId || ""}"
+        data-nome="${(c.autorNome || "").replace(/"/g, "&quot;")}"
+        title="Apagar comentário">
+        <i class="fa-solid fa-trash"></i>
+      </button>`;
+    listEl.appendChild(row);
+  });
+
+  listEl.querySelectorAll(".btn-apagar-comentario").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      abrirConfirmarApagarComentario(btn.dataset),
+    );
+  });
+}
+
+function abrirConfirmarApagarComentario({ caso, com, autor, nome }) {
+  const pontosStr = prompt(
+    `Apagar comentário de "${nome || "utilizador"}".\n\nPenalização ao autor (pontos a retirar do Trust Score):\n0 = sem penalização, ou 5, 10, 20...`,
+    "10",
+  );
+  if (pontosStr === null) return;
+  const pontos = parseInt(pontosStr, 10);
+  if (isNaN(pontos) || pontos < 0) {
+    showAlert("Valor inválido.");
+    return;
+  }
+  _apagarComentarioAdmin(caso, com, autor, pontos);
+}
+
+async function _apagarComentarioAdmin(casoId, comentarioId, autorId, pontos) {
+  try {
+    await deleteDoc(doc(db, "casos", casoId, "comentarios", comentarioId));
+    await updateDoc(doc(db, "casos", casoId), {
+      comentarios: fsIncrement(-1),
+    });
+    if (autorId && pontos > 0) {
+      await penalizar(
+        autorId,
+        pontos,
+        "comentario_removido",
+        auth.currentUser?.uid,
+        "Comentário apagado pelo painel de Moderação (web).",
+      );
+    }
+    showAlert(
+      pontos > 0
+        ? `✅ Comentário apagado. −${pontos} pontos aplicados ao autor.`
+        : "✅ Comentário apagado.",
+      { onOk: carregarComentariosAdmin },
+    );
+  } catch (err) {
+    showAlert("Erro: " + err.message);
+  }
+}
+
+// ── Trust Scores ─────────────────────────────────────────────────────────
+let _todosUsuariosTrust = [];
+let _filtroEstadoTrust = "";
+let _queryTrust = ""; // NOVO — texto de pesquisa por nome/email
+let _ajustarScoreAlvo = null;
+
+async function carregarTrustScores() {
+  const listEl = document.getElementById("trust-list");
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="admin-loader"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>`;
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    const lista = [];
+    snap.forEach((d) => lista.push({ id: d.id, ...d.data() }));
+    lista.sort((a, b) => (a.trustScore ?? 100) - (b.trustScore ?? 100));
+    _todosUsuariosTrust = lista;
+    renderizarTrustScores(lista);
+  } catch (err) {
+    listEl.innerHTML = `<p class="tc" style="color:#e74c3c;padding:20px 0;">Erro: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderizarTrustScores(lista) {
+  const listEl = document.getElementById("trust-list");
+  if (!listEl) return;
+
+  // NOVO: os dois filtros (estado + texto) aplicam-se em conjunto —
+  // antes só existia o filtro de estado.
+  let filtrados = _filtroEstadoTrust
+    ? lista.filter((u) => estadoDeScore(u.trustScore ?? 100) === _filtroEstadoTrust)
+    : lista;
+
+  if (_queryTrust) {
+    filtrados = filtrados.filter((u) =>
+      `${u.nome || ""} ${u.email || ""}`.toLowerCase().includes(_queryTrust),
+    );
+  }
+
+  const countEl = document.getElementById("trust-filtro-count");
+  if (countEl) {
+    countEl.textContent =
+      _filtroEstadoTrust || _queryTrust
+        ? `${filtrados.length} utilizador${filtrados.length !== 1 ? "es" : ""} encontrado${filtrados.length !== 1 ? "s" : ""}`
+        : "";
+  }
+
+  if (filtrados.length === 0) {
+    listEl.innerHTML = `<p class="tc" style="padding:24px 0;color:#999;">Nenhum utilizador encontrado.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = "";
+  filtrados.forEach((u) => {
+    const score = u.trustScore ?? 100;
+    const estado = estadoDeScore(score);
+    const isSusp = u.isSuspended === true || score <= 0;
+    const corBarra =
+      score <= 0
+        ? "var(--color-danger)"
+        : score <= 59
+          ? "var(--color-warning)"
+          : "var(--color-success)";
+    const row = document.createElement("div");
+    row.className = "anuncio-row";
+    row.innerHTML = `
+      <div class="anuncio-row-left">
+        <div class="anuncio-row-info">
+          <strong>${escapeHtml(u.nome || u.email || "—")}</strong>
+          <span>${escapeHtml(u.email || "—")}</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="width:110px;">
+          <div style="background:var(--gray-100);border-radius:6px;height:6px;overflow:hidden;">
+            <div style="width:${Math.max(0, Math.min(100, score))}%;height:100%;background:${corBarra};"></div>
+          </div>
+        </div>
+        <span class="trust-badge ${estado}">${labelEstado(estado)} · ${score}/100</span>
+        <button class="btn-admin-sm btn-trust-historico" data-id="${u.id}" data-nome="${(u.nome || u.email || "").replace(/"/g, "&quot;")}">Histórico</button>
+        <button class="btn-admin-sm btn-trust-ajustar" data-id="${u.id}" data-nome="${(u.nome || u.email || "").replace(/"/g, "&quot;")}" data-score="${score}">Ajustar</button>
+        ${
+          isSusp
+            ? `<button class="btn-admin-icon btn-success-icon btn-trust-reactivar" data-id="${u.id}" data-nome="${(u.nome || u.email || "").replace(/"/g, "&quot;")}" title="Reactivar"><i class="fa-solid fa-lock-open"></i></button>`
+            : ""
+        }
+      </div>`;
+    listEl.appendChild(row);
+  });
+
+  listEl.querySelectorAll(".btn-trust-historico").forEach((btn) =>
+    btn.addEventListener("click", () =>
+      window.abrirHistoricoUsuario(btn.dataset.id, btn.dataset.nome),
+    ),
+  );
+  listEl.querySelectorAll(".btn-trust-ajustar").forEach((btn) =>
+    btn.addEventListener("click", () =>
+      abrirModalAjustarScore(
+        btn.dataset.id,
+        btn.dataset.nome,
+        parseInt(btn.dataset.score, 10),
+      ),
+    ),
+  );
+  listEl.querySelectorAll(".btn-trust-reactivar").forEach((btn) =>
+    btn.addEventListener("click", () =>
+      window.reactivarUsuario(btn.dataset.id, btn.dataset.nome),
+    ),
+  );
+}
+
+// NOVO: score actual do utilizador em edição, usado para calcular a
+// pré-visualização em tempo real enquanto se arrasta o slider (igual ao
+// _AjustarScoreDialog do mobile).
+let _ajustarScoreAtualValor = 100;
+
+function abrirModalAjustarScore(uid, nome, scoreAtual) {
+  _ajustarScoreAlvo = uid;
+  _ajustarScoreAtualValor = scoreAtual;
+
+  const nomeEl = document.getElementById("ajustar-score-nome");
+  if (nomeEl) nomeEl.textContent = nome;
+
+  const slider = document.getElementById("ajustar-score-slider");
+  if (slider) slider.value = "-10";
+
+  const motivoEl = document.getElementById("ajustar-score-motivo");
+  if (motivoEl) motivoEl.value = "";
+
+  _atualizarPreviewAjusteScore();
+  document.getElementById("modal-ajustar-score")?.classList.remove("hidden");
+}
+
+// Actualiza os números "score actual → preview" e a legenda dos pontos
+// sempre que o slider é movido.
+function _atualizarPreviewAjusteScore() {
+  const slider = document.getElementById("ajustar-score-slider");
+  if (!slider) return;
+  const delta = parseInt(slider.value, 10);
+  const atual = _ajustarScoreAtualValor;
+  const preview = Math.max(0, Math.min(100, atual + delta));
+
+  const atualEl = document.getElementById("ajustar-score-atual");
+  if (atualEl) atualEl.textContent = atual;
+
+  const previewEl = document.getElementById("ajustar-score-preview");
+  if (previewEl) {
+    previewEl.textContent = preview;
+    previewEl.style.color =
+      preview <= 0
+        ? "var(--color-danger)"
+        : preview <= 59
+          ? "var(--color-warning)"
+          : "var(--color-success)";
+  }
+
+  const labelEl = document.getElementById("ajustar-score-delta-label");
+  if (labelEl) {
+    labelEl.textContent =
+      delta === 0 ? "Sem alteração" : `${delta > 0 ? "+" : ""}${delta} pontos`;
+    labelEl.style.color =
+      delta > 0
+        ? "var(--color-success)"
+        : delta < 0
+          ? "var(--color-danger)"
+          : "var(--gray-500)";
+  }
+}
+
+// ── Suporte ───────────────────────────────────────────────────────────────
+async function carregarSuporte() {
+  const listEl = document.getElementById("suporte-list");
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="admin-loader"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>`;
+  try {
+    const snap = await getDocs(
+      query(collection(db, "suporte_suspensao"), orderBy("criadoEm", "desc")),
+    );
+    if (snap.empty) {
+      listEl.innerHTML = `<p class="tc" style="padding:30px 0;color:#999;">Nenhum pedido de suporte.</p>`;
+      return;
+    }
+    listEl.innerHTML = "";
+    snap.forEach((d) => {
+      const s = d.data();
+      const pendente = (s.status || "pendente") === "pendente";
+      const dt = s.criadoEm?.toDate ? s.criadoEm.toDate() : null;
+      const ts = dt
+        ? `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()}`
+        : "—";
+      const historicoChat = s.historico || [];
+
+      const card = document.createElement("div");
+      card.className = "card-aprovar card-suporte";
+      card.style.borderLeft = `4px solid ${pendente ? "var(--color-warning)" : "var(--color-success)"}`;
+      const score = s.trustScore ?? 0;
+      card.innerHTML = `
+        <div class="card-header-admin" style="align-items:flex-start;">
+          <div style="width:48px;height:48px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+            background:${pendente ? "var(--color-warning-soft)" : "var(--color-success-soft)"};">
+            <i class="fa-solid ${pendente ? "fa-hourglass-half" : "fa-circle-check"}"
+               style="font-size:18px;color:${pendente ? "var(--color-warning)" : "var(--color-success)"};"></i>
+          </div>
+          <div class="admin-user-info" style="flex:1;min-width:0;">
+            <h3>${escapeHtml(s.nome || s.email || "—")}</h3>
+            <p><i class="fa-solid fa-envelope" style="opacity:.6;margin-right:4px;"></i>${escapeHtml(s.email || "—")}</p>
+          </div>
+          <span class="trust-badge ${pendente ? "risco" : "normal"}" style="flex-shrink:0;">
+            ${pendente ? "PENDENTE" : "RESOLVIDO"}
+          </span>
+        </div>
+
+        <!-- NOVO: barra de score visual, igual em espírito ao painel Trust Scores -->
+        <div style="display:flex;align-items:center;gap:10px;margin:14px 0 16px;padding:10px 14px;background:var(--gray-50);border-radius:var(--radius-md);">
+          <span style="font-size:13px;font-weight:800;color:var(--color-danger);min-width:52px;">${score}/100</span>
+          <div style="flex:1;height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden;">
+            <div style="width:${Math.max(0, Math.min(100, score))}%;height:100%;background:var(--color-danger);"></div>
+          </div>
+        </div>
+
+        <p class="card-desc" style="margin-bottom:16px;">
+          <strong>Motivo da suspensão:</strong> ${escapeHtml(s.suspensionReason || "—")}
+          <br><span style="color:var(--gray-400);font-size:12px;">Pedido enviado em ${ts}</span>
+        </p>
+
+        <!-- NOVO: o histórico do chat só mostra o que o utilizador DISSE,
+             não o que ele FEZ. Este botão abre o mesmo modal de histórico
+             completo (casos, comentários, penalizações) já usado no
+             painel Trust Scores — igual ao mobile. -->
+        <button class="btn-approve-pub btn-ver-historico-completo"
+          data-uid="${s.uid || ""}"
+          data-nome="${(s.nome || s.email || "").replace(/"/g, "&quot;")}"
+          style="width:100%;margin-bottom:10px;justify-content:center;">
+          <i class="fa-solid fa-clock-rotate-left"></i> Ver histórico completo de actividade
+        </button>
+
+        <button class="btn-docs btn-ver-historico-chat" data-key="${d.id}" style="width:100%;justify-content:center;">
+          <i class="fa-solid fa-comments"></i> Ver histórico do chat (${historicoChat.length})
+        </button>
+        <div class="hist-chat-box hist-chat-${d.id}" style="display:none;margin-top:12px;max-height:260px;overflow-y:auto;background:var(--gray-50);border-radius:10px;padding:10px;"></div>
+        ${
+          pendente
+            ? `<div class="admin-actions" style="margin-top:16px;">
+                 <button class="btn-docs btn-suporte-manter" data-id="${d.id}">Manter suspensão</button>
+                 <button class="btn-approve-pub btn-suporte-reactivar" data-id="${d.id}" data-uid="${s.uid || ""}" data-nome="${(s.nome || s.email || "").replace(/"/g, "&quot;")}">
+                   <i class="fa-solid fa-lock-open"></i> Reactivar conta
+                 </button>
+               </div>`
+            : `<div style="margin-top:14px;padding:10px 14px;background:var(--color-success-soft);border-radius:var(--radius-md);font-size:12px;color:var(--color-success);display:flex;align-items:center;gap:8px;">
+                 <i class="fa-solid fa-circle-check"></i>
+                 Resolvido ${s.accao === "reativacao" ? "— conta reactivada" : "— suspensão mantida"}
+               </div>`
+        }
+      `;
+      listEl.appendChild(card);
+
+      card
+        .querySelector(".btn-ver-historico-completo")
+        .addEventListener("click", (e) => {
+          const uid = e.currentTarget.dataset.uid;
+          const nome = e.currentTarget.dataset.nome;
+          if (!uid) {
+            showAlert("Este pedido não tem um UID de utilizador válido.");
+            return;
+          }
+          window.abrirHistoricoUsuario(uid, nome);
+        });
+
+      card
+        .querySelector(".btn-ver-historico-chat")
+        .addEventListener("click", () => {
+          const box = card.querySelector(`.hist-chat-${d.id}`);
+          const visivel = box.style.display !== "none";
+          if (visivel) {
+            box.style.display = "none";
+            return;
+          }
+          box.style.display = "block";
+          box.innerHTML =
+            historicoChat
+              .map(
+                (m) => `
+            <div style="margin-bottom:8px;text-align:${m.isUser ? "right" : "left"};">
+              <span style="display:inline-block;max-width:80%;padding:8px 12px;border-radius:10px;font-size:13px;
+                background:${m.isUser ? "var(--color-quaternary)" : "#fff"};color:${m.isUser ? "#fff" : "var(--gray-700)"};
+                border:${m.isUser ? "none" : "1px solid var(--gray-200)"};">
+                ${escapeHtml(m.texto || "")}
+              </span>
+            </div>`,
+              )
+              .join("") || `<p class="hist-empty">Sem mensagens.</p>`;
+        });
+
+      const btnManter = card.querySelector(".btn-suporte-manter");
+      if (btnManter)
+        btnManter.addEventListener("click", () =>
+          _resolverSuporte(d.id, "suspensao_mantida"),
+        );
+
+      const btnReactivar = card.querySelector(".btn-suporte-reactivar");
+      if (btnReactivar)
+        btnReactivar.addEventListener("click", () =>
+          _reativarPeloSuporte(
+            d.id,
+            btnReactivar.dataset.uid,
+            btnReactivar.dataset.nome,
+          ),
+        );
+    });
+  } catch (err) {
+    listEl.innerHTML = `<p class="tc" style="color:#e74c3c;padding:20px 0;">Erro: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function _resolverSuporte(pedidoId, accao) {
+  try {
+    await updateDoc(doc(db, "suporte_suspensao", pedidoId), {
+      status: "resolvido",
+      resolvidoPor: auth.currentUser?.uid,
+      resolvidoEm: serverTimestamp(),
+      accao,
+    });
+    carregarSuporte();
+  } catch (err) {
+    showAlert("Erro: " + err.message);
+  }
+}
+
+async function _reativarPeloSuporte(pedidoId, uid, nome) {
+  if (!uid) {
+    showAlert("Este pedido não tem um UID de utilizador válido.");
+    return;
+  }
+  if (!confirm(`Reactivar a conta de "${nome}" com 60 pontos de Trust Score?`))
+    return;
+  try {
+    await reporNivel(uid, auth.currentUser?.uid);
+    await _resolverSuporte(pedidoId, "reativacao");
+    showAlert(`✅ Conta de ${nome} reactivada.`, { onOk: carregarSuporte });
+  } catch (err) {
+    showAlert("Erro: " + err.message);
+  }
+}
+
+// ── Wiring (executado uma única vez a partir de iniciarAdmin) ────────────
+function configurarPainelTrustEComentarios() {
+  document
+    .getElementById("com-search")
+    ?.addEventListener("input", (e) => {
+      const q = e.target.value.toLowerCase();
+      const filtrados = _todosComentariosAdmin.filter(
+        (c) =>
+          (c.texto || "").toLowerCase().includes(q) ||
+          (c.autorNome || "").toLowerCase().includes(q) ||
+          (c.casoNome || "").toLowerCase().includes(q),
+      );
+      renderizarComentariosAdmin(filtrados);
+    });
+
+  document.querySelectorAll("#trust-filtro-estado button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _filtroEstadoTrust = btn.dataset.estado;
+      document
+        .querySelectorAll("#trust-filtro-estado button")
+        .forEach((b) => b.classList.remove("filtro-ativo"));
+      btn.classList.add("filtro-ativo");
+      renderizarTrustScores(_todosUsuariosTrust);
+    });
+  });
+
+  // NOVO: pesquisa por nome/email no painel Trust Scores.
+  document.getElementById("trust-search")?.addEventListener("input", (e) => {
+    _queryTrust = e.target.value.toLowerCase().trim();
+    const clearBtn = document.getElementById("trust-search-clear");
+    if (clearBtn) clearBtn.style.display = _queryTrust ? "flex" : "none";
+    renderizarTrustScores(_todosUsuariosTrust);
+  });
+  document
+    .getElementById("trust-search-clear")
+    ?.addEventListener("click", () => {
+      const input = document.getElementById("trust-search");
+      if (input) input.value = "";
+      _queryTrust = "";
+      const clearBtn = document.getElementById("trust-search-clear");
+      if (clearBtn) clearBtn.style.display = "none";
+      renderizarTrustScores(_todosUsuariosTrust);
+    });
+
+  // NOVO: pré-visualização ao vivo enquanto se arrasta o slider.
+  document
+    .getElementById("ajustar-score-slider")
+    ?.addEventListener("input", _atualizarPreviewAjusteScore);
+
+  document
+    .getElementById("btn-cancelar-ajustar-score")
+    ?.addEventListener("click", () => {
+      document.getElementById("modal-ajustar-score").classList.add("hidden");
+    });
+
+  document
+    .getElementById("btn-confirmar-ajustar-score")
+    ?.addEventListener("click", async () => {
+      // CORRIGIDO: lê o valor do slider (ajustar-score-slider), não de
+      // um campo de texto "ajustar-score-pontos" que já não existe.
+      const delta = parseInt(
+        document.getElementById("ajustar-score-slider").value,
+        10,
+      );
+      const motivo =
+        document.getElementById("ajustar-score-motivo").value.trim() ||
+        "ajuste_manual";
+      if (isNaN(delta) || delta === 0) {
+        showAlert("Mova o slider para um valor diferente de 0.");
+        return;
+      }
+      try {
+        await ajustarScore(_ajustarScoreAlvo, delta, auth.currentUser?.uid, motivo);
+        document.getElementById("modal-ajustar-score").classList.add("hidden");
+        showAlert(`✅ Score ajustado em ${delta >= 0 ? "+" : ""}${delta}.`, {
+          onOk: carregarTrustScores,
+        });
+      } catch (err) {
+        showAlert("Erro: " + err.message);
+      }
+    });
+}

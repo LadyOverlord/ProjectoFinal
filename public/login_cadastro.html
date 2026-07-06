@@ -130,10 +130,14 @@
 
           <!-- NOVO: checkbox obrigatória de Termos e Condições — lida por
                window.cadastrar() em login_cadastro.js via
-               document.getElementById("aceitar-termos"). -->
-          <label for="aceitar-termos" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#555;margin:14px 0;cursor:pointer;font-weight:400;">
-            <input type="checkbox" id="aceitar-termos" style="margin-top:2px;flex-shrink:0;">
-            <span>Li e aceito os Termos e Condições e a Política de Privacidade.</span>
+               document.getElementById("aceitar-termos").
+               Usa a classe .termos-label (em login_cadastro.css) em vez
+               de estilos inline, para sobrescrever correctamente o label
+               genérico (text-transform:uppercase, font-size:12px, etc.)
+               que tornava o checkbox praticamente invisível. -->
+          <label for="aceitar-termos" class="termos-label">
+            <input type="checkbox" id="aceitar-termos">
+            <span>Li e aceito os <strong>Termos e Condições</strong> e a Política de Privacidade.</span>
           </label>
 
           <button type="button" class="btn-submit" onclick="cadastrar()">
@@ -184,3 +188,18 @@
   <script type="module" src="Scripts/auth.js"></script>
 </body>
 </html>
+
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="CSS/variables.css" />
+    <link rel="stylesheet" href="CSS/global.css" />
+    <link rel="stylesheet" href="CSS/paginas/profile.css" />
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link

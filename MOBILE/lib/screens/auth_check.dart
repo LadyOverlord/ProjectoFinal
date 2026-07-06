@@ -7,6 +7,7 @@ import 'login_page.dart';
 import 'home_page.dart';
 import 'admin_page.dart';
 import 'suspended_page.dart';          // ← NOVO
+import 'terms_acceptance_page.dart';   // ← NOVO
 import '../models/user_mode.dart';
 import '../services/notification_service.dart';
 
@@ -53,8 +54,19 @@ class AuthCheck extends StatelessWidget {
                 final role        = userData['role']        ?? 'user';
                 final isSuspended = userData['isSuspended'] as bool? ?? false;
                 final trustScore  = userData['trustScore']  as int?  ?? 100;
+                final termosVersao = userData['termosVersao'] as String?;
 
-                // ── NOVO: suspensos vão para SuspendedPage ─────────────────
+                // ── NOVO: gate de aceitação de termos ──────────────────────
+                // Cobre tanto contas novas (nunca tiveram este campo) como
+                // já existentes (versão desactualizada). Fica ANTES da
+                // verificação de suspensão de propósito — aceitar os termos
+                // actuais é mais fundamental do que qualquer outro estado
+                // da conta, incluindo estar suspenso.
+                if (termosVersao != kTermosVersaoActual) {
+                  return const TermsAcceptancePage();
+                }
+
+                // ── suspensos vão para SuspendedPage ───────────────────────
                 if (isSuspended || trustScore <= 0) {
                   return const SuspendedPage();
                 }

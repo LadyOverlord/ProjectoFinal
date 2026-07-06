@@ -40,6 +40,16 @@
       <a href="#" data-target="mapa-admin" class="menu-link">
         <i class="fa-solid fa-map-location-dot"></i> Mapa
       </a>
+      <!-- NOVO — painéis de moderação / trust score / suporte -->
+      <a href="#" data-target="comentarios" class="menu-link">
+        <i class="fa-solid fa-comment"></i> Comentários
+      </a>
+      <a href="#" data-target="trust" class="menu-link">
+        <i class="fa-solid fa-shield"></i> Trust Scores
+      </a>
+      <a href="#" data-target="suporte" class="menu-link">
+        <i class="fa-solid fa-headset"></i> Suporte
+      </a>
       <!-- CORRIGIDO: era <a href="../index.html">, um caminho fixo que
            falhava consoante a estrutura real de pastas do alojamento
            (o mesmo problema que já tínhamos com o login). Agora é um
@@ -543,6 +553,101 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           6. NOVO — MODERAÇÃO DE COMENTÁRIOS
+           ══════════════════════════════════════════════ -->
+      <div id="comentarios" class="panel">
+        <h2>Moderação de Comentários</h2>
+        <p class="admin-card-desc">
+          Todos os comentários de todos os casos aprovados/encontrados/desmentidos.
+        </p>
+        <div class="admin-card" style="margin-top: 8px">
+          <input
+            type="text"
+            id="com-search"
+            class="admin-input"
+            placeholder="Pesquisar por texto, autor ou caso..."
+            style="margin-bottom: 14px"
+          />
+          <div id="comentarios-list">
+            <div class="admin-loader">
+              <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           7. NOVO — TRUST SCORES
+           ══════════════════════════════════════════════ -->
+      <div id="trust" class="panel">
+        <h2>Trust Scores</h2>
+        <p class="admin-card-desc">
+          Gestão da pontuação de confiança dos utilizadores.
+        </p>
+        <div class="admin-card" style="margin-top: 8px">
+          <div
+            class="filter-input-wrap"
+            style="margin-bottom: 14px; max-width: 340px"
+          >
+            <input
+              type="text"
+              id="trust-search"
+              class="admin-input"
+              placeholder="Pesquisar por nome ou email..."
+              autocomplete="off"
+            />
+            <button
+              id="trust-search-clear"
+              class="filter-clear-btn"
+              title="Limpar"
+              style="display: none"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div
+            id="trust-filtro-estado"
+            style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap"
+          >
+            <button class="btn-admin-sm filtro-ativo" data-estado="">
+              Todos
+            </button>
+            <button class="btn-admin-sm" data-estado="normal">Normal</button>
+            <button class="btn-admin-sm" data-estado="aviso">Aviso</button>
+            <button class="btn-admin-sm" data-estado="risco">Risco</button>
+            <button class="btn-admin-sm" data-estado="suspenso">
+              Suspenso
+            </button>
+          </div>
+          <p
+            id="trust-filtro-count"
+            class="admin-card-desc"
+            style="margin: 0 0 8px"
+          ></p>
+          <div id="trust-list">
+            <div class="admin-loader">
+              <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           8. NOVO — SUPORTE (pedidos de reactivação)
+           ══════════════════════════════════════════════ -->
+      <div id="suporte" class="panel">
+        <h2>Pedidos de Suporte</h2>
+        <p class="admin-card-desc">
+          Pedidos de reactivação enviados por utilizadores suspensos.
+        </p>
+        <div id="suporte-list" style="margin-top: 8px">
+          <div class="admin-loader">
+            <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            MODAL: EDITAR LOCALIZAÇÃO
            ══════════════════════════════════════════════ -->
       <div
@@ -732,7 +837,7 @@
       </div>
     </div>
 
-    <!-- NOVO: MODAL — HISTÓRICO COMPLETO DO UTILIZADOR -->
+    <!-- MODAL — HISTÓRICO COMPLETO DO UTILIZADOR -->
     <div
       id="modal-historico"
       class="modal-overlay hidden"
@@ -844,6 +949,98 @@
           class="hist-tab-content hidden"
           style="font-size: 13px"
         ></div>
+      </div>
+    </div>
+
+    <!-- NOVO — MODAL: AJUSTAR TRUST SCORE MANUALMENTE
+         Slider com pré-visualização ao vivo do score resultante, tal
+         como no mobile (_AjustarScoreDialog) — mais prático do que
+         escrever um número num campo de texto. -->
+    <div
+      id="modal-ajustar-score"
+      class="modal-overlay hidden"
+      style="
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 13000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div class="admin-card" style="width: 90%; max-width: 440px">
+        <h3 style="margin-bottom: 6px">
+          <i class="fa-solid fa-sliders"></i> Ajustar Trust Score
+        </h3>
+        <p
+          id="ajustar-score-nome"
+          style="color: var(--gray-500); font-size: 13px; margin-bottom: 20px"
+        ></p>
+
+        <!-- Score actual → preview -->
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 16px;
+          "
+        >
+          <span
+            id="ajustar-score-atual"
+            style="font-size: 22px; font-weight: 800; color: var(--gray-400)"
+            >100</span
+          >
+          <i class="fa-solid fa-arrow-right" style="color: var(--gray-300)"></i>
+          <span
+            id="ajustar-score-preview"
+            style="font-size: 32px; font-weight: 800; color: var(--color-success)"
+            >100</span
+          >
+        </div>
+
+        <!-- Slider -10..+50, passos de 5 -->
+        <input
+          type="range"
+          id="ajustar-score-slider"
+          min="-50"
+          max="50"
+          step="5"
+          value="-10"
+          style="width: 100%; accent-color: var(--color-quaternary)"
+        />
+        <p
+          id="ajustar-score-delta-label"
+          style="
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            margin: 6px 0 20px;
+          "
+        >
+          -10 pontos
+        </p>
+
+        <div class="form-field" style="margin-bottom: 18px">
+          <label>Motivo</label>
+          <input
+            type="text"
+            id="ajustar-score-motivo"
+            class="admin-input"
+            placeholder="ex: comentario_ofensivo"
+          />
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end">
+          <button class="btn-cancelar-form" id="btn-cancelar-ajustar-score">
+            Cancelar
+          </button>
+          <button class="btn-admin-sm" id="btn-confirmar-ajustar-score">
+            Aplicar
+          </button>
+        </div>
       </div>
     </div>
 

@@ -1,0 +1,85 @@
+/* ==============================================
+   SKELETON LOADING — Feed de Casos
+   
+   ============================================== */
+
+/* Animação de shimmer */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #ececec 25%,
+    #f5f5f5 50%,
+    #ececec 75%
+  );
+  background-size: 600px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* Card esqueleto — mesma estrutura do .feed-card */
+.feed-card-skeleton {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 25px;
+  overflow: hidden;
+}
+
+/* Header: avatar + linhas de texto */
+.sk-header {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  gap: 12px;
+}
+.sk-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sk-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+.sk-line-name  { height: 13px; width: 45%; }
+.sk-line-sub   { height: 10px; width: 30%; }
+
+/* Imagem principal */
+.sk-image {
+  width: 100%;
+  height: 350px;
+}
+
+/* Corpo */
+.sk-body {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sk-title      { height: 16px; width: 60%; }
+.sk-text-long  { height: 11px; width: 100%; }
+.sk-text-med   { height: 11px; width: 75%; }
+.sk-text-short { height: 11px; width: 45%; }
+
+/* Botões de ação */
+.sk-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+.sk-btn {
+  flex: 1;
+  height: 34px;
+  border-radius: 6px;
+}
