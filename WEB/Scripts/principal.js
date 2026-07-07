@@ -18,7 +18,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 import { iniciarCarrossel } from "./carousel.js";
-import { versaoTermosActual, mostrarGateTermos } from "./termos.js"; // ← NOVO
+import { versaoTermosActual, mostrarGateTermos, mostrarTermosLeitura } from "./termos.js"; // ← NOVO
 
 // Estado global
 let todosOsCasos = [];
@@ -109,13 +109,18 @@ onAuthStateChanged(auth, async (user) => {
           const suspenso = data.isSuspended === true || score <= 0;
           if (suspenso && !window._avisoSuspensaoMostrado) {
             window._avisoSuspensaoMostrado = true;
-            showAlert(
-              `A sua conta está suspensa. Motivo: ${data.suspensionReason || "violação das diretrizes"}. ` +
-              `Para pedir revisão, contacte o suporte por email: suporte@missingao.co.ao`,
-              { onOk: () => { window.location.href = "index.html"; } },
-            );
+            if (typeof window.mostrarSuporteSuspensao === "function") {
+              window.mostrarSuporteSuspensao(user.uid, data);
+            } else {
+              showAlert(
+                `A sua conta está suspensa. Motivo: ${data.suspensionReason || "violação das diretrizes"}. ` +
+                `Para pedir revisão, contacte o suporte por email: suporte@missingao.co.ao`,
+                { onOk: () => { window.location.href = "index.html"; } },
+              );
+            }
           } else if (!suspenso) {
             window._avisoSuspensaoMostrado = false;
+            document.getElementById("suporte-suspensao-overlay")?.remove();
           }
 
           // NOVO: mostra o botão de acesso ao painel admin no cabeçalho,
@@ -184,6 +189,15 @@ document.addEventListener("DOMContentLoaded", async function () {
   document
     .getElementById("enviarRelato")
     ?.addEventListener("click", enviarRelato);
+
+  // NOVO: link "Termos" no rodapé — versão só de leitura, disponível a
+  // qualquer visitante, mesmo sem sessão iniciada (convidados incluídos).
+  document
+    .getElementById("footer-termos")
+    ?.addEventListener("click", (e) => {
+      e.preventDefault();
+      mostrarTermosLeitura();
+    });
 });
 
 /* =========================================================================

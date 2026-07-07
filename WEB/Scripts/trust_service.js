@@ -1,155 +1,177 @@
-// Scripts/trust_service.js
-// ─────────────────────────────────────────────────────────────────────────────
-// Equivalente web do trust_service.dart do mobile. Usa transacções do
-// Firestore para garantir consistência entre o documento do utilizador e o
-// registo em trust_historico.
-//
-// Protegido do lado do servidor pelas Firestore Security Rules — escrever
-// em users/{uid} (update) e em users/{uid}/trust_historico exige
-// role == 'admin' no documento de quem está autenticado. O facto de este
-// código correr no browser (visível a qualquer pessoa que inspeccione o
-// JS) não é um problema de segurança: só protege quem já é admin, e essa
-// verificação é feita no servidor, não aqui.
-// ─────────────────────────────────────────────────────────────────────────────
+// trust_service.js
 
-import { db } from "./firebase.js";
 import {
-  doc,
-  runTransaction,
-  collection,
-  Timestamp,
+  doc, runTransaction, collection, orderBy, limit, query, getDocs,
+  serverTimestamp, increment as firestoreIncrement,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { db } from "./firebase.js";
+import { enviarEmailTrustStatus } from "./email_service.js";
+// NOVO: push FCM ao suspender/reactivar, igual ao mobile
+// (notification_service.dart → notificarSuspensao/notificarReactivacao).
+import { enviarPushParaUid } from "./fcm_push.js";
 
-// ── Estados, espelhando TrustEstado do mobile ─────────────────────────────
-export function estadoDeScore(score) {
-  if (score <= 0) return "suspenso";
-  if (score <= 29) return "risco";
-  if (score <= 59) return "aviso";
-  return "normal";
-}
+const historicoRef = (uid) => collection(db, 'users', uid, 'trust_historico');
 
-export function labelEstado(estado) {
-  switch (estado) {
-    case "normal": return "Normal";
-    case "aviso": return "Aviso";
-    case "risco": return "Risco";
-    case "suspenso": return "Suspenso";
-    default: return "—";
+// NOVO: ponto único que dispara email + push sempre que uma conta muda
+// de estado — evita repetir a mesma lógica em penalizar/reporNivel/
+// ajustarScore. Falhas num canal não bloqueiam o outro nem a transação
+// já concluída.
+async function _notificarEstadoConta(uid, suspenso, motivoOuScore) {
+  const titulo = suspenso ? '🚫 Conta Suspensa' : '✅ Conta Reactivada';
+  const corpo = suspenso
+    ? `A sua conta foi suspensa. Motivo: ${motivoOuScore || 'violação das diretrizes'}. Pode falar com o suporte a partir da app para pedir revisão.`
+    : `A sua conta foi reactivada com ${motivoOuScore} pontos de Trust Score. Já pode voltar a usar a plataforma normalmente.`;
+
+  try {
+    await enviarEmailTrustStatus(uid, !suspenso, motivoOuScore);
+  } catch (err) {
+    console.warn('[trust_service] Falha ao enviar email de estado de conta:', err);
+  }
+
+  try {
+    await enviarPushParaUid(uid, titulo, corpo, {
+      tipo: 'status_conta',
+      estado: suspenso ? 'suspensa' : 'reactivada',
+    });
+  } catch (err) {
+    console.warn('[trust_service] Falha ao enviar push de estado de conta:', err);
   }
 }
 
-// ── Penalizar utilizador (decrementa score) ───────────────────────────────
-// Retorna o score resultante. Lança excepção se o utilizador não existir
-// ou se a escrita for recusada pelas regras (ex.: quem chama não é admin).
-export async function penalizar({ uid, motivo, pontos, adminUid, detalhe }) {
-  if (!(pontos > 0)) throw new Error("pontos deve ser positivo");
-
-  let novoScore = 0;
+export async function penalizar(uid, pontos, motivo, adminUid, detalhe = '') {
+  let passouASuspenso = false;
 
   await runTransaction(db, async (tx) => {
-    const ref = doc(db, "users", uid);
-    const snap = await tx.get(ref);
-    if (!snap.exists()) {
-      throw new Error(`penalizar: utilizador "${uid}" não encontrado.`);
-    }
+    const ref = doc(db, 'users', uid);
+    const userDoc = await tx.get(ref);
+    if (!userDoc.exists) throw new Error(`Usuário ${uid} não existe.`);
 
-    const data = snap.data();
-    const scoreActual = typeof data.trustScore === "number" ? data.trustScore : 100;
-    novoScore = Math.max(0, Math.min(100, scoreActual - pontos));
+    const userData = userDoc.data();
+    const scoreAtual = userData.trustScore ?? 100;
+    const novoScore = Math.max(0, scoreAtual - pontos);
     const suspenso = novoScore <= 0;
+    passouASuspenso = scoreAtual > 0 && suspenso;
 
     tx.update(ref, {
       trustScore: novoScore,
       isSuspended: suspenso,
-      suspendedAt: suspenso ? Timestamp.now() : (data.suspendedAt ?? null),
-      suspensionReason: suspenso ? motivo : (data.suspensionReason ?? ""),
+      ...(suspenso && { suspendedAt: serverTimestamp(), suspensionReason: motivo }),
     });
 
-    const histRef = doc(collection(db, "users", uid, "trust_historico"));
+    const histRef = doc(historicoRef(uid));
     tx.set(histRef, {
-      tipo: "penalizacao",
+      tipo: 'penalizacao',
       motivo,
       pontos: -pontos,
-      scorePrev: scoreActual,
+      scorePrev: scoreAtual,
       scoreNovo: novoScore,
-      adminUid: adminUid ?? null,
-      detalhe: detalhe ?? null,
-      criadoEm: Timestamp.now(),
+      adminUid,
+      detalhe,
+      criadoEm: serverTimestamp(),
     });
   });
 
-  return novoScore;
+  if (passouASuspenso) {
+    await _notificarEstadoConta(uid, true, motivo);
+  }
 }
 
-// ── Ajuste manual de score (positivo ou negativo) ─────────────────────────
-export async function ajustarScore({ uid, delta, adminUid, motivo = "ajuste_manual" }) {
+export async function reporNivel(uid, adminUid, scoreReposto = 60, motivo = 'reativacao_admin') {
   await runTransaction(db, async (tx) => {
-    const ref = doc(db, "users", uid);
-    const snap = await tx.get(ref);
-    if (!snap.exists()) {
-      throw new Error(`ajustarScore: utilizador "${uid}" não encontrado.`);
-    }
+    const ref = doc(db, 'users', uid);
+    const userDoc = await tx.get(ref);
+    if (!userDoc.exists) throw new Error(`Usuário ${uid} não existe.`);
 
-    const scorePrev = typeof snap.data().trustScore === "number" ? snap.data().trustScore : 100;
-    const novoScore = Math.max(0, Math.min(100, scorePrev + delta));
-    const suspenso = novoScore <= 0;
+    const scorePrev = userDoc.data().trustScore ?? 0;
 
-    const update = { trustScore: novoScore, isSuspended: suspenso };
-    if (suspenso) {
-      update.suspendedAt = Timestamp.now();
-      update.suspensionReason = motivo;
-    }
-    tx.update(ref, update);
+    tx.update(ref, {
+      trustScore: scoreReposto,
+      isSuspended: false,
+      suspendedAt: null,
+      suspensionReason: '',
+      reativadoPor: adminUid,
+      reativadoEm: serverTimestamp(),
+    });
 
-    const histRef = doc(collection(db, "users", uid, "trust_historico"));
+    const histRef = doc(historicoRef(uid));
     tx.set(histRef, {
-      tipo: "ajuste_manual",
+      tipo: 'reativacao',
+      motivo,
+      pontos: scoreReposto - scorePrev,
+      scorePrev,
+      scoreNovo: scoreReposto,
+      adminUid,
+      criadoEm: serverTimestamp(),
+    });
+  });
+
+  await _notificarEstadoConta(uid, false, scoreReposto);
+}
+
+export async function ajustarScore(uid, delta, adminUid, motivo = 'ajuste_manual') {
+  let passouASuspenso = false;
+
+  await runTransaction(db, async (tx) => {
+    const ref = doc(db, 'users', uid);
+    const userDoc = await tx.get(ref);
+    if (!userDoc.exists) throw new Error(`Usuário ${uid} não existe.`);
+
+    const userData = userDoc.data();
+    const scorePrev = userData.trustScore ?? 100;
+    const novoScore = Math.min(100, Math.max(0, scorePrev + delta));
+    const suspenso = novoScore <= 0;
+    passouASuspenso = scorePrev > 0 && suspenso;
+
+    tx.update(ref, {
+      trustScore: novoScore,
+      isSuspended: suspenso,
+      ...(suspenso && { suspendedAt: serverTimestamp(), suspensionReason: motivo }),
+    });
+
+    const histRef = doc(historicoRef(uid));
+    tx.set(histRef, {
+      tipo: 'ajuste_manual',
       motivo,
       pontos: delta,
       scorePrev,
       scoreNovo: novoScore,
       adminUid,
-      criadoEm: Timestamp.now(),
+      criadoEm: serverTimestamp(),
     });
   });
+
+  if (passouASuspenso) {
+    await _notificarEstadoConta(uid, true, motivo);
+  }
 }
 
-// ── Repor nível (reactivação pelo admin) ──────────────────────────────────
-export async function reporNivel({ uid, adminUid, scoreReposto = 60, motivo = "reactivacao_admin" }) {
-  const scoreSeguro = Math.max(1, Math.min(100, scoreReposto));
-
-  await runTransaction(db, async (tx) => {
-    const ref = doc(db, "users", uid);
-    const snap = await tx.get(ref);
-    if (!snap.exists()) {
-      throw new Error(`reporNivel: utilizador "${uid}" não encontrado.`);
-    }
-    const scorePrev = typeof snap.data().trustScore === "number" ? snap.data().trustScore : 0;
-
-    tx.update(ref, {
-      trustScore: scoreSeguro,
-      isSuspended: false,
-      suspendedAt: null,
-      suspensionReason: "",
-      reativadoPor: adminUid,
-      reativadoEm: Timestamp.now(),
-    });
-
-    const histRef = doc(collection(db, "users", uid, "trust_historico"));
-    tx.set(histRef, {
-      tipo: "reativacao",
-      motivo,
-      pontos: scoreSeguro - scorePrev,
-      scorePrev,
-      scoreNovo: scoreSeguro,
-      adminUid,
-      criadoEm: Timestamp.now(),
-    });
-  });
+export async function historico(uid) {
+  const histRef = historicoRef(uid);
+  const q = query(histRef, orderBy('criadoEm', 'desc'), limit(50));
+  const snap = await getDocs(q);
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-// ── Valores fixos de penalização, espelhando o mobile ─────────────────────
-export const P_COMENTARIO_REMOVIDO = 10;
-export const P_CASO_DESMENTIDO = 20;
-export const P_CASO_REJEITADO = 15;
-export const P_COMPORTAMENTO_ABUSIVO = 25;
+// CORRIGIDO: esta função devolvia 'suspended' | 'danger' | 'warning' | 'good'
+// (nomes em inglês), mas o admin.css define as cores dos badges para as
+// classes .normal / .aviso / .risco / .suspenso (nomes em português, os
+// mesmos que o mobile usa no enum TrustEstado). Como as strings nunca
+// batiam certo, os badges apareciam sem cor E os botões de filtro do
+// painel Trust Scores (que comparam contra estes valores) nunca
+// encontravam ninguém — excepto o filtro "Todos". Os limiares (0/29/59)
+// também foram alinhados com os do mobile (TrustService.estadoDeScore).
+export function estadoDeScore(score) {
+  if (score <= 0) return 'suspenso';
+  if (score <= 29) return 'risco';
+  if (score <= 59) return 'aviso';
+  return 'normal';
+}
+
+export function labelEstado(estado) {
+  switch (estado) {
+    case 'suspenso': return '🚫 Suspenso';
+    case 'risco':    return '🔴 Risco';
+    case 'aviso':    return '⚠ Aviso';
+    default:         return '✅ Normal';
+  }
+}

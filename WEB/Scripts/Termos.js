@@ -77,6 +77,37 @@ nova aceitação explícita antes de continuar a usar a aplicação.</p>
 
 let _gateAberto = false;
 
+// NOVO: versão só de leitura, sem checkbox nem gravação — para o link
+// "Termos" no rodapé do index.html, acessível a qualquer pessoa (mesmo
+// convidados), só para consulta.
+export function mostrarTermosLeitura() {
+  const overlay = document.createElement("div");
+  overlay.id = "termos-leitura-overlay";
+  overlay.style.cssText =
+    "position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);padding:16px;";
+
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);font-family:var(--font-base,'Quicksand',sans-serif);overflow:hidden;">
+      <div style="padding:18px 22px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:16px;color:#222;">Termos e Condições</h3>
+        <button id="termos-leitura-fechar" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1;">&times;</button>
+      </div>
+      <div style="padding:20px 22px;overflow-y:auto;flex:1;font-size:13px;line-height:1.6;color:#333;">
+        ${textoTermos}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const fechar = () => overlay.remove();
+  overlay.querySelector("#termos-leitura-fechar").addEventListener("click", fechar);
+  // Fecha também ao clicar fora do cartão (no fundo escurecido)
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) fechar();
+  });
+}
+
 /**
  * Mostra o modal bloqueante de aceitação de termos. Exige scroll até ao
  * fim do texto + checkbox marcada antes de activar o botão — mesma regra
@@ -175,3 +206,9 @@ export function mostrarGateTermos(db, uid, onAceite) {
     }
   });
 }
+
+// Expõe as funções globalmente para uso directo no HTML (onclick=)
+// sem depender de resolução de módulos ES — resolve o problema do
+// listener do footer-termos não disparar por questões de import.
+window.mostrarTermosLeitura = mostrarTermosLeitura;
+window.mostrarGateTermos    = mostrarGateTermos;

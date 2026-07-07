@@ -6,7 +6,7 @@ const parte3 = "WJ8EFJDSBw072c";
 const GEMINI_API_KEY = parte1 + parte2 + parte3;
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Elementos HTML
+  // Elementos HTMLA
   // Abrir chat
   const chatOpenElements = Array.from(
     document.querySelectorAll("#chatbot, #chat_bot"),

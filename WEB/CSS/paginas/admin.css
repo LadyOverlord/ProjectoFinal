@@ -35,7 +35,15 @@
 body {
   display: none; /* Começa escondido — JS define display:flex após verificar role */
   flex-direction: column;
-  min-height: 100vh;
+  /* CORRIGIDO: era min-height:100vh. Com min-height o body podia crescer
+     mais alto que o ecrã, e como <html> tem overflow-y:hidden, esse
+     excesso ficava simplesmente invisível — sem scrollbar nenhuma. Com
+     height fixo a 100vh, o body ocupa exactamente o ecrã e é o
+     main.content (abaixo) que ganha scroll próprio para o conteúdo que
+     não cabe — é isso que faltava em Aprovações, Comentários, Trust
+     Scores e Suporte. */
+  height: 100vh;
+  overflow: hidden;
   background: var(--gray-50);
 }
 html {
@@ -50,9 +58,17 @@ nav {
   padding: 10px 20px;
   margin-left: 20vw;
   width: calc(100% - 20vw);
+  flex-shrink: 0; /* NOVO — mantém a barra do topo com altura fixa
+    mesmo quando main.content cresce e ganha scroll próprio. */
 }
 .search {
-  display: flex;
+  /* CORRIGIDO: esta barra só filtra Utilizadores (ver aplicarFiltrosUsuarios
+     no admin.js), mas ficava sempre visível em TODOS os painéis. Escrever
+     nela em Aprovações, Anúncios, Mapa, etc. saltava sempre para
+     Utilizadores sem qualquer aviso. Agora começa escondida por defeito;
+     o admin.js (_atualizarBarraPesquisaTopo) só a revela quando o
+     painel Utilizadores está activo. */
+  display: none;
   align-items: center;
   background-color: var(--gray-100);
   border-radius: var(--radius-sm);
@@ -138,6 +154,13 @@ main.content {
   margin-left: 20vw;
   padding: 24px;
   flex: 1;
+  /* NOVO — era isto que faltava para Aprovações, Comentários, Trust
+     Scores e Suporte conseguirem rolar. min-height:0 é crítico em
+     filhos flex: sem ele, o elemento tenta crescer ao tamanho do seu
+     conteúdo e empurra a página inteira, e como <html> tem
+     overflow-y:hidden esse excesso fica invisível em vez de dar scroll. */
+  min-height: 0;
+  overflow-y: auto;
 }
 /* panel visibility */
 .content .panel {
@@ -227,6 +250,9 @@ main.content {
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(12, 122, 181, 0.2);
   transition: 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn-approve-pub:hover {
@@ -353,8 +379,7 @@ main.content {
   margin-left: 4px;
 }
 
-/* NOVO — badge de estado do Trust Score (Normal/Aviso/Risco/Suspenso).
-   Antes era construído com estilos inline directamente no admin.js. */
+/* Badge de estado do Trust Score (Normal/Aviso/Risco/Suspenso). */
 .trust-badge {
   display: inline-block;
   margin-top: 3px;
@@ -737,7 +762,6 @@ main.content {
 .btn-danger-icon:hover {
   background: var(--color-danger-soft);
 }
-/* NOVO — variante verde, para o botão "Reactivar" */
 .btn-success-icon {
   color: var(--color-success);
 }
@@ -784,7 +808,8 @@ main.content {
 
 #modal-editar-localizacao,
 #modal-caso-detalhes,
-#modal-historico {
+#modal-historico,
+#modal-ajustar-score {
   display: flex;
   animation: slideInModal 0.2s ease-out;
 }
@@ -833,9 +858,7 @@ main.content {
 }
 
 /* =====================================================
-   NOVO — MODAL DE HISTÓRICO COMPLETO
-   Antes tinha tudo em estilos inline no admin.html — agora
-   segue o mesmo sistema visual do resto do painel.
+   MODAL DE HISTÓRICO COMPLETO
    ===================================================== */
 #modal-historico .admin-card {
   padding: 24px;
@@ -1092,3 +1115,150 @@ main.content {
 }
 .relator-badge.ok   { background: var(--color-success-soft); color: var(--color-success); }
 .relator-badge.warn { background: var(--color-warning-soft); color: var(--color-warning); }
+
+/* =====================================================
+   NOVO — PAINÉIS: COMENTÁRIOS, TRUST SCORES, SUPORTE
+   ===================================================== */
+
+/* Filtros de estado do painel Trust Scores. Antes usavam .btn-admin-sm
+   directamente, que já É azul sólido por defeito — os 5 botões (Todos,
+   Normal, Aviso, Risco, Suspenso) ficavam todos com o mesmo aspecto
+   "seleccionado" e era impossível ver qual estava realmente activo.
+   Agora o estado por omissão é neutro e só .filtro-ativo fica destacado. */
+#trust-filtro-estado .btn-admin-sm {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+#trust-filtro-estado .btn-admin-sm:hover {
+  background: var(--gray-200);
+}
+#trust-filtro-estado .btn-admin-sm.filtro-ativo {
+  background: var(--color-quaternary);
+  color: #fff;
+}
+#trust-filtro-estado .btn-admin-sm.filtro-ativo:hover {
+  background: #0a6596;
+}
+
+/* =====================================================
+   NOVO — RESPONSIVIDADE DO PAINEL ADMIN
+   O layout original assume sempre uma sidebar fixa de 20vw — em
+   telemóvel isso dá uma coluna lateral ilegível (20vw = 75px num ecrã
+   de 375px). Abaixo dos 900px a sidebar passa a "drawer" escondida por
+   defeito, que desliza para dentro ao tocar no botão hambúrguer.
+   ===================================================== */
+
+.btn-menu-mobile {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 19px;
+  color: var(--gray-700);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+}
+.btn-menu-mobile:hover {
+  background: var(--gray-100);
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 90;
+}
+.sidebar-backdrop.active {
+  display: block;
+}
+
+/* Grid do modal "Corrigir Localização" — 2 colunas no desktop, 1 em mobile */
+.modal-loc-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 900px) {
+  .btn-menu-mobile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Sidebar passa a painel deslizante, escondido por defeito */
+  .options {
+    width: 78vw;
+    max-width: 300px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease-out;
+    z-index: 100;
+    box-shadow: 6px 0 28px rgba(0, 0, 0, 0.18);
+  }
+  .options.open {
+    transform: translateX(0);
+  }
+
+  /* Sem sidebar fixa visível, nav e conteúdo ocupam a largura toda */
+  nav {
+    margin-left: 0;
+    width: 100%;
+    padding: 10px 14px;
+  }
+  main.content {
+    margin-left: 0;
+    padding: 16px;
+  }
+
+  /* Cartões de estatística do Dashboard — 2 por linha em vez de 4 */
+  .cards-container {
+    flex-wrap: wrap;
+  }
+  .card-stat {
+    min-width: calc(50% - 10px);
+  }
+
+  /* Formulário de anúncios — 1 coluna */
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Modal "Corrigir Localização" — lista e mapa empilhados */
+  .modal-loc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Filtros do painel Utilizadores — já quebram linha, só reduz o
+     tamanho mínimo para caberem melhor num ecrã estreito */
+  .filter-field {
+    min-width: 130px;
+  }
+
+  /* Search bar do topo (painel Utilizadores) não deve encolher o título */
+  .search {
+    width: 100%;
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-stat {
+    min-width: 100%;
+  }
+  main.content {
+    padding: 12px;
+  }
+  .card-aprovar,
+  .admin-card {
+    padding: 16px;
+  }
+  .admin-actions {
+    flex-direction: column;
+  }
+  nav {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #nav-titulo {
+    font-size: 15px;
+  }
+}
