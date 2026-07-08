@@ -20,6 +20,25 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.8.0/fi
 import { iniciarCarrossel } from "./carousel.js";
 import { versaoTermosActual, mostrarGateTermos, mostrarTermosLeitura } from "./termos.js"; // ← NOVO
 
+(async () => {
+  try {
+    const snap = await getDocs(collection(db, "casos"));
+    let total = 0,
+      encontrados = 0;
+    snap.forEach((d) => {
+      total++;
+      if (d.data().status === "encontrado") encontrados++;
+    });
+    const elTotal = document.getElementById("s-casos");
+    const elEnc = document.getElementById("s-enc");
+    if (elTotal) elTotal.textContent = total;
+    if (elEnc) elEnc.textContent = encontrados;
+  } catch (_) {
+    /* silencioso — apenas decorativo */
+  }
+})();
+
+
 // Estado global
 let todosOsCasos = [];
 let currentUser = null;
