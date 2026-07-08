@@ -19,7 +19,7 @@ import {
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 import { iniciarCarrossel } from "./carousel.js";
 import { versaoTermosActual, mostrarGateTermos, mostrarTermosLeitura } from "./termos.js"; // ← NOVO
-
+ 
 (async () => {
   try {
     const snap = await getDocs(collection(db, "casos"));
@@ -37,7 +37,7 @@ import { versaoTermosActual, mostrarGateTermos, mostrarTermosLeitura } from "./t
     /* silencioso — apenas decorativo */
   }
 })();
-
+ 
 
 // Prefixo de caminho: "" quando servido de WEB/, "WEB/" quando servido da raiz do repo
 const _pathPrefix = /\/WEB(\/|$)/i.test(window.location.pathname) ? '' : 'WEB/';
@@ -718,7 +718,6 @@ async function abrirDetalhesCaso(casoId) {
       </div>`
           : ""
       }
-
       ${
         caso.tipo_deficiencia
           ? `
