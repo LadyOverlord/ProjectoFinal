@@ -20,53 +20,54 @@ export const db   = getFirestore(app);
 export const storage = getStorage(app);
 
 // ---------------------------------------------------------------------------
-// _webBase: devolve o URL absoluto da pasta /WEB/ independentemente de
-// onde a página está a ser servida (raiz do repo, /WEB/, localhost, etc.)
-//
+// _origin: devolve "https://host/repo" (sem barra no fim)
 // Exemplos:
-//   https://missing-ao.github.io/ProjectoFinal/index.html
-//     → https://missing-ao.github.io/ProjectoFinal/WEB/
-//   https://missing-ao.github.io/ProjectoFinal/WEB/login_cadastro.html
-//     → https://missing-ao.github.io/ProjectoFinal/WEB/
-//   http://127.0.0.1:5500/WEB/index.html
-//     → http://127.0.0.1:5500/WEB/
-//   http://127.0.0.1:5500/index.html  (live server na raiz)
-//     → http://127.0.0.1:5500/WEB/
+//   https://missing-ao.github.io/ProjectoFinal/WEB/login.html
+//     → https://missing-ao.github.io/ProjectoFinal
+//   http://127.0.0.1:5500/WEB/login.html
+//     → http://127.0.0.1:5500
 // ---------------------------------------------------------------------------
-function _webBase() {
+function _repoRoot() {
   const loc  = window.location;
-  const path = loc.pathname; // ex: /ProjectoFinal/WEB/login_cadastro.html
+  const path = loc.pathname;
 
-  // Se já estamos dentro de /WEB/, a base é o directório actual
-  if (/\/WEB\//i.test(path)) {
-    // "https://host/repo/WEB/pagina.html" → "https://host/repo/WEB/"
-    return loc.origin + path.substring(0, path.toLowerCase().lastIndexOf("/web/") + 5);
+  // Em GitHub Pages o pathname é /REPO/... — o repo root é /REPO
+  // Em localhost o pathname é /... — o repo root é ""
+  // Detectar: se o primeiro segmento NÃO é "WEB", é o nome do repo
+  const parts = path.split("/").filter(Boolean); // ["ProjectoFinal","WEB","login.html"]
+  
+  if (parts.length > 0 && parts[0].toUpperCase() !== "WEB") {
+    // GitHub Pages: origin + /REPO
+    return loc.origin + "/" + parts[0];
   }
-
-  // Estamos fora de /WEB/ (raiz do repo ou localhost raiz).
-  // Construir base a partir do directório da página actual + "WEB/"
-  const dir = path.substring(0, path.lastIndexOf("/") + 1); // ex: /ProjectoFinal/
-  return loc.origin + dir + "WEB/";
+  // Localhost: apenas origin
+  return loc.origin;
 }
 
 // ---------------------------------------------------------------------------
-// navigateToTarget(name)
-// Navega para uma página dentro de /WEB/ (ex: "index.html", "admin.html").
-// Funciona em localhost e GitHub Pages independentemente de onde a página
-// actual está.
+// Estrutura do projecto:
+//   /index.html          ← home (app principal)
+//   /WEB/login_cadastro.html
+//   /WEB/admin.html
+//   /WEB/profile.html
+//
+// "index.html" → raiz do repo
+// tudo o resto → /WEB/
 // ---------------------------------------------------------------------------
 export async function navigateToTarget(name) {
-  window.location.href = _webBase() + name;
+  const root = _repoRoot();
+  if (name === "index.html") {
+    window.location.href = root + "/index.html";
+  } else {
+    window.location.href = root + "/WEB/" + name;
+  }
 }
 
-// ---------------------------------------------------------------------------
-// navigateToLogin
-// ---------------------------------------------------------------------------
 export async function navigateToLogin() {
-  window.location.href = _webBase() + "login_cadastro.html";
+  const root = _repoRoot();
+  window.location.href = root + "/WEB/login_cadastro.html";
 }
 
-// Mantida por compatibilidade
 export function getLoginPath() {
-  return _webBase() + "login_cadastro.html";
+  return _repoRoot() + "/WEB/login_cadastro.html";
 }
