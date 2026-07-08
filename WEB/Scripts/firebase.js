@@ -1,4 +1,28 @@
-// js/firebase.js
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
@@ -13,112 +37,106 @@ const firebaseConfig = {
   appId: "1:489576604551:web:2625dd76489772a2662922"
 };
 
-// Inicializa Firebase
 const app = initializeApp(firebaseConfig);
 
-console.log('Firebase inicializado para projeto:', firebaseConfig.projectId);
+console.log('Firebase inicializado para projecto:', firebaseConfig.projectId);
 
-// Exporta Auth e Firestore
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// Retorna o caminho correto para a página de login/registro
-export function getLoginPath() {
+// ---------------------------------------------------------------------------
+// _basePath: detecta o prefixo do repo no GitHub Pages (ex: "/missingao")
+// Em localhost devolve "". Em GitHub Pages devolve "/REPO_NAME".
+// Usado para construir URLs absolutas correctas em qualquer ambiente.
+// ---------------------------------------------------------------------------
+function _basePath() {
   try {
-    const p = window.location.pathname || "";
-    // Se a página actual já estiver dentro da pasta /WEB, use caminho relativo
-    if (/\/WEB(\/|$)/.test(p)) return "login_cadastro.html";
-    // Caso contrário, redirecionar para a página dentro da pasta WEB a partir da raiz
-    return "WEB/login_cadastro.html";
-  } catch (e) {
-    return "WEB/login_cadastro.html";
-  }
+    const parts = window.location.pathname.split('/');
+    // pathname em GitHub Pages: /REPO/WEB/pagina.html  → parts[1] = "REPO"
+    // pathname em localhost:     /WEB/pagina.html       → parts[1] = "WEB"
+    // Se parts[1] === "WEB" estamos em localhost sem subpasta de repo
+    if (parts[1] && parts[1].toUpperCase() !== 'WEB') {
+      return '/' + parts[1]; // ex: "/missingao"
+    }
+  } catch (_) {}
+  return '';
 }
 
+// ---------------------------------------------------------------------------
+// _inWEB: true se a página actual já está dentro da pasta /WEB/
+// ---------------------------------------------------------------------------
+function _inWEB() {
+  return /\/WEB(\/|$)/i.test(window.location.pathname);
+}
+
+// ---------------------------------------------------------------------------
+// navigateToLogin
+// Sempre navega para WEB/login_cadastro.html relativo à raiz do repo.
+// ---------------------------------------------------------------------------
 export async function navigateToLogin() {
-  const origin = window.location.origin || '';
-  const base = window.location.href;
+  const base  = _basePath();
+  // Se já estamos em /WEB/ → relativo à pasta actual
+  const url = _inWEB()
+    ? new URL('login_cadastro.html', window.location.href).href
+    : window.location.origin + base + '/WEB/login_cadastro.html';
+  window.location.href = url;
+}
+
+// ---------------------------------------------------------------------------
+// navigateToTarget(name)
+// Navega para uma página dentro de /WEB/ (ex: "index.html", "admin.html").
+// Funciona em localhost, localhost:PORT e GitHub Pages /REPO/WEB/*.
+// ---------------------------------------------------------------------------
+export async function navigateToTarget(name) {
+  const base = _basePath();
+
+  // Candidatos, do mais provável para o menos:
   const candidates = [
-    new URL('login_cadastro.html', base).href,
-    new URL('WEB/login_cadastro.html', base).href,
-    origin + '/login_cadastro.html',
-    origin + '/WEB/login_cadastro.html',
+    // 1. Mesmo directório (estamos em /WEB/, o alvo também está em /WEB/)
+    new URL(name, window.location.href).href,
+    // 2. Absoluto com base do repo  (ex: /missingao/WEB/index.html)
+    window.location.origin + base + '/WEB/' + name,
+    // 3. Pai relativo (caso raro: chamado de fora de /WEB/)
+    new URL('../WEB/' + name, window.location.href).href,
   ].filter(Boolean);
 
-  for (const url of candidates) {
+  // Remove duplicatas mantendo a ordem
+  const seen = new Set();
+  const unique = candidates.filter(u => {
+    if (seen.has(u)) return false;
+    seen.add(u);
+    return true;
+  });
+
+  for (const url of unique) {
     try {
+      console.debug('[nav] a testar', url);
       const res = await fetch(url, { method: 'HEAD' });
       if (res && res.ok) {
-        console.log('navigateToLogin: redirecting to', url);
+        console.debug('[nav] a redirigir para', url);
         window.location.href = url;
         return;
       }
-    } catch (e) {
-      // HEAD may be blocked; try GET as fallback
+    } catch (_) {
+      // HEAD bloqueado (CORS) — tenta GET
       try {
         const res2 = await fetch(url, { method: 'GET' });
         if (res2 && res2.ok) {
-          console.log('navigateToLogin: redirecting to (GET)', url);
           window.location.href = url;
           return;
         }
-      } catch (e2) {
-        // ignore and try next
-      }
+      } catch (_2) { /* ignorar */ }
     }
   }
 
-  // Fallback: try relative path
-  const fallback = 'WEB/login_cadastro.html';
-  console.warn('navigateToLogin: no candidate found, using fallback', fallback);
+  // Fallback garantido: mesmo directório
+  const fallback = new URL(name, window.location.href).href;
+  console.warn('[nav] fallback para', fallback);
   window.location.href = fallback;
 }
 
-// Navega para um alvo testando múltiplos candidatos para evitar 404s.
-export async function navigateToTarget(name) {
-  const base = window.location.href;
-  const origin = window.location.origin || '';
-  const candidates = [
-    // Prefer root absolute (most servers serve index at root)
-    origin + '/' + name,
-    // Then try parent-relative (e.g., from WEB/login_cadastro.html -> ../index.html)
-    new URL('../' + name, base).href,
-    // Then same-directory (e.g., WEB/index.html)
-    new URL(name, base).href,
-    // Then /WEB/name
-    origin + '/WEB/' + name,
-    new URL('WEB/' + name, base).href,
-  ].filter(Boolean);
-
-  for (const url of candidates) {
-    try {
-      console.debug('navigateToTarget: testing', url);
-      const res = await fetch(url, { method: 'HEAD' });
-      console.debug('navigateToTarget: HEAD', url, res && res.status);
-      if (res && res.ok) {
-        console.debug('navigateToTarget: redirecting to', url);
-        window.location.href = url;
-        return;
-      }
-    } catch (e) {
-      try {
-        console.debug('navigateToTarget: HEAD failed, trying GET', url, e);
-        const res2 = await fetch(url, { method: 'GET' });
-        console.debug('navigateToTarget: GET', url, res2 && res2.status);
-        if (res2 && res2.ok) {
-          console.debug('navigateToTarget: redirecting to (GET)', url);
-          window.location.href = url;
-          return;
-        }
-      } catch (e2) {
-        console.debug('navigateToTarget: GET also failed', url, e2);
-        // ignore and try next
-      }
-    }
-  }
-
-  // fallback: try parent-relative then same-dir then first candidate
-  const fallback = new URL('../' + name, base).href || new URL(name, base).href || candidates[0] || name;
-  window.location.href = fallback;
+// Mantida por compatibilidade com código legado que ainda a importe
+export function getLoginPath() {
+  return _inWEB() ? 'login_cadastro.html' : 'WEB/login_cadastro.html';
 }

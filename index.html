@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
@@ -57,11 +57,15 @@
           <i class="fa-solid fa-robot" id="chat_bot"></i>
         </button>
 
+        <!-- NOVO: acesso ao painel admin, equivalente ao ícone condicional
+             que já existe no mobile (home_page.dart, _isAdmin). Escondido
+             por defeito — o principal.js mostra isto só depois de
+             confirmar, via Firestore, que o utilizador tem role="admin". -->
         <a href="WEB/admin.html" class="nave_button_none" id="btn-admin-panel" style="display:none;" title="Painel de Administração">
           <i class="fa-solid fa-user-shield"></i>
         </a>
 
-        <a href="WEB/profile.html" style="background: none;" class="nave_button_none" id="user">
+        <a href="WEB/profile.html"  style="background: none;"  class="nave_button_none" id="user">
           <img id="nav-avatar" style="border: 2px solid rgb(0, 145, 255);" class="nav-avatar" src="WEB/imgs/user.jpg" alt="Perfil" onerror="this.src='WEB/imgs/user.jpg'" />
         </a>
         
@@ -84,10 +88,25 @@
           <div id="mapa-desaparecidos" class="mapa-real"></div>
         </div>
 
+        <!-- DESTAQUES 
+        <div class="destaques">
+          <h1>EM DESTAQUE</h1>
+          <div class="destaque" id="destaque">
+            <img src="WEB/imgs/user.jpg" alt="" />
+            <p>Carregando...</p>
+          </div>
+        </div> -->
+
         <!-- FILTROS -->
         <div class="filtros">
           <h1>FILTROS</h1>
-          <hr style="border: 0.1px solid rgba(0, 0, 0, 0.089); width: 90%; margin: 8px 2px;" />
+          <hr
+            style="
+              border: 0.1px solid rgba(0, 0, 0, 0.089);
+              width: 90%;
+              margin: 8px 2px;
+            "
+          />
 
           <div class="onde">
             <h2>ONDE</h2>
@@ -154,7 +173,11 @@
           <div class="caracter">
             <h2>CARACTERÍSTICAS</h2>
             <div class="check-row">
-              <input type="checkbox" id="com_deficiencia" name="com_deficiencia" />
+              <input
+                type="checkbox"
+                id="com_deficiencia"
+                name="com_deficiencia"
+              />
               <label for="com_deficiencia">Com deficiência</label>
             </div>
             <span id="resultado-count"></span>
@@ -206,9 +229,15 @@
           <button><i class="fa-solid fa-xmark"></i></button>
         </header>
         <nav>
-          <a href="#" id="pessoaActive"><i class="fa-solid fa-user"></i> Pessoa</a>
-          <a href="#" id="localActive"><i class="fa-solid fa-location-dot"></i> Local</a>
-          <a href="#" id="detalhesActive"><i class="fa-solid fa-clipboard-list"></i> Detalhes</a>
+          <a href="#" id="pessoaActive"
+            ><i class="fa-solid fa-user"></i> Pessoa</a
+          >
+          <a href="#" id="localActive"
+            ><i class="fa-solid fa-location-dot"></i> Local</a
+          >
+          <a href="#" id="detalhesActive"
+            ><i class="fa-solid fa-clipboard-list"></i> Detalhes</a
+          >
         </nav>
 
         <div class="formulario">
@@ -224,9 +253,19 @@
             </div>
             <input type="file" accept="image/*" name="imagem" id="input-imagem-relato" required style="display:none;"/>
             <label>Nome completo</label>
-            <input type="text" name="nome" placeholder="Nome completo" required />
+            <input
+              type="text"
+              name="nome"
+              placeholder="Nome completo"
+              required
+            />
             <label>Idade</label>
-            <input type="text" name="idade" placeholder="Ex: 25 anos" required />
+            <input
+              type="text"
+              name="idade"
+              placeholder="Ex: 25 anos"
+              required
+            />
             <label>Sexo</label>
             <select name="sexo" id="sexo-form">
               <option value="" hidden>Selecione</option>
@@ -264,13 +303,24 @@
             </select>
             <div id="municipio-field-relatar" style="display: none">
               <label>Município</label>
-              <select name="municipio" id="municipio_relatar" style="width: 100%" required>
+              <select
+                name="municipio"
+                id="municipio_relatar"
+                style="width: 100%"
+                required
+              >
                 <option value="" hidden>Selecione o município</option>
               </select>
             </div>
 
             <label>Último local conhecido</label>
-            <input type="text" name="ultimo_local" id="ultimo_local_input" placeholder="Ex: Perto do mercado do São Paulo" required />
+            <input
+              type="text"
+              name="ultimo_local"
+              id="ultimo_local_input"
+              placeholder="Ex: Perto do mercado do São Paulo"
+              required
+            />
 
             <!-- MAPA PICKER -->
             <div class="mapa-form-wrapper">
@@ -279,10 +329,18 @@
                 <span>Clique no mapa para marcar o local exacto</span>
               </div>
               <div id="mapa-form" class="mapa-form-map"></div>
-              <div class="mapa-form-coords" id="mapa-form-coords" style="display: none">
+              <div
+                class="mapa-form-coords"
+                id="mapa-form-coords"
+                style="display: none"
+              >
                 <i class="fa-solid fa-circle-check" style="color: #2ecc71"></i>
                 <span id="mapa-form-addr">Local marcado</span>
-                <button type="button" id="mapa-form-limpar" class="btn-mapa-limpar">
+                <button
+                  type="button"
+                  id="mapa-form-limpar"
+                  class="btn-mapa-limpar"
+                >
                   <i class="fa-solid fa-xmark"></i> Remover
                 </button>
               </div>
@@ -299,7 +357,11 @@
           <!-- 3. DETALHES -->
           <div class="detalhes_div" id="detalhesDiv">
             <label>Roupas que usava</label>
-            <input type="text" name="roupas" placeholder="Ex: Camisa azul e calça jeans" />
+            <input
+              type="text"
+              name="roupas"
+              placeholder="Ex: Camisa azul e calça jeans"
+            />
             <label>Deficiência</label>
             <select name="deficiencia" id="deficiencia">
               <option value="" hidden>Selecione</option>
@@ -308,10 +370,21 @@
             </select>
             <div id="tipo_deficiencia_field" style="display: none">
               <label for="tipo_deficiencia_input">Tipo de deficiência</label>
-              <input type="text" id="tipo_deficiencia_input" name="tipo_deficiencia" placeholder="Descreva a deficiência" />
+              <input
+                type="text"
+                id="tipo_deficiencia_input"
+                name="tipo_deficiencia"
+                placeholder="Descreva a deficiência"
+              />
             </div>
             <label>Informações adicionais</label>
-            <textarea name="informacoes_adicionais" id="informacoes_adicionais" cols="30" rows="5" placeholder="Outras informações úteis..."></textarea>
+            <textarea
+              name="informacoes_adicionais"
+              id="informacoes_adicionais"
+              cols="30"
+              rows="5"
+              placeholder="Outras informações úteis..."
+            ></textarea>
           </div>
         </div>
 
@@ -321,6 +394,7 @@
       </div>
     </section>
 
+
     <!-- ====== MODAL: DETALHES DO CASO ====== -->
     <div class="caso-detalhes-overlay hidden" id="casoDetalhesOverlay">
       <div class="caso-detalhes-backdrop" id="casoDetalhesBackdrop"></div>
@@ -328,11 +402,13 @@
         <button class="caso-detalhes-close" id="casoDetalhesClose">
           <i class="fa-solid fa-xmark"></i>
         </button>
-        <div id="casoDetalhesBody"></div>
+        <div id="casoDetalhesBody">
+          <!-- Preenchido dinamicamente pelo principal.js -->
+        </div>
       </div>
     </div>
 
-    <!-- ====== MENU DE OPÇÕES DO CARD ====== -->
+    <!-- ====== MENU DE OPÇÕES DO CARD (Ver detalhes / Ver no mapa) ====== -->
     <div class="card-menu-popover hidden" id="cardMenuPopover">
       <button class="card-menu-item" id="cardMenuDetalhes">
         <i class="fa-solid fa-circle-info"></i> Ver mais detalhes
@@ -355,26 +431,44 @@
         </header>
         <div class="chatbot_messages" id="chatbotMessages"></div>
         <div class="chatbot_suggestions" id="chatbotSuggestions">
-          <button class="suggestion_btn" data-suggestion="Como faço para reportar um desaparecimento?">
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como faço para reportar um desaparecimento?"
+          >
             <i class="fa-solid fa-plus"></i> Como reportar um desaparecimento?
           </button>
-          <button class="suggestion_btn" data-suggestion="Quais informações são necessárias?">
-            <i class="fa-solid fa-question"></i> Quais informações são necessárias?
+          <button
+            class="suggestion_btn"
+            data-suggestion="Quais informações são necessárias?"
+          >
+            <i class="fa-solid fa-question"></i> Quais informações são
+            necessárias?
           </button>
-          <button class="suggestion_btn" data-suggestion="Como filtrar casos por localização?">
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como filtrar casos por localização?"
+          >
             <i class="fa-solid fa-location-dot"></i> Filtrar por localização?
           </button>
-          <button class="suggestion_btn" data-suggestion="Como posso ajudar a encontrar alguém?">
+          <button
+            class="suggestion_btn"
+            data-suggestion="Como posso ajudar a encontrar alguém?"
+          >
             <i class="fa-solid fa-heart"></i> Como ajudar a encontrar alguém?
           </button>
         </div>
         <div class="chatbot_input_section">
-          <input type="text" id="chatbotInput" placeholder="Digite sua mensagem..." />
+          <input
+            type="text"
+            id="chatbotInput"
+            placeholder="Digite sua mensagem..."
+          />
           <button id="sendChatbotMessage" title="Enviar">
             <i class="fa-solid fa-paper-plane"></i>
           </button>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- botão flutuante para reabrir anúncio minimizado -->
@@ -384,21 +478,25 @@
    
     <!-- Janela anúncio (mobile) e menu inferior -->
     <div id="mobile-ad" class="mobile-ad" aria-hidden="false">
+      <!-- Cabeçalho: título e controles -->
       <div class="mobile-ad-header" id="mobile-ad-header">
         <div class="mobile-ad-header-left">
           <i class="fa-solid fa-bullhorn"></i>
           <span>Alertas &amp; Dicas</span>
         </div>
         <div class="mobile-ad-controls">
+          <!-- Minimizar -->
           <button class="mobile-ad-btn" id="mobile-ad-minimize" title="Minimizar">
             <i class="fa-solid fa-minus"></i>
           </button>
+          <!-- Fechar -->
           <button class="mobile-ad-btn" id="mobile-ad-close" title="Fechar">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
       </div>
       <div class="mobile-ad-inner" id="mobile-ad-inner">
+        <!-- Toggle antigo (compatibilidade) -->
         <button id="mobile-ad-toggle" class="mobile-ad-toggle" aria-label="Minimizar anúncio" style="display:none">
           <i class="fa-solid fa-minus"></i>
         </button>
@@ -413,17 +511,19 @@
     <div id="mobile-bottom-menu" class="mobile-bottom-menu" aria-hidden="false">
       <button class="mb-btn" id="mb-map" title="Mapa"><i class="fa-solid fa-filter"></i><span>Filtros</span></button>
       <button class="mb-btn" id="mb-relatar" title="Relatar"><i class="fa-solid fa-pen-to-square"></i><span>Relatar</span></button>
-      <button class="mb-btn" id="chatbot">
-        <i class="fa-solid fa-robot" id="chat_bot"></i><span>IA</span>
-      </button>
+       <button class="mb-btn" id="chatbot">
+          <i class="fa-solid fa-robot" id="chat_bot"></i><span>IA</span>
+        </button>
       <a href="WEB/profile.html" style="background: none;" id="user">
-        <img id="nav-avatar" style="border: 2px solid rgb(0, 145, 255);" class="nav-avatar" src="WEB/imgs/user.jpg" alt="Perfil" onerror="this.src='WEB/imgs/user.jpg'" /><span>Perfil</span>
-      </a>
+          <img id="nav-avatar"  style="border: 2px solid rgb(0, 145, 255);"  class="nav-avatar" src="WEB/imgs/user.jpg" alt="Perfil" onerror="this.src='WEB/imgs/user.jpg'" /><span>Perfil</span>
+        </a>
+      
     </div>
 
     <script src="WEB/Scripts/alerts.js"></script>
-    <script src="WEB/Scripts/chatbot.js"></script>
-    <script type="module" src="WEB/Scripts/suporte_suspensao.js"></script>
-    <script type="module" src="WEB/Scripts/principal.js"></script>
+      <script src="WEB/Scripts/chatbot.js"></script>
+      <script type="module" src="WEB/Scripts/suporte_suspensao.js"></script>
+      <script type="module" src="WEB/Scripts/principal.js"></script>
   </body>
 </html>
+

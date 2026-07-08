@@ -1,4 +1,4 @@
-import { auth, db, navigateToLogin } from "./firebase.js";
+import { auth, db, navigateToLogin, navigateToTarget } from "./firebase.js";
 import {
   collection,
   addDoc,
@@ -38,6 +38,9 @@ import { versaoTermosActual, mostrarGateTermos, mostrarTermosLeitura } from "./t
   }
 })();
 
+
+// Prefixo de caminho: "" quando servido de WEB/, "WEB/" quando servido da raiz do repo
+const _pathPrefix = /\/WEB(\/|$)/i.test(window.location.pathname) ? '' : 'WEB/';
 
 // Estado global
 let todosOsCasos = [];
@@ -98,7 +101,7 @@ onAuthStateChanged(auth, async (user) => {
         (snap) => {
           if (!snap.exists()) return;
           const data = snap.data();
-          const src = data.photoBase64 || user.photoURL || "WEB/imgs/user.jpg";
+          const src = data.photoBase64 || user.photoURL || "imgs/user.jpg";
           document.querySelectorAll(".nav-avatar").forEach((img) => {
             try {
               img.src = src;
@@ -134,7 +137,7 @@ onAuthStateChanged(auth, async (user) => {
               showAlert(
                 `A sua conta está suspensa. Motivo: ${data.suspensionReason || "violação das diretrizes"}. ` +
                 `Para pedir revisão, contacte o suporte por email: suporte@missingao.co.ao`,
-                { onOk: () => { window.location.href = "index.html"; } },
+                { onOk: () => { navigateToTarget("index.html"); } },
               );
             }
           } else if (!suspenso) {
@@ -169,7 +172,7 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     document.querySelectorAll(".nav-avatar").forEach((img) => {
       try {
-        img.src = "WEB/imgs/user.jpg";
+        img.src = "imgs/user.jpg";
       } catch (e) {
         /* ignore */
       }
@@ -513,7 +516,7 @@ function renderizarCasos(lista) {
 
     div.innerHTML = `
       <div class="card-header">
-        <img src="${caso.imagem || "WEB/imgs/user.jpg"}" class="avatar-small" alt="Avatar" onerror="this.src='WEB/imgs/user.jpg'">
+        <img src="${caso.imagem || "imgs/user.jpg"}" class="avatar-small" alt="Avatar" onerror="this.src='imgs/user.jpg'">
         <div class="header-info">
           <h4>${caso.nome || "Nome Desconhecido"}</h4>
           <span>${caso.idade || "?"} anos • ${caso.municipio || "Angola"}</span>
@@ -525,8 +528,8 @@ function renderizarCasos(lista) {
           </button>
         </div>
       </div>
-       <img src="${caso.imagem || "WEB/imgs/user.jpg"}" class="card-main-image"
-         alt="Foto" onerror="this.src='WEB/imgs/user.jpg'">
+       <img src="${caso.imagem || "imgs/user.jpg"}" class="card-main-image"
+         alt="Foto" onerror="this.src='imgs/user.jpg'">
       <div class="card-body">
         <h3 class="card-title">${caso.nome}</h3>
         <div class="card-details">
@@ -567,8 +570,8 @@ function renderizarCasos(lista) {
           </div>
           <div class="comments-list" id="comments-list-${caso.id}"></div>
           <div class="comment-input-row">
-              <img src="WEB/imgs/user.jpg" class="comment-avatar"
-                id="comment-avatar-${caso.id}" onerror="this.src='WEB/imgs/user.jpg'">
+              <img src="imgs/user.jpg" class="comment-avatar"
+                id="comment-avatar-${caso.id}" onerror="this.src='imgs/user.jpg'">
             <input type="text" class="comment-input"
                    id="comment-input-${caso.id}" placeholder="Escreva um comentário...">
             <button class="btn-send-comment" data-id="${caso.id}">
@@ -689,7 +692,7 @@ async function abrirDetalhesCaso(casoId) {
 
   // Estado de carregamento enquanto busca o perfil de quem relatou
   body.innerHTML = `
-    <img src="${caso.imagem || "WEB/imgs/user.jpg"}" class="cd-foto" onerror="this.src='WEB/imgs/user.jpg'">
+    <img src="${caso.imagem || "imgs/user.jpg"}" class="cd-foto" onerror="this.src='imgs/user.jpg'">
     <div class="cd-content">
       <h2 class="cd-nome">${caso.nome || "Nome desconhecido"}</h2>
       <span class="status-badge status-${caso.status}">${caso.status === "aprovado" ? "Ativo" : caso.status || ""}</span>
@@ -761,7 +764,7 @@ async function abrirDetalhesCaso(casoId) {
     const u = uSnap.data();
     relatorBox.innerHTML = `
       <h4><i class="fa-solid fa-user-pen"></i> Relatado por</h4>
-      <a href="WEB/profile.html?uid=${caso.userId}" class="cd-relator-card" target="_blank">
+      <a href="${_pathPrefix}profile.html?uid=${caso.userId}" class="cd-relator-card" target="_blank">
         ${
           u.photoBase64
             ? `<img src="${u.photoBase64}" class="cd-relator-avatar" alt="">`
@@ -951,12 +954,12 @@ async function carregarComentarios(casoId) {
       el.className = `comment-item${depth > 0 ? " comment-reply" : ""}`;
       el.dataset.commentId = node.id;
       el.innerHTML = `
-        <a href="WEB/profile.html?uid=${node.autorId}" class="comment-avatar-link" title="Ver perfil">
-          <img src="${node.autorFoto || "WEB/imgs/user.jpg"}" class="comment-avatar" onerror="this.src='WEB/imgs/user.jpg'">
+        <a href="${_pathPrefix}profile.html?uid=${node.autorId}" class="comment-avatar-link" title="Ver perfil">
+          <img src="${node.autorFoto || "imgs/user.jpg"}" class="comment-avatar" onerror="this.src='imgs/user.jpg'">
         </a>
         <div class="comment-bubble">
           <div class="comment-header">
-            <a href="WEB/profile.html?uid=${node.autorId}" class="comment-author-link">
+            <a href="${_pathPrefix}profile.html?uid=${node.autorId}" class="comment-author-link">
               <span class="comment-author">${node.autorNome || "Utilizador"}</span>
             </a>
             <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
@@ -966,7 +969,7 @@ async function carregarComentarios(casoId) {
               ${isAuthor ? `<button class="btn-delete-comment" data-caso="${casoId}" data-comentario="${node.id}" title="Apagar comentário"><i class="fa-solid fa-trash-can"></i></button>` : ""}
             </div>
           </div>
-          ${node.parentId && parentName ? `<div class="comment-reply-to">Resposta a <a href=\"WEB/profile.html?uid=${map[node.parentId].autorId}\">${escapeHtml(parentName)}</a></div>` : node.parentId && !parentName ? `<div class="comment-reply-to">Resposta a comentário removido</div>` : ""}
+          ${node.parentId && parentName ? `<div class="comment-reply-to">Resposta a <a href=\"${_pathPrefix}profile.html?uid=${map[node.parentId].autorId}\">${escapeHtml(parentName)}</a></div>` : node.parentId && !parentName ? `<div class="comment-reply-to">Resposta a comentário removido</div>` : ""}
           <p class="comment-text">${escapeHtml(node.texto)}</p>
           <span class="comment-time">${ts}</span>
         </div>`;
@@ -1987,7 +1990,7 @@ function setupMobileUI() {
   });
 
   mbProfile?.addEventListener("click", () => {
-    window.location.href = "WEB/profile.html";
+    navigateToTarget("profile.html");
   });
 
   mbRelatar?.addEventListener("click", () => {
@@ -2009,7 +2012,7 @@ async function updateNavAvatar(user) {
   if (!user) {
     els.forEach((img) => {
       try {
-        img.src = "WEB/imgs/user.jpg";
+        img.src = "imgs/user.jpg";
       } catch (e) {
         /* ignore */
       }
@@ -2032,7 +2035,7 @@ async function updateNavAvatar(user) {
       }
     }
     // fallback para photoURL do auth ou imagem padrão
-    const fallback = user.photoURL || "WEB/imgs/user.jpg";
+    const fallback = user.photoURL || "imgs/user.jpg";
     els.forEach((img) => {
       try {
         img.src = fallback;
@@ -2044,7 +2047,7 @@ async function updateNavAvatar(user) {
     console.warn("Erro ao actualizar avatar nav:", err);
     els.forEach((img) => {
       try {
-        img.src = "WEB/imgs/user.jpg";
+        img.src = "imgs/user.jpg";
       } catch (e) {
         /* ignore */
       }
