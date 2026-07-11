@@ -1,4 +1,3 @@
-
 // screens/admin_page.dart
 // ✅ Dashboard com stats em tempo real + tabela de casos ativos com FILTRO
 // ✅ Filtros avançados de utilizadores (role, província, data, ordenação)
@@ -478,10 +477,18 @@ class _MenuContent extends StatelessWidget {
 }
 
 class _LogoutTile extends StatelessWidget {
+  // NOVO: remove o token FCM desta conta antes de sair — evita que a
+  // próxima conta a entrar neste aparelho fique a partilhar o mesmo
+  // token e esta conta continue a receber notificações depois de sair.
+  Future<void> _sair() async {
+    await NotificationService.instance.removerTokenAntesDeSair();
+    await FirebaseAuth.instance.signOut();
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () async => await FirebaseAuth.instance.signOut(),
+      onTap: _sair,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),

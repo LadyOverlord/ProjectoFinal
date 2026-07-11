@@ -8,9 +8,9 @@ import 'screens/map_page.dart';
 import 'services/notification_service.dart';
 import 'models/user_mode.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+void main() async { //funcao principal
+  WidgetsFlutterBinding.ensureInitialized(); //cominucacao com o hardware do telefone
+  await Firebase.initializeApp(); //
   await NotificationService.instance.init();
   runApp(const MyApp());
 }

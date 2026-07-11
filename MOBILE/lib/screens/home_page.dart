@@ -1015,6 +1015,101 @@ class _DetalhesCasoSheet extends StatelessWidget {
                     if (info.isNotEmpty)
                       _campoDetalheTexto('Informações adicionais', info),
                   ],
+
+                  // NOVO — Secção: Relatado por (equivalente ao
+                  // cd-relator-card do web) — carrega o perfil de quem
+                  // relatou o caso e permite tocar para o abrir, tal como
+                  // já acontece nos comentários e no painel admin.
+                  if ((d['userId'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 20),
+                    _secaoTitulo('Relatado por'),
+                    FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(d['userId'] as String)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Row(children: [
+                              SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _C.accent)),
+                              SizedBox(width: 8),
+                              Text('A carregar...', style: TextStyle(color: _C.grey3, fontSize: 12)),
+                            ]),
+                          );
+                        }
+                        // CORRIGIDO: antes qualquer falha (incluindo erro de
+                        // permissão do Firestore) caía na mensagem genérica
+                        // "não foi possível encontrar", escondendo a causa
+                        // real. Agora distingue os dois casos.
+                        if (snapshot.hasError) {
+                          final msg = snapshot.error.toString();
+                          final isPermissao = msg.contains('permission') || msg.contains('PERMISSION');
+                          return Text(
+                            isPermissao
+                                ? 'Sem permissão para ver este perfil (regras do Firestore).'
+                                : 'Erro ao carregar: $msg',
+                            style: const TextStyle(color: _C.grey3, fontSize: 12),
+                          );
+                        }
+                        if (!snapshot.hasData || !snapshot.data!.exists) {
+                          return const Text(
+                            'Este utilizador já não existe (conta removida).',
+                            style: TextStyle(color: _C.grey3, fontSize: 12),
+                          );
+                        }
+
+                        final autor = snapshot.data!.data() as Map<String, dynamic>;
+                        final autorNome = autor['nome'] as String? ?? autor['email'] as String? ?? 'Utilizador';
+                        final autorFotoB64 = autor['photoBase64'] as String?;
+                        Uint8List? autorFotoBytes;
+                        if (autorFotoB64 != null && autorFotoB64.contains(',')) {
+                          try { autorFotoBytes = base64Decode(autorFotoB64.split(',').last); } catch (_) {}
+                        }
+
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context); // fecha este modal antes de navegar
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => ProfileScreen(targetUid: d['userId'] as String)),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _C.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _C.border),
+                            ),
+                            child: Row(children: [
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: _C.grey4,
+                                backgroundImage: autorFotoBytes != null ? MemoryImage(autorFotoBytes) : null,
+                                child: autorFotoBytes == null
+                                    ? Text(
+                                        autorNome.isNotEmpty ? autorNome[0].toUpperCase() : '?',
+                                        style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  autorNome,
+                                  style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios_rounded, color: _C.accent, size: 12),
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1222,6 +1317,15 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
     );
   }
 
+  // NOVO: abre o perfil de quem comentou — equivalente ao link para
+  // profile.html?uid=... que já existe no web (comment-author-link).
+  void _abrirPerfilAutor(String uid) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProfileScreen(targetUid: uid)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -1309,7 +1413,12 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildAvatar(autorFoto.isNotEmpty ? autorFoto : null, autorNome),
+                            // NOVO: avatar tocável — abre o perfil do autor,
+                            // tal como já acontece no web (comment-avatar-link).
+                            GestureDetector(
+                              onTap: autorId.isNotEmpty ? () => _abrirPerfilAutor(autorId) : null,
+                              child: _buildAvatar(autorFoto.isNotEmpty ? autorFoto : null, autorNome),
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
@@ -1317,7 +1426,11 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(autorNome, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                                      // NOVO: nome também tocável — mesmo alvo do avatar.
+                                      GestureDetector(
+                                        onTap: autorId.isNotEmpty ? () => _abrirPerfilAutor(autorId) : null,
+                                        child: Text(autorNome, style: const TextStyle(color: _C.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                                      ),
                                       const Spacer(),
                                       if (isAuthor)
                                         GestureDetector(
@@ -1414,4 +1527,3 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
     );
   }
 }
-

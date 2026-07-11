@@ -13,6 +13,7 @@ import 'package:geocoding/geocoding.dart';
 import 'login_page.dart';
 import 'home_page.dart';
 import '../models/user_mode.dart';
+import '../services/notification_service.dart'; // ← NOVO: removerTokenAntesDeSair
 
 // ─── PALETA ─────────────────────────────────────────────
 class _C {
@@ -46,6 +47,18 @@ class _Badge {
     required this.color,
     required this.bg,
   });
+}
+
+// NOVO: a localização do GPS é guardada em minúsculas em
+// localizacaoActual (é assim que a lógica de notificações regionais a
+// compara), mas para mostrar no ecrã de Perfil fica mais correcto com
+// maiúscula inicial em cada palavra — ex: "luanda" → "Luanda".
+String _capitalizarPalavras(String texto) {
+  if (texto.isEmpty) return texto;
+  return texto
+      .split(' ')
+      .map((p) => p.isEmpty ? p : '${p[0].toUpperCase()}${p.substring(1)}')
+      .join(' ');
 }
 
 List<_Badge> _calcularEmblemas(
@@ -442,13 +455,46 @@ class _ProfileScreenState extends State<ProfileScreen>
             place.subLocality;
       }
 
+      // CORRIGIDO: antes gravava em provinciaAtual/municipioAtual — campos
+      // que mais nenhum sítio do código lia. O sistema de notificações
+      // regionais (notification_service.dart) usa o campo
+      // localizacaoActual (um mapa aninhado), gravado só depois do
+      // login — o Perfil nunca actualizava esse mesmo campo, por isso o
+      // GPS aqui não tinha qualquer efeito nas notificações, e o texto
+      // "região" do Perfil também nunca mudava (lia sempre municipio/
+      // provincia do cadastro, que são campos diferentes). Agora escreve
+      // no MESMO campo localizacaoActual que as notificações já usam —
+      // um único ponto de verdade para "onde está o utilizador agora".
+      // Mantém também lat/lng à parte, porque o painel admin (mobile e
+      // web) usa esses dois campos directamente para mostrar o selo
+      // "GPS activa" na lista de utilizadores.
+      final localizacaoActual = {
+        'lat': position.latitude,
+        'lng': position.longitude,
+        'municipio': (municipio ?? '').toLowerCase(),
+        'provincia': (provincia ?? '').toLowerCase(),
+        'timestamp': Timestamp.now(),
+      };
+
       await _db.collection('users').doc(_currentUid).update({
         'lat': position.latitude,
         'lng': position.longitude,
-        'localizacaoAtualEm': DateTime.now().toIso8601String(),
-        if (provincia != null) 'provinciaAtual': provincia,
-        if (municipio != null) 'municipioAtual': municipio,
+        'localizacaoActual': localizacaoActual,
       });
+
+      // NOVO: actualiza o estado local de imediato — antes só aparecia
+      // um toast, mas o texto "região" no ecrã continuava com o valor
+      // antigo até se sair e reabrir o perfil.
+      if (mounted) {
+        setState(() {
+          _userData = {
+            ...?_userData,
+            'lat': position.latitude,
+            'lng': position.longitude,
+            'localizacaoActual': localizacaoActual,
+          };
+        });
+      }
 
       if (mounted && (municipio != null || provincia != null)) {
         final local = municipio ?? provincia ?? 'detectada';
@@ -494,6 +540,10 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // ── Logout ───────────────────────────────────────────
   Future<void> _logout() async {
+    // NOVO: remove o token FCM desta conta antes de sair — evita que a
+    // próxima conta a entrar neste aparelho fique a partilhar o mesmo
+    // token e esta conta continue a receber notificações depois de sair.
+    await NotificationService.instance.removerTokenAntesDeSair();
     await _auth.signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
@@ -536,8 +586,24 @@ class _ProfileScreenState extends State<ProfileScreen>
     final email = _userData?['email'] as String? ??
         _auth.currentUser?.email ??
         '—';
-    final municipio = _userData?['municipio'] as String? ?? '';
-    final provincia = _userData?['provincia'] as String? ?? '';
+
+    // CORRIGIDO: antes lia sempre municipio/provincia do CADASTRO,
+    // mesmo depois de o utilizador autorizar o GPS — o texto "região"
+    // nunca reflectia a localização actual. Agora prefere
+    // localizacaoActual (o mesmo campo que as notificações regionais já
+    // usam) e só cai para o valor do cadastro se o GPS nunca tiver sido
+    // autorizado (localizacaoActual ainda não existe nesse caso).
+    final localizacaoActual = _userData?['localizacaoActual'] as Map<String, dynamic>?;
+    final municipioGPS = (localizacaoActual?['municipio'] as String? ?? '').trim();
+    final provinciaGPS = (localizacaoActual?['provincia'] as String? ?? '').trim();
+    final temLocalizacaoGPS = municipioGPS.isNotEmpty || provinciaGPS.isNotEmpty;
+
+    final municipio = temLocalizacaoGPS
+        ? _capitalizarPalavras(municipioGPS)
+        : (_userData?['municipio'] as String? ?? '');
+    final provincia = temLocalizacaoGPS
+        ? _capitalizarPalavras(provinciaGPS)
+        : (_userData?['provincia'] as String? ?? '');
     final local =
         [municipio, provincia].where((s) => s.isNotEmpty).join(', ');
     final visitas = _userData?['visitasCount'] as int? ?? 0;

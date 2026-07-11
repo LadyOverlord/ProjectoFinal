@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // ← NOVO: foto na notificação
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
@@ -16,11 +17,40 @@ import '../config.dart';
 // ── Handler de notificação em background (top-level obrigatório) ────────────
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // CORRIGIDO: o envio (mobile e web) já inclui a imagem como URL no
+  // campo notification.image do payload FCM — mas até agora nada aqui
+  // fazia nada com esse URL. showAmberAlert() só mostra foto se receber
+  // BYTES (imagemBytes), não um URL; o Firebase Messaging entrega o
+  // URL em message.notification.android.imageUrl, mas nunca é
+  // descarregado. Por isso a notificação chegava sempre só com texto,
+  // mesmo quando o remetente (web ou outro telemóvel) já ia com foto.
+  final imgBytes = await _baixarImagemNotificacao(
+    message.notification?.android?.imageUrl,
+  );
   await NotificationService.instance.showAmberAlert(
     title:   message.notification?.title ?? 'Alerta de Desaparecimento',
     body:    message.notification?.body  ?? '',
     payload: message.data,
+    imagemBytes: imgBytes,
   );
+}
+
+// NOVO: descarrega a imagem da notificação a partir do URL público
+// (Firebase Storage) para bytes, que é o formato que
+// flutter_local_notifications exige para mostrar uma foto — um URL
+// sozinho não chega. Top-level (não um método da classe) porque
+// firebaseMessagingBackgroundHandler também é top-level e corre num
+// isolate próprio em segundo plano.
+Future<Uint8List?> _baixarImagemNotificacao(String? url) async {
+  if (url == null || url.isEmpty) return null;
+  try {
+    final resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+    if (resp.statusCode == 200) return resp.bodyBytes;
+    debugPrint('[Push] Imagem da notificação devolveu status ${resp.statusCode}.');
+  } catch (e) {
+    debugPrint('[Push] Não foi possível descarregar a imagem da notificação: $e');
+  }
+  return null;
 }
 
 // ── Handler de toque em notificação local em background (top-level) ─────────
@@ -106,11 +136,18 @@ class NotificationService {
     _fcm.onTokenRefresh.listen(_guardarTokenFirestore);
 
     // Notificação recebida em foreground → mostra alerta local
-    FirebaseMessaging.onMessage.listen((msg) {
+    // CORRIGIDO: mesma falha do handler de background — o URL da imagem
+    // chegava no payload mas nunca era descarregado, por isso a
+    // notificação aparecia sempre só com texto.
+    FirebaseMessaging.onMessage.listen((msg) async {
+      final imgBytes = await _baixarImagemNotificacao(
+        msg.notification?.android?.imageUrl,
+      );
       showAmberAlert(
         title:   msg.notification?.title ?? 'Alerta de Desaparecimento',
         body:    msg.notification?.body  ?? '',
         payload: msg.data,
+        imagemBytes: imgBytes,
       );
     });
 
@@ -164,6 +201,30 @@ class NotificationService {
           .set({'fcmToken': token}, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Erro ao guardar token: $e');
+    }
+  }
+
+  // NOVO: chamar SEMPRE antes de signOut(). Sem isto, o fcmToken ficava
+  // gravado na conta que estava a sair — como o FCM entrega notificações
+  // a um TOKEN de aparelho, não a uma "conta", ao trocar de utilizador
+  // no mesmo telemóvel as duas contas ficavam a apontar para o mesmo
+  // token, e a conta antiga continuava a receber alertas mesmo depois
+  // de já não haver sessão iniciada com ela. Isto remove o token da
+  // conta que está a terminar sessão, para que só a próxima conta a
+  // fazer login (via salvarTokenAposLogin) fique associada a ele.
+  Future<void> removerTokenAntesDeSair() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'fcmToken': FieldValue.delete()});
+      debugPrint('FCM Token removido da conta ${user.uid} antes do logout.');
+    } catch (e) {
+      // Não bloqueia o logout se isto falhar (ex: sem rede no momento) —
+      // é melhor sair sem remover o token do que ficar preso a tentar.
+      debugPrint('Erro ao remover token FCM antes de sair: $e');
     }
   }
 
@@ -261,6 +322,7 @@ class NotificationService {
     required String title,
     required String body,
     Map<String, String>? data,
+    String? imageUrl, // ← NOVO
   }) async {
     try {
       final accessToken = await _getAccessToken();
@@ -269,7 +331,11 @@ class NotificationService {
       final payload = {
         'message': {
           'token': token,
-          'notification': {'title': title, 'body': body},
+          'notification': {
+            'title': title,
+            'body': body,
+            if (imageUrl != null) 'image': imageUrl, // ← NOVO
+          },
           'android': {
             'priority': 'high',
             'notification': {
@@ -291,6 +357,11 @@ class NotificationService {
                 'interruption-level': 'critical',
               },
             },
+            // NOVO — no iOS a imagem só aparece se o projecto tiver uma
+            // Notification Service Extension configurada no Xcode; sem
+            // isso este campo é ignorado em silêncio (a notificação
+            // continua a chegar, só sem a foto).
+            if (imageUrl != null) 'fcm_options': {'image': imageUrl},
           },
           if (data != null) 'data': data,
         },
@@ -578,6 +649,30 @@ class NotificationService {
     }
   }
 
+  // NOVO — mesma lógica já usada no web (fcm_push.js): o FCM só consegue
+  // mostrar imagem na notificação se ela estiver acessível por um URL
+  // público (http/https), não aceita base64 directamente. As fotos dos
+  // casos vêm em base64 do Firestore, por isso sobe-se aqui para o
+  // Firebase Storage e usa-se o link resultante. Limite de 5 segundos —
+  // se a foto demorar mais que isso (rede lenta, regras do Storage a
+  // bloquear, etc.), a notificação segue de qualquer forma, só sem foto,
+  // em vez de ficar presa à espera.
+  Future<String?> _obterUrlImagemParaPush(String casoId, String? imagemBase64) async {
+    if (imagemBase64 == null || !imagemBase64.startsWith('data:image')) return null;
+    try {
+      final bytes = base64Decode(imagemBase64.split(',').last);
+      final ref = FirebaseStorage.instance.ref('alertas_push/$casoId.jpg');
+      await ref.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      ).timeout(const Duration(seconds: 5));
+      return await ref.getDownloadURL();
+    } catch (e) {
+      debugPrint('[Push] Não foi possível preparar a imagem (a notificação segue sem foto): $e');
+      return null;
+    }
+  }
+
   // ── Enviar alerta por município ──────────────────────────────────────────
   Future<void> enviarAlertaDesaparecido({
     required String nome,
@@ -673,6 +768,13 @@ class NotificationService {
         'municipio': municipio,
       };
 
+      // NOVO: sobe a foto uma única vez (não por cada destinatário) e
+      // reutiliza o mesmo URL em todos os envios.
+      final imageUrl = await _obterUrlImagemParaPush(casoId, imagemBase64);
+      debugPrint(imageUrl != null
+          ? '[Push] Notificação vai incluir foto: $imageUrl'
+          : '[Push] Caso sem foto (ou falha ao preparar) — notificação segue só com texto.');
+
       // Envia push para todos os dispositivos elegíveis
       int enviados = 0;
       for (final token in tokens) {
@@ -681,6 +783,7 @@ class NotificationService {
           title: title,
           body:  body,
           data:  dataPayload,
+          imageUrl: imageUrl,
         );
         if (ok) enviados++;
       }

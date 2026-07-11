@@ -45,12 +45,31 @@ async function _obterUrlImagem(casoId, imagemBase64) {
   if (!imagemBase64 || !imagemBase64.startsWith("data:image")) return null;
   try {
     const imgRef = ref(storage, `alertas_push/${casoId}.jpg`);
-    await uploadString(imgRef, imagemBase64, "data_url");
+
+    // CORRIGIDO: se o bucket do Storage não tiver CORS configurado para
+    // este origin (é o que os erros "blocked by CORS policy" na consola
+    // significam), o SDK do Firebase tenta repetir o upload sozinho
+    // durante bastante tempo (o valor por omissão é ~2 minutos) antes de
+    // desistir. Isso fazia parecer que o push "não enviou", quando na
+    // verdade estava só preso à espera da foto. Com Promise.race, damos
+    // no máximo 5 segundos à foto — se não conseguir nesse tempo, a
+    // notificação segue sem foto e sem atrasar mais nada.
+    const comLimiteDeTempo = Promise.race([
+      uploadString(imgRef, imagemBase64, "data_url"),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Tempo esgotado (5s) a subir a imagem")), 5000),
+      ),
+    ]);
+
+    await comLimiteDeTempo;
     return await getDownloadURL(imgRef);
   } catch (err) {
     console.warn(
       "[Push FCM] Não foi possível preparar a imagem para a notificação " +
-        "(a notificação segue sem foto). Confirma as regras do Storage:",
+        "(a notificação segue sem foto, sem ficar à espera). Se o erro for " +
+        "de CORS, é preciso configurar CORS no bucket do Storage " +
+        "(gsutil cors set) para este código conseguir subir imagens a partir " +
+        "do browser:",
       err,
     );
     return null;

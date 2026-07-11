@@ -1378,8 +1378,11 @@ function calcularDias(dataString) {
    EDITAR LOCALIZAÇÃO - Corrigir casos antigos sem coordenadas
    ========================================================================= */
 let mapaEditarInst = null;
+let mapaEditarMarker = null; // NOVO: marcador visível da posição seleccionada/actual
 let casoEmEdicao = null;
 let coordenada_selecionada = null;
+let _todosCasosEditarLoc = []; // NOVO: guarda a lista completa para a pesquisa filtrar em memória
+let _queryEditarLoc = "";
 
 function abrirModalEditarLocalizacao() {
   const modal = document.getElementById("modal-editar-localizacao");
@@ -1389,8 +1392,34 @@ function abrirModalEditarLocalizacao() {
     if (!mapaEditarInst) {
       inicializarMapaEditar();
     }
-    carregarCasosSemCoordenadas();
+    carregarTodosCasosParaEditarLocalizacao();
   }, 100);
+
+  // Liga a pesquisa uma única vez (o modal é reaberto várias vezes, mas
+  // os elementos do DOM já existem desde o carregamento da página).
+  _configurarPesquisaEditarLocalizacao();
+}
+
+let _pesquisaLocConfigurada = false;
+function _configurarPesquisaEditarLocalizacao() {
+  if (_pesquisaLocConfigurada) return;
+  _pesquisaLocConfigurada = true;
+
+  const input = document.getElementById("loc-edit-search");
+  const clearBtn = document.getElementById("loc-edit-search-clear");
+
+  input?.addEventListener("input", (e) => {
+    _queryEditarLoc = e.target.value.toLowerCase().trim();
+    if (clearBtn) clearBtn.style.display = _queryEditarLoc ? "flex" : "none";
+    _renderizarListaEditarLocalizacao();
+  });
+
+  clearBtn?.addEventListener("click", () => {
+    if (input) input.value = "";
+    _queryEditarLoc = "";
+    clearBtn.style.display = "none";
+    _renderizarListaEditarLocalizacao();
+  });
 }
 
 function fecharModalEditarLocalizacao() {
@@ -1398,10 +1427,27 @@ function fecharModalEditarLocalizacao() {
   modal.classList.add("hidden");
   casoEmEdicao = null;
   coordenada_selecionada = null;
+  mapaEditarMarker?.setMap(null);
+  mapaEditarMarker = null;
   document.getElementById("btn-salvar-localizacao").disabled = true;
 }
 
-async function carregarCasosSemCoordenadas() {
+// Considera coordenadas válidas só se existirem e forem números reais.
+function _temCoordValidas(caso) {
+  if (!caso.lat || !caso.lng) return false;
+  const lat = parseFloat(caso.lat);
+  const lng = parseFloat(caso.lng);
+  return !isNaN(lat) && !isNaN(lng);
+}
+
+// CORRIGIDO: antes só listava os casos SEM localização — não havia forma
+// nenhuma de corrigir/mover a localização de um caso que já tivesse GPS,
+// mesmo que estivesse errada. Agora lista TODOS os casos activos; os que
+// ainda não têm GPS aparecem primeiro (mais urgentes), e cada item mostra
+// se já tem localização ou não. O botão "Corrigir Localizações" deixa de
+// ficar desactivado quando todos têm GPS — agora serve sempre, para
+// corrigir qualquer caso.
+async function carregarTodosCasosParaEditarLocalizacao() {
   const lista = document.getElementById("lista-casos-sem-coord");
   lista.innerHTML = `<div style="padding:16px;text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>`;
 
@@ -1413,60 +1459,112 @@ async function carregarCasosSemCoordenadas() {
       ),
     );
 
-    let casosSemCoord = [];
-    snap.forEach((d) => {
-      const data = d.data();
-      if (!data.lat || !data.lng) {
-        casosSemCoord.push({ id: d.id, ...data });
-      }
-    });
+    const todos = [];
+    snap.forEach((d) => todos.push({ id: d.id, ...d.data() }));
 
-    if (casosSemCoord.length === 0) {
-      lista.innerHTML = `<div style="padding:16px;text-align:center;color:#666;">✅ Todos os casos têm localização!</div>`;
-      document.getElementById("btn-corrigir-localizacoes").disabled = true;
-      return;
-    }
+    // Casos sem GPS primeiro — são os mais urgentes de corrigir.
+    todos.sort((a, b) => (_temCoordValidas(a) ? 1 : 0) - (_temCoordValidas(b) ? 1 : 0));
 
-    lista.innerHTML = "";
-    casosSemCoord.forEach((caso) => {
-      const item = document.createElement("div");
-      item.style.cssText =
-        "padding:12px;border-bottom:1px solid #eee;cursor:pointer;transition:background 0.2s;";
-      item.innerHTML = `
-        <div style="font-weight:600;color:#333;">${caso.nome || "Sem nome"}</div>
-        <div style="font-size:12px;color:#666;">${caso.municipio || caso.provincia}</div>
-        <div style="font-size:11px;color:#999;">ID: ${caso.id.substring(0, 8)}...</div>
-      `;
-      item.addEventListener(
-        "mouseover",
-        () => (item.style.background = "#f5f5f5"),
-      );
-      item.addEventListener(
-        "mouseout",
-        () => (item.style.background = "transparent"),
-      );
-      item.addEventListener("click", () => selecionarCasoParaEditar(caso));
-      lista.appendChild(item);
-    });
+    _todosCasosEditarLoc = todos;
+    document.getElementById("btn-corrigir-localizacoes").disabled = false;
+    _renderizarListaEditarLocalizacao();
   } catch (err) {
     lista.innerHTML = `<div style="padding:16px;color:#e74c3c;">Erro ao carregar casos</div>`;
     console.error(err);
   }
 }
 
+function _renderizarListaEditarLocalizacao() {
+  const lista = document.getElementById("lista-casos-sem-coord");
+  if (!lista) return;
+
+  let filtrados = _todosCasosEditarLoc;
+  if (_queryEditarLoc) {
+    filtrados = filtrados.filter((c) =>
+      `${c.nome || ""} ${c.municipio || ""} ${c.provincia || ""}`
+        .toLowerCase()
+        .includes(_queryEditarLoc),
+    );
+  }
+
+  if (_todosCasosEditarLoc.length === 0) {
+    lista.innerHTML = `<div style="padding:16px;text-align:center;color:#666;">Nenhum caso activo encontrado.</div>`;
+    return;
+  }
+
+  if (filtrados.length === 0) {
+    lista.innerHTML = `<div style="padding:16px;text-align:center;color:#999;">Nenhum resultado para "${escapeHtml(_queryEditarLoc)}".</div>`;
+    return;
+  }
+
+  lista.innerHTML = "";
+  filtrados.forEach((caso) => {
+    const temGPS = _temCoordValidas(caso);
+    const item = document.createElement("div");
+    item.dataset.casoId = caso.id;
+    item.style.cssText =
+      "padding:12px;border-bottom:1px solid #eee;cursor:pointer;transition:background 0.2s;display:flex;align-items:center;justify-content:space-between;gap:10px;";
+    item.innerHTML = `
+      <div style="min-width:0;">
+        <div style="font-weight:600;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(caso.nome || "Sem nome")}</div>
+        <div style="font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(caso.municipio || caso.provincia || "—")}</div>
+      </div>
+      <span style="flex-shrink:0;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;color:${temGPS ? "#2ecc71" : "#f0a500"};">
+        <i class="fa-solid ${temGPS ? "fa-location-crosshairs" : "fa-location-dot"}"></i>
+        ${temGPS ? "Tem GPS" : "Sem GPS"}
+      </span>
+    `;
+    item.addEventListener("mouseover", () => {
+      if (casoEmEdicao?.id !== caso.id) item.style.background = "#f5f5f5";
+    });
+    item.addEventListener("mouseout", () => {
+      if (casoEmEdicao?.id !== caso.id) item.style.background = "transparent";
+    });
+    item.addEventListener("click", () => selecionarCasoParaEditar(caso));
+    if (casoEmEdicao?.id === caso.id) item.style.background = "#e3f2fd";
+    lista.appendChild(item);
+  });
+}
+
+// CORRIGIDO/NOVO: se o caso já tiver coordenadas, pré-carrega o marcador
+// nessa posição em vez de começar em branco — assim o admin vê logo onde
+// o caso está marcado actualmente e só precisa de tocar num novo ponto
+// se quiser corrigir.
 function selecionarCasoParaEditar(caso) {
   casoEmEdicao = caso;
-  coordenada_selecionada = null;
 
   const infoEl = document.getElementById("info-localizacao-selecionada");
-  infoEl.innerHTML = `<strong>${caso.nome}</strong><br>${caso.municipio || caso.provincia}<br><span style="color:#999;">Aguardando localização no mapa...</span>`;
+  const temGPS = _temCoordValidas(caso);
 
-  document.getElementById("btn-salvar-localizacao").disabled = true;
+  mapaEditarMarker?.setMap(null);
+  mapaEditarMarker = null;
 
+  if (temGPS) {
+    const lat = parseFloat(caso.lat);
+    const lng = parseFloat(caso.lng);
+    coordenada_selecionada = { lat, lng };
+
+    infoEl.innerHTML = `<strong>${escapeHtml(caso.nome)}</strong><br>${escapeHtml(caso.municipio || caso.provincia || "")}<br><span style="color:#0c7ab5;">📍 Localização actual: ${lat.toFixed(4)}, ${lng.toFixed(4)} — toque num novo ponto para mover</span>`;
+    document.getElementById("btn-salvar-localizacao").disabled = false;
+
+    if (mapaEditarInst) {
+      mapaEditarMarker = new google.maps.Marker({
+        position: coordenada_selecionada,
+        map: mapaEditarInst,
+        icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
+      });
+      mapaEditarInst.setCenter(coordenada_selecionada);
+      mapaEditarInst.setZoom(13);
+    }
+  } else {
+    coordenada_selecionada = null;
+    infoEl.innerHTML = `<strong>${escapeHtml(caso.nome)}</strong><br>${escapeHtml(caso.municipio || caso.provincia || "")}<br><span style="color:#999;">Aguardando localização no mapa...</span>`;
+    document.getElementById("btn-salvar-localizacao").disabled = true;
+  }
+
+  // Realça o item seleccionado na lista sem depender do texto (usa o id).
   document.querySelectorAll("#lista-casos-sem-coord > div").forEach((el) => {
-    el.style.background = el.textContent.includes(caso.nome)
-      ? "#e3f2fd"
-      : "transparent";
+    el.style.background = el.dataset.casoId === caso.id ? "#e3f2fd" : "transparent";
   });
 }
 
@@ -1498,9 +1596,18 @@ function inicializarMapaEditar() {
     };
 
     const infoEl = document.getElementById("info-localizacao-selecionada");
-    infoEl.innerHTML = `<strong>${casoEmEdicao.nome}</strong><br>${casoEmEdicao.municipio || casoEmEdicao.provincia}<br><span style="color:#0c7ab5;">📍 Lat: ${coordenada_selecionada.lat.toFixed(4)}, Lng: ${coordenada_selecionada.lng.toFixed(4)}</span>`;
+    infoEl.innerHTML = `<strong>${escapeHtml(casoEmEdicao.nome)}</strong><br>${escapeHtml(casoEmEdicao.municipio || casoEmEdicao.provincia || "")}<br><span style="color:#0c7ab5;">📍 Lat: ${coordenada_selecionada.lat.toFixed(4)}, Lng: ${coordenada_selecionada.lng.toFixed(4)}</span>`;
 
     document.getElementById("btn-salvar-localizacao").disabled = false;
+
+    // NOVO: mostra um marcador visível no ponto escolhido — antes o
+    // clique só actualizava o texto, sem nenhuma marca no mapa.
+    mapaEditarMarker?.setMap(null);
+    mapaEditarMarker = new google.maps.Marker({
+      position: coordenada_selecionada,
+      map: mapaEditarInst,
+      icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
+    });
 
     mapaEditarInst.setCenter(coordenada_selecionada);
   });
@@ -1528,7 +1635,9 @@ async function salvarLocalizacao() {
         onOk: () => {
           casoEmEdicao = null;
           coordenada_selecionada = null;
-          carregarCasosSemCoordenadas();
+          mapaEditarMarker?.setMap(null);
+          mapaEditarMarker = null;
+          carregarTodosCasosParaEditarLocalizacao();
           iniciarMapaAdmin();
           btn.innerHTML = `<i class="fa-solid fa-save"></i> Salvar Localização`;
           btn.disabled = true;
@@ -2018,19 +2127,22 @@ function renderizarTrustScores(lista) {
           ? "var(--color-warning)"
           : "var(--color-success)";
     const row = document.createElement("div");
-    row.className = "anuncio-row";
+    // CORRIGIDO: usava a classe partilhada .anuncio-row (feita para a
+    // lista de Anúncios), que é um único flex row sem quebra entre o
+    // nome/email e a barra+badge+botões. Em ecrãs de telemóvel isso
+    // deixava quase zero espaço para o nome (aparecia cortado a 2-3
+    // letras) porque a barra+badge+2 botões, sem encolher, ocupavam
+    // quase toda a largura. Agora usa uma classe própria (.trust-row)
+    // que empilha em coluna abaixo de 640px — ver admin.css.
+    row.className = "trust-row";
     row.innerHTML = `
-      <div class="anuncio-row-left">
-        <div class="anuncio-row-info">
-          <strong>${escapeHtml(u.nome || u.email || "—")}</strong>
-          <span>${escapeHtml(u.email || "—")}</span>
-        </div>
+      <div class="trust-row-info">
+        <strong>${escapeHtml(u.nome || u.email || "—")}</strong>
+        <span>${escapeHtml(u.email || "—")}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div style="width:110px;">
-          <div style="background:var(--gray-100);border-radius:6px;height:6px;overflow:hidden;">
-            <div style="width:${Math.max(0, Math.min(100, score))}%;height:100%;background:${corBarra};"></div>
-          </div>
+      <div class="trust-row-meta">
+        <div class="trust-row-bar">
+          <div class="trust-row-bar-fill" style="width:${Math.max(0, Math.min(100, score))}%;background:${corBarra};"></div>
         </div>
         <span class="trust-badge ${estado}">${labelEstado(estado)} · ${score}/100</span>
         <button class="btn-admin-sm btn-trust-historico" data-id="${u.id}" data-nome="${(u.nome || u.email || "").replace(/"/g, "&quot;")}">Histórico</button>

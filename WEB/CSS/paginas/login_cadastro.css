@@ -120,31 +120,51 @@ form::-webkit-scrollbar { width: 4px; }
 form::-webkit-scrollbar-thumb { background: #d0dde5; border-radius: 4px; }
 
 /* NOVO: o cadastro tem mais campos do que o login — dá-lhe mais espaço
-   para que o checkbox de Termos fique visível sem precisar de scroll.
+   para que o botão de Termos fique visível sem precisar de scroll.
    O login fica com o max-height original (55vh é suficiente para 2 campos). */
 .logup form {
   max-height: 72vh;
 }
 
-/* NOVO: estilização do checkbox de termos — sobrescreve o label genérico
-   (que tem text-transform: uppercase, font-size: 12px e margin-top: 8px,
-   todos errados para um label de checkbox com texto corrido). */
-label.termos-label {
-  text-transform: none;
-  font-size: 13px;
-  font-weight: 400;
-  color: #555;
-  letter-spacing: 0;
-  cursor: pointer;
-  align-items: flex-start;
-  margin-top: 12px;
-  line-height: 1.4;
+/* CORRIGIDO: era uma checkbox solta (label.termos-label) sem nenhum link
+   para o documento — o utilizador podia marcar sem nunca ler nada, e
+   window.cadastrar() nem sequer a verificava. Foi substituída por um
+   botão (Scripts/login_cadastro.js) que abre o texto completo dos Termos
+   num modal com scroll obrigatório até ao fim antes de poder confirmar.
+   Duas variantes visuais: por aceitar (laranja, pede atenção) e já
+   aceites (verde, confirmado). */
+.termos-gate-row {
+  margin-top: 14px;
+  margin-bottom: 4px;
 }
-label.termos-label input[type="checkbox"] {
-  width: auto;
-  margin-top: 2px;
-  flex-shrink: 0;
-  accent-color: var(--color-quaternary, #0c7ab5);
+.termos-link-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border: 1.5px solid #f0ad4e;
+  border-radius: 8px;
+  background: #fff8ec;
+  color: #b5680d;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.termos-link-btn:hover {
+  background: #fdf0d5;
+}
+.termos-link-btn.termos-aceitos {
+  border-color: #2ecc71;
+  background: #eefaf1;
+  color: #1f8a4c;
+  cursor: default;
+}
+.termos-link-btn.termos-aceitos:hover {
+  background: #eefaf1;
 }
 
 label {

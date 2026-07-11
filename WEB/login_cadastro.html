@@ -128,17 +128,18 @@
           </div>
           <span id="confirSenha" class="field-hint"></span>
 
-          <!-- NOVO: checkbox obrigatória de Termos e Condições — lida por
-               window.cadastrar() em login_cadastro.js via
-               document.getElementById("aceitar-termos").
-               Usa a classe .termos-label (em login_cadastro.css) em vez
-               de estilos inline, para sobrescrever correctamente o label
-               genérico (text-transform:uppercase, font-size:12px, etc.)
-               que tornava o checkbox praticamente invisível. -->
-          <label for="aceitar-termos" class="termos-label">
-            <input type="checkbox" id="aceitar-termos">
-            <span>Li e aceito os <strong>Termos e Condições</strong> e a Política de Privacidade.</span>
-          </label>
+          <!-- CORRIGIDO: era uma checkbox solta, sem link nenhum para o
+               documento, e window.cadastrar() nunca a verificava. Agora é
+               um botão (ligado em Scripts/login_cadastro.js) que abre o
+               texto completo dos Termos num modal com scroll obrigatório
+               até ao fim antes de poder confirmar. Sem isso,
+               window.cadastrar() bloqueia a criação da conta. -->
+          <div class="termos-gate-row">
+            <button type="button" id="btn-ler-termos" class="termos-link-btn">
+              <i class="fa-solid fa-file-contract"></i>
+              Ler e aceitar os Termos e Condições
+            </button>
+          </div>
 
           <button type="button" class="btn-submit" onclick="cadastrar()">
             <i class="fa-solid fa-user-plus"></i> Criar Conta
@@ -184,22 +185,10 @@
 
  <!--- <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script> -->
   <script src="Scripts/alerts.js"></script>
+  <!-- CORRIGIDO: era carregado também Scripts/auth.js numa segunda tag,
+       o que levou a uma troca de conteúdo entre os dois ficheiros e
+       partiu o login. Agora só existe este ficheiro para a página
+       inteira — nada para confundir. -->
   <script type="module" src="Scripts/login_cadastro.js"></script>
-  <script type="module" src="Scripts/auth.js"></script>
 </body>
 </html>
-
-<!doctype html>
-<html lang="pt">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="CSS/variables.css" />
-    <link rel="stylesheet" href="CSS/global.css" />
-    <link rel="stylesheet" href="CSS/paginas/profile.css" />
-
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-    />
-    <link

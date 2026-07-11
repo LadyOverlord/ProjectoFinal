@@ -1262,3 +1262,79 @@ main.content {
     font-size: 15px;
   }
 }
+
+/* =====================================================
+   NOVO — PAINEL TRUST SCORES: linha própria por utilizador
+   Antes usava a classe partilhada .anuncio-row (feita para a lista de
+   Anúncios) — um único flex row sem quebra entre o nome/email e a
+   barra+badge+botões. Em ecrãs de telemóvel a barra+badge+2 botões, sem
+   encolher, ocupavam quase toda a largura da linha, espremendo o
+   nome/email a 2-3 letras visíveis. Agora tem classes próprias e
+   empilha em coluna abaixo dos 640px.
+   ===================================================== */
+.trust-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--gray-100);
+  flex-wrap: wrap;
+}
+.trust-row-info {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.trust-row-info strong {
+  font-size: 14px;
+  color: var(--gray-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trust-row-info span {
+  font-size: 12px;
+  color: var(--gray-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trust-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.trust-row-bar {
+  width: 110px;
+  height: 6px;
+  background: var(--gray-100);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.trust-row-bar-fill {
+  height: 100%;
+}
+
+@media (max-width: 640px) {
+  
+  .trust-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .trust-row-info {
+    min-width: 0;
+    width: 100%;
+  }
+  .trust-row-meta {
+    width: 100%;
+  }
+  .trust-row-bar {
+    width: 80px;
+  }
+}
