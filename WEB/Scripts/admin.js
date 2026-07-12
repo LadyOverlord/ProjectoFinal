@@ -13,6 +13,7 @@ import {
   where,
   updateDoc,
   deleteDoc,
+  deleteField,
   setDoc,
   addDoc,
   orderBy,
@@ -503,7 +504,6 @@ function renderizarTabelaUsuarios(lista) {
 
     const score = typeof user.trustScore === "number" ? user.trustScore : 100;
     const estado = estadoDeScore(score);
-    const isSusp = user.isSuspended === true || score <= 0;
     const estadoBadge = `<span class="trust-badge ${estado}">${labelEstado(estado)} · ${score}/100</span>`;
 
     tbody.innerHTML += `
@@ -541,10 +541,9 @@ function renderizarTabelaUsuarios(lista) {
                class="btn-admin-icon" title="Ver histórico completo">
               <i class="fa-solid fa-clock-rotate-left" style="font-size:12px;"></i>
             </button>
-            <button onclick="window.${isSusp ? "reactivarUsuario" : "suspenderUsuario"}('${user.id}','${(user.nome || user.email || "").replace(/'/g, "\\'")}')"
-               class="btn-admin-icon ${isSusp ? "btn-success-icon" : "btn-danger-icon"}" title="${isSusp ? "Reactivar conta" : "Suspender conta"}">
-              <i class="fa-solid fa-${isSusp ? "lock-open" : "ban"}" style="font-size:12px;"></i>
-            </button>
+            <!-- REMOVIDO: botão de Suspender/Reactivar. Passou a ser
+                 exclusivo do painel Trust Scores — o mobile nunca teve
+                 este botão aqui, só lá; agora o web também não. -->
             <button onclick="window.excluirUsuario('${user.id}')"
                class="btn-admin-icon btn-danger-icon" title="Remover utilizador">
               <i class="fa-solid fa-trash" style="font-size:12px;"></i>
@@ -555,39 +554,13 @@ function renderizarTabelaUsuarios(lista) {
   });
 }
 
-// ── suspender / reactivar utilizador ──────────────────────────────────────
-// CORRIGIDO: penalizar/reporNivel em trust_service.js recebem argumentos
-// POSICIONAIS — (uid, pontos, motivo, adminUid, detalhe) e
-// (uid, adminUid, scoreReposto, motivo) — mas o código antigo chamava-os
-// com um único objecto {uid, motivo, ...}. Isso fazia com que "uid" dentro
-// da função recebesse o objecto inteiro em vez da string do id, e a
-// suspensão/reactivação falhava (ou gravava dados errados) sem aviso claro.
-window.suspenderUsuario = async function (uid, nome) {
-  const motivo = prompt(
-    `Motivo da suspensão de "${nome}" (fica registado no histórico):`,
-    "comportamento_abusivo",
-  );
-  if (motivo === null) return; // cancelado
-  const pontosStr = prompt("Quantos pontos retirar? (0-100, 100 suspende de imediato)", "100");
-  const pontos = parseInt(pontosStr, 10);
-  if (!pontos || pontos <= 0) {
-    showAlert("Número de pontos inválido.");
-    return;
-  }
-  try {
-    await penalizar(
-      uid,
-      pontos,
-      motivo || "comportamento_abusivo",
-      auth.currentUser?.uid,
-      "Penalização manual aplicada pelo painel de Utilizadores (web).",
-    );
-    showAlert(`✅ ${nome} penalizado(a) em -${pontos} pontos.`, { onOk: carregarUsuarios });
-  } catch (e) {
-    showAlert("Erro: " + e.message);
-  }
-};
 
+// REMOVIDO: window.suspenderUsuario() — deixou de haver um botão
+// dedicado de "Suspender" (nem aqui, nem no mobile, que nunca teve). A
+// suspensão passa a acontecer só como consequência de baixar o Trust
+// Score (botão "Ajustar", no painel Trust Scores) até chegar a 0 —
+// exactamente como o mobile já funcionava. reactivarUsuario mantém-se,
+// é usado pelo botão "Reactivar" desse mesmo painel.
 window.reactivarUsuario = async function (uid, nome) {
   if (!confirm(`Reactivar a conta de "${nome}" com 60 pontos de Trust Score?`)) return;
   try {
@@ -607,7 +580,14 @@ window.promoverUsuario = async function (id, roleAtual) {
       : "Remover privilégios de Admin deste utilizador?";
   if (!confirm(msg)) return;
   try {
-    await updateDoc(doc(db, "users", id), { role: novoRole });
+    // NOVO: admins não têm Trust Score — remove-o ao promover (some
+    // logo da lista de Trust Scores, já filtrada por role) e repõe um
+    // valor limpo (100) ao voltar a ser utilizador comum.
+    const dados =
+      novoRole === "admin"
+        ? { role: novoRole, trustScore: deleteField(), isSuspended: deleteField(), suspensionReason: deleteField() }
+        : { role: novoRole, trustScore: 100, isSuspended: false };
+    await updateDoc(doc(db, "users", id), dados);
     showAlert(`✅ Role actualizado para: ${novoRole}`, {
       onOk: carregarUsuarios,
     });
@@ -2075,9 +2055,17 @@ async function carregarTrustScores() {
   if (!listEl) return;
   listEl.innerHTML = `<div class="admin-loader"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>`;
   try {
+    // CORRIGIDO: carregava TODOS os utilizadores, incluindo admins —
+    // que não devem ter Trust Score (essa pontuação é um conceito só de
+    // utilizadores comuns). Filtra aqui em vez de na query do Firestore
+    // para não precisar de um índice novo, já que esta colecção não é
+    // grande.
     const snap = await getDocs(collection(db, "users"));
     const lista = [];
-    snap.forEach((d) => lista.push({ id: d.id, ...d.data() }));
+    snap.forEach((d) => {
+      const u = { id: d.id, ...d.data() };
+      if ((u.role || "user") === "user") lista.push(u);
+    });
     lista.sort((a, b) => (a.trustScore ?? 100) - (b.trustScore ?? 100));
     _todosUsuariosTrust = lista;
     renderizarTrustScores(lista);

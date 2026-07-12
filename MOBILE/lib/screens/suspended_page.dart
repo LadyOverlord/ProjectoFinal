@@ -16,7 +16,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'login_page.dart';
-import '../services/notification_service.dart'; // ← NOVO: removerTokenAntesDeSair
 import '../config.dart'; // ← NOVO: groqApiKey, já usado no chatbot principal
 
 // ─── PALETA ──────────────────────────────────────────────────────────────────
@@ -158,6 +157,11 @@ class _SuspendedPageState extends State<SuspendedPage> {
   }
 
   // ── Chama a API Groq com contexto de suspensão ───────────────────────────
+  // CORRIGIDO: antes chamava diretamente https://api.anthropic.com/v1/messages
+  // sem cabeçalho 'x-api-key' nem 'anthropic-version' — a Anthropic exige os
+  // dois, por isso o pedido devolvia sempre 401 e caía sempre no fallback
+  // "não consegui responder agora". Trocado para a API Groq, que já está
+  // configurada e a funcionar no chatbot_page.dart (mesma chave, mesmo padrão).
   Future<String> _chamarIA(String pergunta) async {
     final motivo = _userData?['suspensionReason'] as String? ?? 'violação das diretrizes';
     final score  = _userData?['trustScore']       as int?    ?? 0;
@@ -313,11 +317,6 @@ COMPORTAMENTO ESPERADO:
   }
 
   Future<void> _logout() async {
-    // NOVO: remove o token FCM desta conta antes de sair — sem isto, a
-    // próxima conta a entrar neste aparelho ficava a partilhar o mesmo
-    // token, e esta conta continuava a receber notificações mesmo
-    // depois de terminar sessão.
-    await NotificationService.instance.removerTokenAntesDeSair();
     await _auth.signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(

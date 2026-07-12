@@ -1262,7 +1262,13 @@ class _UsersPanelState extends State<_UsersPanel> {
       confirmColor: novoRole == 'admin' ? _C.accent : _C.orange,
     ));
     if (ok == true) {
-      await FirebaseFirestore.instance.collection('users').doc(id).update({'role': novoRole});
+      // NOVO: admins não têm Trust Score — remove-o ao promover (some
+      // logo da lista de Trust Scores, já filtrada por role) e repõe
+      // um valor limpo (100) ao voltar a ser utilizador comum.
+      final dados = novoRole == 'admin'
+          ? {'role': novoRole, 'trustScore': FieldValue.delete(), 'isSuspended': FieldValue.delete(), 'suspensionReason': FieldValue.delete()}
+          : {'role': novoRole, 'trustScore': 100, 'isSuspended': false};
+      await FirebaseFirestore.instance.collection('users').doc(id).update(dados);
       _fetchUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2162,6 +2168,8 @@ class _MapaAdminPanelState extends State<_MapaAdminPanel> {
   List<Map<String, dynamic>> _casos = [];
   bool _loading = true;
   int _ativos = 0, _encontrados = 0, _desmentidos = 0;
+  // NOVO: filtro de status dos marcadores — 'todos' | 'aprovado' | 'encontrado' | 'desmentido'
+  String _filtro = 'todos';
   static const _center = LatLng(-11.2027, 17.8739);
 
   @override
@@ -2181,6 +2189,15 @@ class _MapaAdminPanelState extends State<_MapaAdminPanel> {
   void _buildMarkers() {
     _markers.clear(); _ativos = 0; _encontrados = 0; _desmentidos = 0;
     for (final caso in _casos) {
+      // Os totais dos cartões contam sempre TODOS os casos, mesmo que o
+      // filtro esconda alguns marcadores do mapa.
+      switch (caso['status']) {
+        case 'encontrado': _encontrados++; break;
+        case 'desmentido': _desmentidos++; break;
+        default: _ativos++;
+      }
+      if (_filtro != 'todos' && caso['status'] != _filtro) continue;
+
       double? lat = double.tryParse(caso['lat']?.toString() ?? '');
       double? lng = double.tryParse(caso['lng']?.toString() ?? '');
       if (lat == null || lng == null) {
@@ -2190,12 +2207,11 @@ class _MapaAdminPanelState extends State<_MapaAdminPanel> {
         lng = coords.longitude + (DateTime.now().microsecond % 10 - 5) * 0.06;
       }
       final status = caso['status'] as String? ?? 'aprovado';
-      BitmapDescriptor icon;
-      switch (status) {
-        case 'encontrado': icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen); _encontrados++; break;
-        case 'desmentido': icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure); _desmentidos++; break;
-        default:           icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);  _ativos++; break;
-      }
+      final icon = status == 'encontrado'
+          ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+          : status == 'desmentido'
+              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure)
+              : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
       _markers.add(Marker(
         markerId: MarkerId(caso['id']),
         position: LatLng(lat, lng),
@@ -2207,14 +2223,41 @@ class _MapaAdminPanelState extends State<_MapaAdminPanel> {
     if (mounted) setState(() {});
   }
 
+  void _aplicarFiltro(String f) {
+    setState(() => _filtro = f);
+    _buildMarkers();
+  }
+
   void _openEditarLocalizacao() {
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
       builder: (_) => _EditarLocalizacaoSheet(onSaved: _loadCasos));
   }
 
+  Widget _filtroChip(String valor, String label) {
+    final ativo = _filtro == valor;
+    return GestureDetector(
+      onTap: () => _aplicarFiltro(valor),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+        decoration: BoxDecoration(
+          color: ativo ? _C.accent : _C.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: ativo ? _C.accent : _C.border),
+        ),
+        child: Text(label, style: TextStyle(color: ativo ? _C.white : _C.grey2, fontSize: 12, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // CORRIGIDO: a versão anterior usava Expanded(flex:3) dentro de uma
+    // Column sem scroll — em ecrãs pequenos ou com letra maior, o resto
+    // do conteúdo (título, legenda, cartões) já não cabia e estourava
+    // ("bottom overflowed"). Agora é SingleChildScrollView com o mapa em
+    // altura fixa: nunca pode estourar, no máximo faz scroll.
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -2241,15 +2284,30 @@ class _MapaAdminPanelState extends State<_MapaAdminPanel> {
           const SizedBox(width: 16),
           _LegendaDot(color: Colors.blueGrey, label: 'Desmentido'),
         ]),
+        const SizedBox(height: 14),
+        // NOVO: filtro de status dos casos mostrados no mapa — mesma
+        // ideia dos filtros de casos do web, aplicado aqui aos marcadores.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            _filtroChip('todos', 'Todos'),
+            _filtroChip('aprovado', 'Activos'),
+            _filtroChip('encontrado', 'Encontrados'),
+            _filtroChip('desmentido', 'Desmentidos'),
+          ]),
+        ),
         const SizedBox(height: 16),
-        Expanded(flex: 3, child: ClipRRect(
+        ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: _loading
-            ? Container(color: _C.card, child: const Center(child: CircularProgressIndicator(color: _C.accent)))
-            : GoogleMap(initialCameraPosition: const CameraPosition(target: _center, zoom: 5),
-                markers: _markers, mapType: MapType.normal,
-                myLocationButtonEnabled: false, zoomControlsEnabled: true),
-        )),
+          child: SizedBox(
+            height: 340,
+            child: _loading
+              ? Container(color: _C.card, child: const Center(child: CircularProgressIndicator(color: _C.accent)))
+              : GoogleMap(initialCameraPosition: const CameraPosition(target: _center, zoom: 5),
+                  markers: _markers, mapType: MapType.normal,
+                  myLocationButtonEnabled: false, zoomControlsEnabled: true),
+          ),
+        ),
         const SizedBox(height: 16),
         Row(children: [
           Expanded(child: _MapStatCard(label: 'Total',       count: _casos.length, color: _C.grey2,  colorSoft: _C.border)),
@@ -2496,23 +2554,16 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
                 const Text('Casos precisam de status: aprovado, encontrado ou desmentido.',
                   style: TextStyle(color: _C.grey3, fontSize: 11)),
               ]))
-            // ── CORRIGIDO: LayoutBuilder + altura mínima garantida para o
-            // mapa evita o "bottom overflowed" em telas mobile pequenas.
-            // A lista horizontal de casos e o status box têm altura fixa
-            // conhecida; o que resta vai todo para o mapa, com um mínimo
-            // de 180px para nunca colapsar a 0 ou negativo.
-            : LayoutBuilder(builder: (context, constraints) {
-                const alturaListaCasos = 72.0;
-                const alturaStatusBox  = 54.0; // ~ altura real do AnimatedContainer de status
-                const espacamentos     = 6.0 + 10.0 + 10.0 + 10.0; // label + 3 SizedBox entre blocos
-                final alturaMapa = (constraints.maxHeight
-                    - alturaListaCasos - alturaStatusBox - espacamentos)
-                    .clamp(180.0, double.infinity);
-
-                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Padding(padding: EdgeInsets.only(left: 20, bottom: 6),
-                    child: Text('Selecionar caso  ·  toque para editar a localização', style: TextStyle(color: _C.grey2, fontSize: 12, fontWeight: FontWeight.w600))),
-                  SizedBox(height: alturaListaCasos, child: ListView.separated(
+            // CORRIGIDO: a versão anterior calculava a altura do mapa à
+            // mão (LayoutBuilder + números fixos "adivinhados" para a
+            // lista e a caixa de status) — se o texto ocupasse uma linha
+            // a mais em qualquer ecrã, a conta errava e voltava a
+            // estourar. Expanded resolve isto sozinho: ocupa sempre o
+            // espaço que sobra, nunca mais nem menos, sem cálculo nenhum.
+            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Padding(padding: EdgeInsets.only(left: 20, bottom: 6),
+                  child: Text('Selecionar caso  ·  toque para editar a localização', style: TextStyle(color: _C.grey2, fontSize: 12, fontWeight: FontWeight.w600))),
+                SizedBox(height: 72, child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   scrollDirection: Axis.horizontal, itemCount: _todosCasos.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -2522,11 +2573,11 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
                     final temGPS = _temCoordValidas(c);
                     return GestureDetector(
                       onTap: () => _selectCaso(c),
-                      // ── CORRIGIDO: largura fixa (180) — dentro de um
-                      // ListView horizontal, um Row/Flexible sem largura
-                      // definida tenta ocupar largura infinita e causa
-                      // overflow. Com width fixo o texto interno passa
-                      // a ter um limite real para fazer ellipsis.
+                      // Largura fixa (180) — dentro de um ListView
+                      // horizontal, um Row/Flexible sem largura definida
+                      // tenta ocupar largura infinita e causa overflow.
+                      // Com width fixo o texto interno tem um limite
+                      // real para fazer ellipsis.
                       child: SizedBox(
                         width: 180,
                         child: AnimatedContainer(
@@ -2579,15 +2630,9 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
                   ]),
                 )),
                 const SizedBox(height: 10),
-                // ── CORRIGIDO: SizedBox com altura calculada em vez de
-                // Expanded — agora a altura do mapa é determinada pelo
-                // espaço real disponível (constraints.maxHeight do
-                // LayoutBuilder), nunca ultrapassando o espaço do ecrã,
-                // o que elimina o "bottom overflowed by N pixels".
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: SizedBox(
-                    height: alturaMapa,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Container(
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: _C.border)),
@@ -2599,8 +2644,7 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
                   ),
                 ),
                 const SizedBox(height: 10),
-              ]);
-              }),
+              ]),
         ),
         if (_selectedCaso != null && _selectedLatLng != null)
           SafeArea(top: false, child: Padding(

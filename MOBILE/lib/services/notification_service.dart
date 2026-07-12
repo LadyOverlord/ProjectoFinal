@@ -54,15 +54,11 @@ Future<Uint8List?> _baixarImagemNotificacao(String? url) async {
 }
 
 // ── Handler de toque em notificação local em background (top-level) ─────────
+// REMOVIDO: chamava handleNotificationNavigation(), que foi eliminada.
+// Fica registada (o flutter_local_notifications exige uma função aqui),
+// mas já não faz nada — tocar na notificação só abre a app.
 @pragma('vm:entry-point')
-void notificationTapBackground(NotificationResponse response) {
-  if (response.payload != null) {
-    try {
-      final data = jsonDecode(response.payload!) as Map<String, dynamic>;
-      NotificationService.instance.handleNotificationNavigation(data);
-    } catch (_) {}
-  }
-}
+void notificationTapBackground(NotificationResponse response) {}
 
 class NotificationService {
   NotificationService._();
@@ -77,8 +73,12 @@ class NotificationService {
   static const _channelDesc = 'Notificações urgentes de pessoas desaparecidas';
   static const _projectId   = 'missingao-88704';
 
-
-  static final navigatorKey = GlobalKey<NavigatorState>();
+  // REMOVIDO: navigatorKey e toda a navegação manual ao tocar numa
+  // notificação. A app já entra sempre pelo AuthCheck sozinha ao abrir
+  // (é o "home:" do MaterialApp) — tentar navegar manualmente para uma
+  // rota específica só duplicava esse caminho e, nalguns casos, saltava
+  // por completo essa verificação. Agora tocar numa notificação apenas
+  // abre a app normalmente; o AuthCheck trata do resto.
 
   // ── Inicializar ───────────────────────────────────────────────────────────
   Future<void> init() async {
@@ -121,14 +121,10 @@ class NotificationService {
     await _local.initialize(
       initSettings,
       // ── Toque na notificação local (app em foreground ou background) ─────
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (response.payload != null) {
-          try {
-            final data = jsonDecode(response.payload!) as Map<String, dynamic>;
-            handleNotificationNavigation(data);
-          } catch (_) {}
-        }
-      },
+      // REMOVIDO: chamava handleNotificationNavigation(), que foi
+      // eliminada. Tocar na notificação agora só abre a app — sem
+      // nenhuma navegação manual a mais.
+      onDidReceiveNotificationResponse: (NotificationResponse response) {},
       // ── Toque em notificação local quando a app estava terminada ─────────
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
@@ -154,23 +150,9 @@ class NotificationService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
-  // ── Navegar ao tocar na notificação ─────────────────────────────────────
-  // Abre a HomePage (feed) e logo a seguir o MapPage (localização no mapa)
-  void handleNotificationNavigation(Map<String, dynamic> data) {
-    final nav = navigatorKey.currentState;
-    if (nav == null) return;
-
-    debugPrint('🔔 Notificação tocada — payload: $data');
-
-    // Remove todos os ecrãs anteriores e abre o feed
-    nav.pushNamedAndRemoveUntil('/home', (_) => false);
-
-    // Após um frame, abre o mapa por cima do feed
-    // (o utilizador pode carregar "voltar" para ver o feed)
-    Future.delayed(const Duration(milliseconds: 250), () {
-      navigatorKey.currentState?.pushNamed('/map');
-    });
-  }
+  // REMOVIDO: handleNotificationNavigation(). Tocar numa notificação
+  // (local ou FCM) já não navega para lado nenhum manualmente — só abre
+  // a app, que entra sempre pelo AuthCheck sozinha.
 
   // ── Guardar token + localização após login ───────────────────────────────
   Future<void> salvarTokenAposLogin() async {

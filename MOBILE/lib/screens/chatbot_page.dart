@@ -1,7 +1,6 @@
 // screens/chatbot_page.dart
 // API Groq — chave em lib/config.dart (não versionado no git)
-// Adiciona ao config.dart:
-//   const String groqApiKey = 'SUA_CHAVE_GROQ_AQUI';
+
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -245,8 +244,8 @@ GUIA DE RESPOSTAS COMUNS
     }
   }
 
-  Future<void> _sendMessage(String message) async {
-    if (message.trim().isEmpty || _isLoading) return;
+  Future<void> _sendMessage(String message) async { //verifica se a mensagem está vazia;adiciona a mensagem do utilizador na interface;limpa o TextField;faz o scroll para baixo;guarda a pergunta no histórico;envia um POST para a Groq;recebe a resposta;adiciona a resposta ao histórico;mostra a resposta na tela.
+    if (message.trim().isEmpty || _isLoading) return; //clausula de guarda pra parar
 
     setState(() {
       _messages.add({'sender': 'user', 'text': message});

@@ -574,8 +574,14 @@ class _CasoCardState extends State<_CasoCard> {
   Future<void> _partilhar() async {
     final nome      = d['nome']     as String? ?? 'Desconhecido';
     final provincia = d['provincia'] as String? ?? 'Angola';
-    final url       = 'https://missingao-88704.web.app/?caso=${widget.doc.id}';
-    final texto     = '$nome desapareceu em $provincia. Partilhe para ajudar! Missing AO.\n$url';
+    final casoId    = widget.doc.id;
+    // NOVO/CORRIGIDO: volta a incluir o link para o caso no site web
+    // (o mesmo formato que o botão "Partilhar" do web já usa:
+    // ?caso=<id>), agora com o domínio público real do GitHub Pages —
+    // assim quem recebe a mensagem, mesmo sem a app instalada, consegue
+    // abrir e ver o caso directamente no browser.
+    final url = 'https://missing-ao.github.io/ProjectoFinal/?caso=$casoId';
+    final texto = '$nome desapareceu em $provincia. Partilhe para ajudar! Missing AO.\n$url';
 
     try {
       await Share.share(texto, subject: '🔍 $nome — Missing AO');

@@ -707,39 +707,15 @@
           </div>
 
           <div class="modal-loc-grid" style="display: grid; gap: 16px">
-            <!-- Lista de TODOS os casos (não só os sem coordenadas) -->
+            <!-- Lista de casos sem coordenadas -->
             <div>
-              <h4>Selecionar caso</h4>
-              <p style="margin: 2px 0 8px; font-size: 12px; color: #888">
-                Toque num caso para corrigir/mover a sua localização — os
-                que ainda não têm GPS aparecem primeiro.
-              </p>
-              <div
-                class="filter-input-wrap"
-                style="margin-bottom: 8px; max-width: 100%"
-              >
-                <input
-                  type="text"
-                  id="loc-edit-search"
-                  class="admin-input"
-                  placeholder="Pesquisar por nome, província ou município..."
-                  autocomplete="off"
-                />
-                <button
-                  id="loc-edit-search-clear"
-                  class="filter-clear-btn"
-                  title="Limpar"
-                  style="display: none"
-                >
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
+              <h4>Casos sem localização</h4>
               <div
                 id="lista-casos-sem-coord"
                 style="
                   border: 1px solid #ddd;
                   border-radius: 6px;
-                  height: 360px;
+                  height: 400px;
                   overflow-y: auto;
                 "
               ></div>
@@ -984,6 +960,10 @@
       </div>
     </div>
 
+    <!-- NOVO — MODAL: AJUSTAR TRUST SCORE MANUALMENTE
+         Slider com pré-visualização ao vivo do score resultante, tal
+         como no mobile (_AjustarScoreDialog) — mais prático do que
+         escrever um número num campo de texto. -->
     <div
       id="modal-ajustar-score"
       class="modal-overlay hidden"

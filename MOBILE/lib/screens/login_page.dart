@@ -50,6 +50,20 @@ class _LoginPageState extends State<LoginPage> {
           ? (userDoc.data() as Map<String, dynamic>)['role'] ?? 'user'
           : 'user';
 
+      // NOVO — CORRIGIDO: faltava esta verificação por completo. O login
+      // web (window.login em login_cadastro.js) já bloqueia a entrada de
+      // contas cujo email nunca foi confirmado (excepto admins); aqui no
+      // mobile entrava-se sempre, mesmo sem verificar. Termina a sessão
+      // de imediato e mostra o mesmo tipo de aviso que já existe no web,
+      // com opção de reenviar o email de verificação.
+      if (!userCredential.user!.emailVerified && role != 'admin') {
+        final userParaReenvio = userCredential.user!;
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        _mostrarDialogoVerificacaoEmail(email, userParaReenvio);
+        return;
+      }
+
       // Guardar token FCM após login
       await NotificationService.instance.salvarTokenAposLogin();
 
@@ -97,6 +111,78 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ── NOVO: modal de email não verificado, equivalente ao
+  // mostrarModalVerificacao() do web (login_cadastro.js) ────────────────
+  void _mostrarDialogoVerificacaoEmail(String email, User userParaReenvio) {
+    bool enviando = false;
+    bool enviado = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          icon: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF0077B6), size: 48),
+          title: const Text('Verifique o seu email'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'A sua conta ainda não confirmou o email:\n$email\n\n'
+                'Clique no link do email para activar a conta e depois faça login novamente.',
+                style: const TextStyle(fontSize: 14, height: 1.5),
+                textAlign: TextAlign.center,
+              ),
+              if (enviado) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  '✅ Email reenviado! Verifique a caixa de entrada (e o Spam).',
+                  style: TextStyle(color: Color(0xFF22C55E), fontSize: 13, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: enviando
+                  ? null
+                  : () async {
+                      setDialogState(() => enviando = true);
+                      try {
+                        await userParaReenvio.sendEmailVerification();
+                        setDialogState(() { enviando = false; enviado = true; });
+                      } catch (e) {
+                        setDialogState(() => enviando = false);
+                        if (dialogContext.mounted) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            SnackBar(content: Text('Não foi possível reenviar: $e')),
+                          );
+                        }
+                      }
+                    },
+              child: enviando
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Reenviar email'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0077B6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Fechar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Recuperar Senha ───────────────────────────────────

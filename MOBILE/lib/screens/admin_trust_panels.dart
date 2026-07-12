@@ -494,7 +494,15 @@ class _AdminTrustPanelState extends State<AdminTrustPanel> {
   Future<void> _carregar() async {
     setState(() => _loading = true);
     final snap = await _db.collection('users').get();
-    final lista = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    // CORRIGIDO: carregava TODOS os utilizadores, incluindo admins — que
+    // não devem ter Trust Score (não faz sentido uma conta admin ser
+    // suspensa por pontuação, já que é ela própria, geralmente, quem
+    // aplica essas penalizações a utilizadores comuns). Filtra aqui em
+    // vez de na query do Firestore, para não precisar de um índice novo.
+    final lista = snap.docs
+        .map((d) => {'id': d.id, ...d.data()})
+        .where((u) => (u['role'] ?? 'user') != 'admin')
+        .toList();
     lista.sort((a, b) {
       final sa = (a['trustScore'] as int?) ?? 100;
       final sb = (b['trustScore'] as int?) ?? 100;
