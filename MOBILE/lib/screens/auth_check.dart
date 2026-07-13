@@ -1,13 +1,13 @@
 // screens/auth_check.dart
-// MODIFICADO: verifica isSuspended e redireciona para SuspendedPage
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_page.dart';
 import 'home_page.dart';
 import 'admin_page.dart';
-import 'suspended_page.dart';          // ← NOVO
-import 'terms_acceptance_page.dart';   // ← NOVO
+import 'suspended_page.dart';          
+import 'terms_acceptance_page.dart';   
 import '../models/user_mode.dart';
 import '../services/notification_service.dart';
 
@@ -24,18 +24,11 @@ class AuthCheck extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
+//verificar se tem utilizador autenticado
         if (snapshot.hasData) {
           NotificationService.instance.salvarTokenAposLogin();
 
-          // CORRIGIDO: era FutureBuilder com .get() — uma leitura única, feita
-          // só no momento do login. Se o utilizador já estava dentro da app
-          // quando o admin o suspendia, esta verificação nunca voltava a
-          // correr (não há novo login, não há novo .get()), e ele continuava
-          // a usar a app normalmente até fazer logout/login de novo.
-          // Com .snapshots() (StreamBuilder), qualquer alteração a
-          // isSuspended/trustScore no Firestore chega em tempo real e o
-          // ecrã muda para SuspendedPage de imediato, sem precisar de sair.
+          
           return StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('users')
@@ -56,36 +49,20 @@ class AuthCheck extends StatelessWidget {
                 final trustScore  = userData['trustScore']  as int?  ?? 100;
                 final termosVersao = userData['termosVersao'] as String?;
 
-                // ── NOVO/CORRIGIDO: verificação de email obrigatória ───────
-                // Antes isto só era tentado no botão de login
-                // (login_page.dart), mas este StreamBuilder reage a
-                // authStateChanges() em tempo real — ou seja, assim que o
-                // Firebase Auth confirma o login (mesmo com email por
-                // verificar), ESTE código já decidia sozinho ir para a
-                // Home, numa corrida que ganhava sempre ao signOut() do
-                // botão. Por ser o único sítio que realmente controla para
-                // onde se navega, a verificação tem de estar aqui.
+               
                 final emailVerificado = snapshot.data!.emailVerified;
                 if (!emailVerificado && role != 'admin') {
                   return _TelaEmailNaoVerificado(email: snapshot.data!.email ?? '');
                 }
 
                 // ── NOVO: gate de aceitação de termos ──────────────────────
-                // Cobre tanto contas novas (nunca tiveram este campo) como
-                // já existentes (versão desactualizada). Fica ANTES da
-                // verificação de suspensão de propósito — aceitar os termos
-                // actuais é mais fundamental do que qualquer outro estado
-                // da conta, incluindo estar suspenso.
+                
                 if (termosVersao != kTermosVersaoActual) {
                   return const TermsAcceptancePage();
                 }
 
                 // ── suspensos vão para SuspendedPage ───────────────────────
-                // CORRIGIDO: admins não têm Trust Score (não faz sentido
-                // uma conta admin ser suspensa por pontuação — é ela
-                // própria, geralmente, quem aplica essas penalizações a
-                // utilizadores comuns). Antes esta verificação corria para
-                // todos os roles; agora ignora-a por completo para admins.
+                
                 if (role != 'admin' && (isSuspended || trustScore <= 0)) {
                   return const SuspendedPage();
                 }
@@ -108,11 +85,7 @@ class AuthCheck extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NOVO — ecrã bloqueante enquanto o email não é verificado (exceto admins).
-// Fica aqui (e não em login_page.dart) precisamente porque é o AuthCheck,
-// e só o AuthCheck, que decide o que aparece depois de um login com sucesso.
-// ─────────────────────────────────────────────────────────────────────────────
+
 class _TelaEmailNaoVerificado extends StatefulWidget {
   final String email;
   const _TelaEmailNaoVerificado({required this.email});
@@ -141,12 +114,6 @@ class _TelaEmailNaoVerificadoState extends State<_TelaEmailNaoVerificado> {
     }
   }
 
-  // NOVO: User.reload() actualiza os dados locais (incluindo
-  // emailVerified) a partir do servidor, mas NÃO dispara sozinho o
-  // authStateChanges() que o AuthCheck escuta — por isso, mesmo depois
-  // de confirmado no email, o ecrã não mudava sozinho. Reconstruir o
-  // AuthCheck manualmente (com um novo StreamBuilder) força uma nova
-  // leitura do currentUser já actualizado.
   Future<void> _jaVerifiquei() async {
     setState(() => _verificando = true);
     try {

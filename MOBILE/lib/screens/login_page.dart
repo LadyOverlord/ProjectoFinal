@@ -35,12 +35,12 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     setState(() => _isLoading = true);
-    try {
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+    try {  //verificar a senha e email
+      final userCredential = await FirebaseAuth.instance. signInWithEmailAndPassword(
         email:    email,
         password: senha,
       );
-
+ //verificar role
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -50,12 +50,7 @@ class _LoginPageState extends State<LoginPage> {
           ? (userDoc.data() as Map<String, dynamic>)['role'] ?? 'user'
           : 'user';
 
-      // NOVO — CORRIGIDO: faltava esta verificação por completo. O login
-      // web (window.login em login_cadastro.js) já bloqueia a entrada de
-      // contas cujo email nunca foi confirmado (excepto admins); aqui no
-      // mobile entrava-se sempre, mesmo sem verificar. Termina a sessão
-      // de imediato e mostra o mesmo tipo de aviso que já existe no web,
-      // com opção de reenviar o email de verificação.
+      
       if (!userCredential.user!.emailVerified && role != 'admin') {
         final userParaReenvio = userCredential.user!;
         await FirebaseAuth.instance.signOut();

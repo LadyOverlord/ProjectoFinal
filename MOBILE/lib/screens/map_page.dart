@@ -1,10 +1,4 @@
 // screens/map_page.dart
-// Mapa interativo completo — equivalente ao mapa da versão web
-// Marcadores com cores por status, InfoWindow ao tocar, filtros por status/província
-//
-// NOVO: aceita um `casoId` opcional. Quando vem preenchido (ex: vindo do
-// botão "Ver no mapa interativo" no modal de detalhes do card), o mapa
-// centra a câmara nesse caso e abre automaticamente o seu InfoCard.
 
 import 'dart:async';
 import 'dart:convert';
@@ -30,7 +24,7 @@ class _C {
   static const white   = Color(0xFFFFFFFF);
 }
 
-// ─── COORDENADAS POR PROVÍNCIA (equivalente ao COORDS_PROVINCIA do web) ─
+// ─── COORDENADAS POR PROVÍNCIA 
 const _coordsProvincia = {
   'luanda':         LatLng(-8.8368,  13.2343),
   'benguela':       LatLng(-12.5763, 13.4055),

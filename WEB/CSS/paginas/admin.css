@@ -1,10 +1,4 @@
-/* =====================================================
-   TOKENS — sistema consistente, construído sobre o que já
-   existe em variables.css (--color-quaternary, fontes, etc.),
-   não uma identidade nova. Substitui os 11 valores de
-   border-radius dispersos, os ~9 tons de cinzento ad-hoc, e
-   os 3 vermelhos / 2 verdes usados para o mesmo significado.
-   ===================================================== */
+
 :root {
   --gray-50:  #f8f9fa;
   --gray-100: #f1f3f5;
@@ -35,13 +29,7 @@
 body {
   display: none; /* Começa escondido — JS define display:flex após verificar role */
   flex-direction: column;
-  /* CORRIGIDO: era min-height:100vh. Com min-height o body podia crescer
-     mais alto que o ecrã, e como <html> tem overflow-y:hidden, esse
-     excesso ficava simplesmente invisível — sem scrollbar nenhuma. Com
-     height fixo a 100vh, o body ocupa exactamente o ecrã e é o
-     main.content (abaixo) que ganha scroll próprio para o conteúdo que
-     não cabe — é isso que faltava em Aprovações, Comentários, Trust
-     Scores e Suporte. */
+ 
   height: 100vh;
   overflow: hidden;
   background: var(--gray-50);
@@ -58,16 +46,10 @@ nav {
   padding: 10px 20px;
   margin-left: 20vw;
   width: calc(100% - 20vw);
-  flex-shrink: 0; /* NOVO — mantém a barra do topo com altura fixa
-    mesmo quando main.content cresce e ganha scroll próprio. */
+  flex-shrink: 0;
 }
 .search {
-  /* CORRIGIDO: esta barra só filtra Utilizadores (ver aplicarFiltrosUsuarios
-     no admin.js), mas ficava sempre visível em TODOS os painéis. Escrever
-     nela em Aprovações, Anúncios, Mapa, etc. saltava sempre para
-     Utilizadores sem qualquer aviso. Agora começa escondida por defeito;
-     o admin.js (_atualizarBarraPesquisaTopo) só a revela quando o
-     painel Utilizadores está activo. */
+ 
   display: none;
   align-items: center;
   background-color: var(--gray-100);
@@ -91,8 +73,7 @@ nav {
   padding: 0 14px 0 0;
 }
 
-/* ── Barra lateral — CORRIGIDO: era fundo #333 escuro, isolado contra
-   um painel inteiro claro. Passa a clara, coerente com o resto. ── */
+
 .options {
   display: flex;
   flex-direction: column;
@@ -154,11 +135,7 @@ main.content {
   margin-left: 20vw;
   padding: 24px;
   flex: 1;
-  /* NOVO — era isto que faltava para Aprovações, Comentários, Trust
-     Scores e Suporte conseguirem rolar. min-height:0 é crítico em
-     filhos flex: sem ele, o elemento tenta crescer ao tamanho do seu
-     conteúdo e empurra a página inteira, e como <html> tem
-     overflow-y:hidden esse excesso fica invisível em vez de dar scroll. */
+
   min-height: 0;
   overflow-y: auto;
 }

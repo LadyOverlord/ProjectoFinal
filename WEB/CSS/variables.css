@@ -2,13 +2,13 @@
 
 
 :root {
-  --color-primary: #eaeeef;
-  --color-secondary: #ffffff;
+  --color-primary: #eaeeef;/*cor do fundo */
+  --color-secondary: #ffffff; /*appbar*/
   --color-tertiary: #AED6F1;
-  --color-quaternary: #0c7ab5;
+  --color-quaternary: #0c7ab5;/*relatar,mapa de casos,filtrar*/
 
-  --color-text: #000000;
-  --btn-color:#484646;
+  --color-text: #000000;/*filtros*/
+  --btn-color:#484646;/*admin,termos*/
   --font-base:"Quicksand", sans-serif;
   --font-title:"Google Sans", sans-serif;
   --border-radius:4px;

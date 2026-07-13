@@ -1,11 +1,5 @@
 // screens/admin_page.dart
-// ✅ Dashboard com stats em tempo real + tabela de casos ativos com FILTRO
-// ✅ Filtros avançados de utilizadores (role, província, data, ordenação)
-// ✅ Painel de aprovações com mini-perfil do relator
-// ✅ Editar localização de casos no mapa (Google Maps)
-// ✅ Mapa de casos admin com legenda e lista de resumo (SEM barra de pesquisa)
-// ✅ Promover/rebaixar utilizadores para admin
-// ✅ Botão "Voltar ao App" — navega correctamente para HomePage
+
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -19,28 +13,28 @@ import '../services/trust_service.dart'; // ← Trust Score service
 import '../models/user_mode.dart';
 import 'home_page.dart'; // ← import da HomePage
 
-// PALETA DE CORES
 class _C {
-  static const bg        = Color(0xFF0D0D0F);
-  static const surface   = Color(0xFF141418);
-  static const card      = Color(0xFF1C1C22);
-  static const cardHover = Color(0xFF232329);
-  static const border    = Color(0xFF2A2A33);
-  static const accent    = Color(0xFF4F7EFF);
-  static const accentSoft= Color(0x264F7EFF);
-  static const green     = Color(0xFF22C55E);
-  static const greenSoft = Color(0x2222C55E);
-  static const orange    = Color(0xFFF59E0B);
-  static const orangeSoft= Color(0x26F59E0B);
-  static const red       = Color(0xFFEF4444);
-  static const redSoft   = Color(0x26EF4444);
-  static const purple    = Color(0xFF9B5DE5);
-  static const purpleSoft= Color(0x269B5DE5);
-  static const white     = Color(0xFFFFFFFF);
-  static const grey1     = Color(0xFFE4E4E7);
-  static const grey2     = Color(0xFFA1A1AA);
-  static const grey3     = Color(0xFF52525B);
-  static const grey4     = Color(0xFF3F3F46);
+  static const bg        = Color(0xFF0D0D0F); // fundo do Scaffold e do menu lateral/drawer
+  static const surface   = Color(0xFF141418); // fundo de: AppBar, barra de pesquisa, diálogos (Confirmar, Detalhes, Perfil, Relator), filtros, mapa de editar localização
+  static const card      = Color(0xFF1C1C22); // fundo dos CARTÕES em quase todo o lado: StatCard, cartões de caso (Dashboard/Aprovações), cartão de utilizador, cartões do Mapa, badge de notificações
+  static const cardHover = Color(0xFF232329); // cor do dropdown aberto (status do caso, filtros de utilizadores)
+  static const border    = Color(0xFF2A2A33); // contorno subtil — usado em quase TODOS os cartões/caixas do admin (AppBar, menu, cartões, filtros, botões redondos)
+  static const accent    = Color(0xFF4F7EFF); // azul principal — avatar do admin, item de menu activo, botões "Salvar/Aprovar", ícones de acção, caso "Ativo"
+  static const accentSoft= Color(0x264F7EFF); // fundo suave do accent — StatCard "Utilizadores", item de menu activo, badges "Activa" (localização/mapa), botão "Ver perfil"
+  static const green     = Color(0xFF22C55E); // sucesso — StatCard "Casos Ativos", badge "Encontrado", botão "Ir para App", "Aprovar", GPS activo, "Verificado"
+  static const greenSoft = Color(0x2222C55E); // fundo suave do green — botão "Voltar ao App" no menu, ícone "tudo em dia" nas Aprovações, badges verdes
+  static const orange    = Color(0xFFF59E0B); // aviso — botão "Corrigir" localização no Mapa, ícones "sem GPS", avisos de "não verificado"
+  static const orangeSoft= Color(0x26F59E0B); // fundo suave do orange — StatCard "Casos Pendentes", caixas de aviso no Mapa/Editar Localização
+  static const red       = Color(0xFFEF4444); // perigo — botão "Sair", "Remover utilizador", "Rejeitar caso", erros, badge "Suspenso"
+  static const redSoft   = Color(0x26EF4444); // fundo suave do red — botão "Sair" no menu, ícones de apagar/rejeitar
+  static const purple    = Color(0xFF9B5DE5); // acento decorativo — 2ª cor do gradiente do avatar (admin e utilizador), botão "Ver detalhes do caso", StatCard "Encontrados"
+  static const purpleSoft= Color(0x269B5DE5); // fundo suave do purple — botão de "Ver detalhes" na tabela de casos, StatCard "Encontrados"
+  static const navyDark  = Color(0xFF1A2444); // só no gradiente do cartão do logótipo "MissingAO", no topo do menu lateral
+  static const white     = Color(0xFFFFFFFF); // texto principal em fundos escuros/coloridos — títulos, botões, avatares
+  static const grey1     = Color(0xFFE4E4E7); // texto secundário mais claro — valores de campos (perfil, pesquisa, datas)
+  static const grey2     = Color(0xFFA1A1AA); // texto terciário — legendas, itens de menu inactivos, sub-textos de cartões
+  static const grey3     = Color(0xFF52525B); // texto apagado/ícones inactivos — labels pequenas, placeholders, caso "Desmentido"
+  static const grey4     = Color(0xFF3F3F46); // fundo neutro — avatar sem foto, barra de arrastar do modal de Editar Localização
 }
 
 // COORDENADAS DAS PROVÍNCIAS DE ANGOLA
@@ -255,7 +249,7 @@ class _AdminAvatar extends StatelessWidget {
     return Container(
       width: 40, height: 40,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF4F7EFF), Color(0xFF9B5DE5)]),
+        gradient: const LinearGradient(colors: [_C.accent, _C.purple]),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(child: Text(letter, style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 16))),
@@ -353,7 +347,7 @@ class _MenuContent extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF1A2444), Color(0xFF0D0D0F)],
+              colors: [_C.navyDark, _C.bg],
               begin: Alignment.topLeft, end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
@@ -364,7 +358,7 @@ class _MenuContent extends StatelessWidget {
               Container(
                 width: 36, height: 36,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [_C.accent, Color(0xFF9B5DE5)]),
+                  gradient: const LinearGradient(colors: [_C.accent, _C.purple]),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.location_searching_rounded, color: _C.white, size: 18),
@@ -1265,9 +1259,12 @@ class _UsersPanelState extends State<_UsersPanel> {
       // NOVO: admins não têm Trust Score — remove-o ao promover (some
       // logo da lista de Trust Scores, já filtrada por role) e repõe
       // um valor limpo (100) ao voltar a ser utilizador comum.
+      // CORRIGIDO: não limpava suspendedAt/suspensionReason — se a
+      // conta alguma vez tivesse sido suspensa antes, esses campos
+      // ficavam por limpar, criando um estado incoerente.
       final dados = novoRole == 'admin'
-          ? {'role': novoRole, 'trustScore': FieldValue.delete(), 'isSuspended': FieldValue.delete(), 'suspensionReason': FieldValue.delete()}
-          : {'role': novoRole, 'trustScore': 100, 'isSuspended': false};
+          ? {'role': novoRole, 'trustScore': FieldValue.delete(), 'isSuspended': FieldValue.delete(), 'suspensionReason': FieldValue.delete(), 'suspendedAt': FieldValue.delete()}
+          : {'role': novoRole, 'trustScore': 100, 'isSuspended': false, 'suspensionReason': FieldValue.delete(), 'suspendedAt': FieldValue.delete()};
       await FirebaseFirestore.instance.collection('users').doc(id).update(dados);
       _fetchUsers();
       if (mounted) {
@@ -1540,7 +1537,7 @@ class _UserCard extends StatelessWidget {
             width: 44, height: 44,
             decoration: BoxDecoration(
               gradient: foto == null
-                  ? LinearGradient(colors: isAdmin ? [const Color(0xFF4F7EFF), const Color(0xFF9B5DE5)] : [_C.grey4, _C.grey3])
+                  ? LinearGradient(colors: isAdmin ? [_C.accent, _C.purple] : [_C.grey4, _C.grey3])
                   : null,
               borderRadius: BorderRadius.circular(12),
               image: foto != null ? DecorationImage(image: MemoryImage(foto), fit: BoxFit.cover) : null,
@@ -1711,7 +1708,7 @@ class _UserProfileDialog extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: foto == null
                               ? LinearGradient(colors: isAdmin
-                                  ? [const Color(0xFF4F7EFF), const Color(0xFF9B5DE5)]
+                                  ? [_C.accent, _C.purple]
                                   : [_C.grey4, _C.grey3])
                               : null,
                           shape: BoxShape.circle,
@@ -2357,9 +2354,7 @@ class _EditarLocalizacaoSheet extends StatefulWidget {
 }
 
 class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
-  // ── ALTERADO: lista TODOS os casos (não só os sem coordenadas) ──────────
-  // Agora o admin pode corrigir/mover a localização de QUALQUER caso,
-  // não apenas dos que ainda não têm lat/lng definidos.
+  
   List<Map<String, dynamic>> _todosCasos = [];
   Map<String, dynamic>? _selectedCaso;
   LatLng? _selectedLatLng;
@@ -2379,10 +2374,7 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
     return double.tryParse(lat.toString()) != null && double.tryParse(lng.toString()) != null;
   }
 
-  // ── NOVO: guarda a mensagem de erro para mostrar na UI em vez de
-  // engolir silenciosamente — assim conseguimos ver POR QUE a lista
-  // de casos aparece vazia (ex: índice do Firestore em falta, regras
-  // de segurança a bloquear, sem ligação à internet, etc.)
+  
   String? _erroCarregamento;
 
   @override
@@ -2395,9 +2387,7 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
           .where('status', whereIn: ['aprovado', 'encontrado', 'desmentido']).get();
       _todosCasos = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
 
-      // ── NOVO: diagnóstico — se a query com filtro voltou vazia,
-      // verifica se a coleção 'casos' tem documentos sem esse filtro.
-      // Isto distingue "coleção vazia" de "nenhum status combina".
+      
       if (_todosCasos.isEmpty) {
         final snapTodos = await FirebaseFirestore.instance.collection('casos').limit(50).get();
         if (snapTodos.docs.isEmpty) {
@@ -2427,10 +2417,7 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
   }
 
   void _selectCaso(Map<String, dynamic> caso) {
-    // ── NOVO: se o caso já tem coordenadas, pré-carrega o marcador
-    // no mapa nessa posição, em vez de começar vazio — assim o admin
-    // vê de imediato onde o caso está marcado actualmente e pode
-    // simplesmente tocar num novo ponto para corrigir.
+    
     LatLng? posAtual;
     if (_temCoordValidas(caso)) {
       final lat = double.tryParse(caso['lat'].toString());
@@ -2554,12 +2541,7 @@ class _EditarLocalizacaoSheetState extends State<_EditarLocalizacaoSheet> {
                 const Text('Casos precisam de status: aprovado, encontrado ou desmentido.',
                   style: TextStyle(color: _C.grey3, fontSize: 11)),
               ]))
-            // CORRIGIDO: a versão anterior calculava a altura do mapa à
-            // mão (LayoutBuilder + números fixos "adivinhados" para a
-            // lista e a caixa de status) — se o texto ocupasse uma linha
-            // a mais em qualquer ecrã, a conta errava e voltava a
-            // estourar. Expanded resolve isto sozinho: ocupa sempre o
-            // espaço que sobra, nunca mais nem menos, sem cálculo nenhum.
+            
             : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Padding(padding: EdgeInsets.only(left: 20, bottom: 6),
                   child: Text('Selecionar caso  ·  toque para editar a localização', style: TextStyle(color: _C.grey2, fontSize: 12, fontWeight: FontWeight.w600))),

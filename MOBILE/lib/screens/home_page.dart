@@ -13,24 +13,37 @@ import 'chatbot_page.dart';
 import 'profile.dart';
 import 'create_caso_dialog.dart';
 import 'map_page.dart';
-import 'admin_page.dart'; // ← adiciona esta linha com os outros imports
-import 'suspended_page.dart'; // ← NOVO: para navegar directamente para lá
+import 'admin_page.dart'; 
+import 'suspended_page.dart'; 
 
-// ─── PALETA ─────────────────────────────────────────────
+
 class _C {
-  static const bg      = Color(0xFF0D0D0F);
-  static const surface = Color(0xFF141418);
-  static const card    = Color(0xFF1C1C22);
-  static const border  = Color(0xFF2A2A33);
-  static const accent  = Color(0xFF4F7EFF);
-  static const green   = Color(0xFF22C55E);
-  static const orange  = Color(0xFFF59E0B);
-  static const red     = Color(0xFFEF4444);
-  static const purple  = Color(0xFF9B5DE5);
-  static const grey1   = Color(0xFFE4E4E7);
-  static const grey2   = Color(0xFFA1A1AA);
-  static const grey3   = Color(0xFF52525B);
-  static const grey4   = Color(0xFF3F3F46);
+ 
+  static const bg      = Color(0xFF0D0D0F); // fundo geral do ecrã
+  static const surface = Color(0xFF141418); // fundo de balões
+  static const card    = Color(0xFF1C1C22); // fundo dos cartões de caso e outros blocos
+  static const border  = Color(0xFF2A2A33); // contorno subtil de cartões e inputs
+
+  
+  static const accent  = Color(0xFF4F7EFF); // azul principal — casos "Ativo", botões primários
+  static const green   = Color(0xFF22C55E); // caso "Encontrado", confirmações
+  static const orange  = Color(0xFFF59E0B); // avisos, secções de "roupas"/atenção
+  static const red     = Color(0xFFEF4444); // erros, apagar
+  static const purple   = Color(0xFF9B5DE5); // acento decorativo (ex: avatar por defeito)
+  static const brandBlue = Color(0xFF3D5AF1); // início do gradiente do avatar (com purple no fim)
+
+  
+  static const accentSoft = Color(0x264F7EFF); // fundo do badge "Ativo"
+  static const greenSoft  = Color(0x2222C55E); // fundo do badge "Encontrado"
+  static const greySoft   = Color(0x2652525B); // fundo do badge "Desmentido"
+  static const orangeSoft = Color(0x26F59E0B); // fundo de caixas de aviso (ex: "Roupas que usava")
+
+  
+  static const grey1   = Color(0xFFE4E4E7); // texto secundário claro
+  static const grey2   = Color(0xFFA1A1AA); // texto terciário
+  static const grey3   = Color(0xFF52525B); // texto apagado / ícones inactivos / caso "Desmentido"
+  static const grey4   = Color(0xFF3F3F46); // fundo de avatar sem foto
+
   static const white   = Color(0xFFFFFFFF);
 }
 
@@ -45,10 +58,10 @@ class _StatusCfg {
 
 _StatusCfg _statusCfg(String? status) {
   switch (status) {
-    case 'aprovado':   return const _StatusCfg('Ativo',      _C.accent, Color(0x264F7EFF), Icons.search_rounded);
-    case 'encontrado': return const _StatusCfg('Encontrado', _C.green,  Color(0x2222C55E), Icons.check_circle_rounded);
-    case 'desmentido': return const _StatusCfg('Desmentido', _C.grey3,  Color(0x2652525B), Icons.cancel_rounded);
-    default:           return const _StatusCfg('Ativo',      _C.accent, Color(0x264F7EFF), Icons.search_rounded);
+    case 'aprovado':   return const _StatusCfg('Ativo',      _C.accent, _C.accentSoft, Icons.search_rounded);
+    case 'encontrado': return const _StatusCfg('Encontrado', _C.green,  _C.greenSoft, Icons.check_circle_rounded);
+    case 'desmentido': return const _StatusCfg('Desmentido', _C.grey3,  _C.greySoft, Icons.cancel_rounded);
+    default:           return const _StatusCfg('Ativo',      _C.accent, _C.accentSoft, Icons.search_rounded);
   }
 }
 
@@ -121,12 +134,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // CORRIGIDO: antes só verificava isGuest — um utilizador suspenso
-  // (autenticado, mas com isSuspended=true ou trustScore<=0) passava
-  // directo para o diálogo de criação de caso. Esta verificação lê o
-  // estado actual no Firestore (não um valor em cache) mesmo que o
-  // AuthCheck ainda não tenha reagido por o utilizador estar numa
-  // página empilhada por cima da HomePage.
   Future<bool> _isUserSuspended() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
@@ -244,7 +251,7 @@ class _HomePageState extends State<HomePage> {
                     height: 38,
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0x264F7EFF),
+                      color: _C.accentSoft,
                       borderRadius: BorderRadius.circular(11),
                       border: Border.all(
                         color: _C.accent.withOpacity(0.35),
@@ -641,7 +648,7 @@ class _CasoCardState extends State<_CasoCard> {
                       Container(
                         width: 42, height: 42,
                         decoration: const BoxDecoration(
-                          gradient: LinearGradient(colors: [Color(0xFF3D5AF1), _C.purple]),
+                          gradient: LinearGradient(colors: [_C.brandBlue, _C.purple]),
                           shape: BoxShape.circle,
                         ),
                         child: Center(child: Text(letter, style: const TextStyle(color: _C.white, fontWeight: FontWeight.bold, fontSize: 16))),
@@ -694,7 +701,7 @@ class _CasoCardState extends State<_CasoCard> {
                           if (dias.isNotEmpty)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(color: const Color(0x26F59E0B), borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(color: _C.orangeSoft, borderRadius: BorderRadius.circular(8)),
                               child: Text(dias, style: const TextStyle(color: _C.orange, fontSize: 10, fontWeight: FontWeight.w600)),
                             ),
                         ],
@@ -795,9 +802,7 @@ class _ActionBtn extends StatelessWidget {
 }
 
 // ─── MODAL DE DETALHES COMPLETOS DO CASO ────────────────
-// NOVO — mostra TODA a informação sem truncar, imagem completa (sem
-// cortar, usando BoxFit.contain) e botão para abrir o caso directamente
-// no mapa interativo (MapPage focado no casoId).
+
 class _DetalhesCasoSheet extends StatelessWidget {
   final QueryDocumentSnapshot doc;
   final Uint8List? imageBytes;
@@ -1045,10 +1050,7 @@ class _DetalhesCasoSheet extends StatelessWidget {
                             ]),
                           );
                         }
-                        // CORRIGIDO: antes qualquer falha (incluindo erro de
-                        // permissão do Firestore) caía na mensagem genérica
-                        // "não foi possível encontrar", escondendo a causa
-                        // real. Agora distingue os dois casos.
+                       
                         if (snapshot.hasError) {
                           final msg = snapshot.error.toString();
                           final isPermissao = msg.contains('permission') || msg.contains('PERMISSION');
@@ -1324,7 +1326,7 @@ class _ComentariosBottomSheetState extends State<ComentariosBottomSheet> {
   }
 
   // NOVO: abre o perfil de quem comentou — equivalente ao link para
-  // profile.html?uid=... que já existe no web (comment-author-link).
+  
   void _abrirPerfilAutor(String uid) {
     Navigator.push(
       context,

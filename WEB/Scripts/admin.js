@@ -583,10 +583,15 @@ window.promoverUsuario = async function (id, roleAtual) {
     // NOVO: admins não têm Trust Score — remove-o ao promover (some
     // logo da lista de Trust Scores, já filtrada por role) e repõe um
     // valor limpo (100) ao voltar a ser utilizador comum.
+    // CORRIGIDO: não limpava suspendedAt/suspensionReason — se a conta
+    // alguma vez tivesse sido suspensa antes (mesmo que já reactivada
+    // depois), esses campos ficavam por limpar em qualquer dos dois
+    // sentidos, criando um estado incoerente (ex: isSuspended:false e
+    // trustScore:100 mas com um suspendedAt antigo ainda lá parado).
     const dados =
       novoRole === "admin"
-        ? { role: novoRole, trustScore: deleteField(), isSuspended: deleteField(), suspensionReason: deleteField() }
-        : { role: novoRole, trustScore: 100, isSuspended: false };
+        ? { role: novoRole, trustScore: deleteField(), isSuspended: deleteField(), suspensionReason: deleteField(), suspendedAt: deleteField() }
+        : { role: novoRole, trustScore: 100, isSuspended: false, suspensionReason: deleteField(), suspendedAt: deleteField() };
     await updateDoc(doc(db, "users", id), dados);
     showAlert(`✅ Role actualizado para: ${novoRole}`, {
       onOk: carregarUsuarios,

@@ -156,6 +156,26 @@ class NotificationService {
 
   // ── Guardar token + localização após login ───────────────────────────────
   Future<void> salvarTokenAposLogin() async {
+    // CORRIGIDO: gravava o token/localização sem verificar se o perfil
+    // do utilizador existia no Firestore — como _guardarTokenFirestore e
+    // _salvarLocalizacao usam .set(merge:true), isso CRIA um documento
+    // novo (só com esses campos) se não existir nenhum. Resultado: uma
+    // conta criada directamente no Firebase Console (sem passar pelo
+    // registo da app) acabava com um perfil "fantasma" ao fazer login —
+    // sem nome, email, província, etc., só com o que este método grava.
+    // Agora só grava se o perfil já existir a sério.
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!doc.exists) {
+        debugPrint('Utilizador ${user.uid} sem perfil no Firestore — não grava token nem localização.');
+        return;
+      }
+    } catch (e) {
+      debugPrint('Erro ao verificar perfil antes de guardar token: $e');
+      return;
+    }
     await _salvarToken();
     await _salvarLocalizacao();
   }
